@@ -44,3 +44,22 @@ As the memory graph grows, LifeAgent will evolve into a complete Life Management
 - [ ] **Phase 1**: Core Memory System & RAG implementation.
 - [ ] **Phase 2**: Proactive Trigger Engine (Cron jobs + LLM logic).
 - [ ] **Phase 3**: Evolution into a full Personal AI Agent.
+
+## CLI MVP
+
+The repo now includes a local Phase 1 CLI MVP that proves the first product loop:
+
+- Store long-term memories
+- Track user goals
+- Run a proactive review that flags stale goals or missing life updates
+
+### Quick Start
+
+```bash
+python -m pip install -e .
+nexus memory add "User wants to exercise every morning" --tags health routine
+nexus goal add "Morning workout" --description "20 minutes daily" --cadence-days 2
+nexus review
+```
+
+Data is stored locally in `.nexus/state.json`. Set `NEXUS_HOME` to move storage elsewhere.

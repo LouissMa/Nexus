@@ -1,0 +1,15 @@
+{
+  "memories": [],
+  "goals": [
+    {
+      "id": "eefe3aa5",
+      "title": "晨练",
+      "description": "每天 20 分钟",
+      "cadence_days": 2, 
+      "status": "active",
+      "created_at": "2026-03-12T13:33:10+00:00",
+      "last_check_in": null,
+      "check_ins": []
+    }
+  ]
+}

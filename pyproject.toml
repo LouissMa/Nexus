@@ -1,0 +1,22 @@
+[project]
+name = "nexus-lifeagent"
+version = "0.1.0"
+description = "NEXUS Phase 1 CLI MVP for memory, goals, and proactive reminders."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "OpenAI Codex" }
+]
+
+[project.scripts]
+nexus = "nexus.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,29 @@
+{
+  "memories": [
+    {
+      "id": "1c08d13d",
+      "text": "User wants to practice English daily",
+      "tags": [
+        "learning"
+      ],
+      "created_at": "2026-03-14T13:29:27+00:00"
+    }
+  ],
+  "goals": [
+    {
+      "id": "b7027cab",
+      "title": "Practice English",
+      "description": "15 minutes speaking",
+      "cadence_days": 1,
+      "status": "active",
+      "created_at": "2026-03-14T13:29:27+00:00",
+      "last_check_in": "2026-03-14T13:29:37+00:00",
+      "check_ins": [
+        {
+          "at": "2026-03-14T13:29:37+00:00",
+          "note": "Completed today's session"
+        }
+      ]
+    }
+  ]
+}

@@ -44,3 +44,22 @@
 - [ ] **Phase 1**: 搭建基础记忆系统 (Memory Engine & RAG)。
 - [ ] **Phase 2**: 开发主动触发引擎 (定时任务 + LLM 逻辑)。
 - [ ] **Phase 3**: 演化为完整的个人 AI Agent (接入更多外部工具)。
+
+## CLI MVP
+
+仓库现在已经包含一个本地可运行的 Phase 1 CLI MVP，用来先跑通第一条核心闭环：
+
+- 存储长期记忆
+- 跟踪用户目标
+- 执行主动检查，找出长时间未更新的目标或缺失的近况输入
+
+### 快速开始
+
+```bash
+python -m pip install -e .
+nexus memory add "用户想每天早晨锻炼" --tags 健康 习惯
+nexus goal add "晨练" --description "每天 20 分钟" --cadence-days 2
+nexus review
+```
+
+数据默认保存在 `.nexus/state.json`。如需修改存储位置，可设置 `NEXUS_HOME` 环境变量。
