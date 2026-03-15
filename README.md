@@ -36,7 +36,7 @@ As the memory graph grows, LifeAgent will evolve into a complete Life Management
 | :--- | :--- |
 | **Frontend** | React / Flutter |
 | **Backend** | Python / Node.js |
-| **AI / LLM** | OpenAI / Anthropic APIs |
+| **AI / LLM** | OpenAI / Anthropic APIs / Gemini|
 | **Memory** | Vector Database (e.g., Pinecone, Supabase) |
 
 ## 🗺️ Roadmap
