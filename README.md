@@ -1,4 +1,4 @@
-# 🌟 LifeAgent
+# 🌟 Nexus - LifeAgent
 
 > **Proactive Personal AI OS with Long-Term Memory.** > An AI that doesn't just chat, but remembers your life, tracks your progress, and proactively helps you achieve your goals.
 
