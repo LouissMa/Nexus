@@ -5,7 +5,7 @@ description = "NEXUS Phase 1 CLI MVP for memory, goals, and proactive reminders.
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  { name = "OpenAI Codex" }
+  { name = "Bingnan Ma" }
 ]
 
 [project.scripts]

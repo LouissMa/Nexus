@@ -18,6 +18,7 @@ def parse_timestamp(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
+#把 datetime 对象转成标准字符串。
 def isoformat(value: datetime) -> str:
     return value.astimezone(UTC).replace(microsecond=0).isoformat()
 
@@ -118,8 +119,8 @@ class NexusService:
             if now - reference_time >= timedelta(days=int(goal.get("cadence_days", 3))):
                 days_since = (now - reference_time).days
                 reminders.append(
-                    f"[goal:{goal['id']}] '{goal['title']}' has been quiet for {days_since} day(s). "
-                    f"Prompt the user to check in and unblock the next step."
+                    f"[goal:{goal['id']}]「{goal['title']}」已经 {days_since} 天没有更新了，"
+                    "建议今天做一次打卡，并明确下一步行动。"
                 )
 
         latest_memory = None
@@ -131,13 +132,98 @@ class NexusService:
             latest_memory_at = parse_timestamp(latest_memory["created_at"])
             if latest_memory_at and now - latest_memory_at >= timedelta(days=7):
                 reminders.append(
-                    "The user has not stored a new memory in 7+ days. Ask for a quick life update to refresh context."
+                    "你已经 7 天以上没有添加新的记忆了，建议补充一次最近的生活或学习状态。"
                 )
 
         return {
             "generated_at": isoformat(now),
             "reminders": reminders,
         }
+
+    def daily_briefing(
+        self,
+        user_name: str = "Louis",
+        weather: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        now = now or utc_now()
+        state = self.store.load()
+        active_goals = [
+            goal for goal in state.get("goals", [])
+            if goal.get("status") == "active"
+        ]
+        active_goals.sort(
+            key=lambda goal: (
+                parse_timestamp(goal.get("last_check_in"))
+                or parse_timestamp(goal.get("created_at"))
+                or now
+            )
+        )
+
+        important_goals = active_goals[:3]
+        reminders = self.proactive_review(now)["reminders"]
+        latest_memory = self._latest_memory(state)
+        weather_text = weather or "天气信息暂未接入"
+        date_text = f"{now.month}月{now.day}日"
+
+        if important_goals:
+            suggested_goal = important_goals[0]
+            suggestion = (
+                f"我建议你今天先推进「{suggested_goal['title']}」，"
+                "先做一个 30 分钟的小任务。"
+            )
+        elif latest_memory:
+            suggestion = f"你最近记录过：{latest_memory['text']}。今天可以围绕它安排一个小行动。"
+        else:
+            suggestion = "今天可以先添加一个长期目标，让我开始帮你追踪。"
+
+        lines = [
+            f"早上好，{user_name}。",
+            "",
+            f"今天是 {date_text}，{weather_text}。",
+            "",
+        ]
+
+        if important_goals:
+            lines.append(f"你今天有 {len(important_goals)} 件重要的事：")
+            lines.append("")
+            for index, goal in enumerate(important_goals, start=1):
+                description = goal.get("description")
+                if description:
+                    lines.append(f"{index}. {goal['title']} - {description}")
+                else:
+                    lines.append(f"{index}. {goal['title']}")
+        else:
+            lines.append("你今天还没有设置重要目标。")
+
+        lines.extend(["", suggestion])
+
+        if reminders:
+            lines.append("")
+            lines.append("另外，我注意到：")
+            lines.extend(f"- {reminder}" for reminder in reminders)
+
+        lines.extend(["", "今天不用做完所有事，先把最重要的一步往前推。"])
+
+        return {
+            "generated_at": isoformat(now),
+            "user_name": user_name,
+            "today": {
+                "date": date_text,
+                "weather": weather_text,
+            },
+            "important_goals": important_goals,
+            "reminders": reminders,
+            "suggestion": suggestion,
+            "briefing": "\n".join(lines),
+        }
+
+    @staticmethod
+    def _latest_memory(state: dict[str, Any]) -> dict[str, Any] | None:
+        memories = state.get("memories", [])
+        if not memories:
+            return None
+        return max(memories, key=lambda item: item["created_at"])
 
     @staticmethod
     def _goal_to_dict(goal: Goal) -> dict[str, Any]:

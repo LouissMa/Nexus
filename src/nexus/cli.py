@@ -47,6 +47,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional ISO timestamp for deterministic review runs.",
     )
 
+    briefing_parser = subparsers.add_parser("briefing", help="Generate a morning life briefing.")
+    briefing_parser.add_argument("--name", default="Louis", help="User name for the greeting.")
+    briefing_parser.add_argument("--weather", help="Optional weather summary.")
+    briefing_parser.add_argument(
+        "--now",
+        help="Optional ISO timestamp for deterministic briefing runs.",
+    )
+
     return parser
 
 
@@ -87,6 +95,11 @@ def main() -> None:
     if args.command == "review":
         now = datetime.fromisoformat(args.now) if args.now else None
         print_json(service.proactive_review(now))
+        return
+
+    if args.command == "briefing":
+        now = datetime.fromisoformat(args.now) if args.now else None
+        print_json(service.daily_briefing(args.name, args.weather, now))
         return
 
     parser.error("Unknown command")

@@ -1,37 +1,80 @@
-# 🌍 Product Vision: The Shift from Passive to Proactive AI
+# Product Vision: Nexus / LifeAgent
 
-## The Problem: The "Ask-and-Answer" Trap
-Today’s AI landscape is dominated by passive chatbots. Whether it's ChatGPT, Claude, or Gemini, they all operate on the same fundamental flaw: **They wait for you.**
-If you don't type a prompt, they do nothing. They don't care if you missed your workout, forgot your mother's birthday, or abandoned your goal to learn a new language.
+## One-Sentence Description
 
-## The Solution: NEXUS (Proactive Personal AI OS)
-We believe the true value of Artificial Intelligence lies not in answering trivia, but in **Life Management**. 
+**Nexus is a proactive personal AI assistant that manages your daily life, remembers your goals, and helps you take action.**
 
-NEXUS is designed to be a proactive digital companion and your personal operating system. It shifts the paradigm from:
-* *Passive:* User asks → AI answers.
-* *Proactive:* AI observes → AI remembers → AI initiates action.
+中文：
 
-## Core Tenets
-1.  **Memory is the Moat:** An AI is only as good as its context. By remembering a user's life over months and years, the switching cost becomes infinitely high.
-2.  **Proactivity over Interactivity:** NEXUS reaches out to the user via push notifications or messages when the user deviates from their stated goals.
-3.  **Digital Persona:** Over time, the AI will adapt to the user's communication style, evolving from a sterile assistant into a trusted digital twin.
+**Nexus 是一个具备长期记忆和主动性的个人 AI 管家，它会记住你的目标、理解你的日程，并每天主动帮助你规划生活。**
 
----
+## Why Nexus Exists
 
-# 🌍 产品愿景：从“被动”到“主动”的 AI 革命
+Most AI assistants are passive. They wait for users to ask questions.
 
-## 痛点：深陷“你问我答”的陷阱
-当今的 AI 产品几乎全是被动式的聊天机器人。无论是 ChatGPT 还是其他大模型，它们都有一个根本性的缺陷：**它们永远在等你发号施令。**
-如果你不输入提示词，它们什么都不会做。它们不关心你是否错过了今天的锻炼，是否忘记了家人的生日，或者是否放弃了最初设定的学习目标。
+Nexus is designed around a different interaction model:
 
-## 解决方案：NEXUS (主动式个人 AI 操作系统)
-我们认为，人工智能真正的价值不在于回答百科问题，而在于**生活管理**。
+```text
+AI remembers -> AI understands context -> AI notices timing -> AI helps the user act
+```
 
-NEXUS 被设计为一个主动式的数字伴侣和个人操作系统。它将彻底改变现有的交互范式：
-* *被动式：* 用户提问 → AI 回答。
-* *主动式：* AI 观察 → AI 记忆 → AI 主动出击。
+The product should feel less like a search box and more like a personal life companion that knows what matters to the user.
 
-## 核心理念
-1.  **记忆即护城河：** AI 的智商取决于它对你的了解程度。当 NEXUS 记住了你数月乃至数年的生活轨迹，用户的转换成本（Switching Cost）将变得无限高。
-2.  **主动重于交互：** 当用户偏离既定目标时，NEXUS 会通过推送或消息主动联系用户，起到监督和推进的作用。
-3.  **数字分身：** 随着时间的推移，AI 会适应用户的沟通风格，从一个冷冰冰的助手，进化为值得信赖的数字分身。
+## Core Product Feeling
+
+The most important first experience is the morning briefing:
+
+```text
+早上好，Louis。
+
+今天是 6月4日，天气晴，最高 25 C。
+
+你今天有 3 件重要的事：
+
+1. 上午 10:00 操作系统复盘
+2. 下午 2:00 完成 IELTS 听力训练
+3. 晚上继续开发 Nexus 项目
+
+你昨天说今天想推进 AI 项目，所以我建议你今晚先完成目标提醒模块。
+
+另外，你最近连续两天睡得比较晚，今天晚上建议 12 点前休息。
+```
+
+That is the emotional and product target: proactive, personal, contextual, and action-oriented.
+
+## Product Principles
+
+1. **Proactive before conversational**: Nexus should not only answer. It should remind, summarize, and suggest next actions.
+2. **Memory before intelligence**: The assistant becomes useful because it remembers the user's goals, context, preferences, and progress.
+3. **Small actions over big plans**: The assistant should turn goals into small, doable next steps.
+4. **Trust through restraint**: The MVP should avoid pretending to know data it has not integrated yet. Weather, calendar, email, and health data should be explicit inputs until real integrations exist.
+5. **Companion plus coach**: Nexus should support the user emotionally while still moving work forward.
+
+## MVP Definition
+
+The first version only needs four capabilities:
+
+1. Add memory.
+2. Add goal.
+3. Check in on a goal.
+4. Generate a daily proactive briefing.
+
+This creates the first product loop:
+
+```text
+remember me -> know my goals -> track progress -> brief me every morning
+```
+
+## Long-Term Vision
+
+Nexus can grow into a Personal AI Operating System:
+
+- Morning briefing
+- Long-term memory
+- Goal tracker
+- Real-time conversation
+- Command system
+- Daily review
+- Personal coach modes
+- Life dashboard
+- Calendar, weather, email, todo, Notion, GitHub, and health integrations

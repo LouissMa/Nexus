@@ -1,65 +1,93 @@
-# 🌟 Nexus
+# Nexus / LifeAgent
 
-> **Proactive Personal AI OS with Long-Term Memory.** > An AI that doesn't just chat, but remembers your life, tracks your progress, and proactively helps you achieve your goals.
+> **A proactive personal AI operating system for daily life.**
 
-[English](./README.md) | [中文](./README_zh.md)
+Nexus is not a normal chatbot. It is a J.A.R.V.I.S.-like personal AI assistant that remembers your goals, understands your life context, and helps you take action every day.
+
+[English](./README.md) | [Chinese](./README_zh.md)
 
 ---
 
-## 💡 Vision
+## Product Direction
 
-Current AI tools are entirely passive: **You ask → AI answers.** Nexus breaks this paradigm. It acts as your personal digital twin and life manager. It remembers your context, understands your long-term objectives, and initiates conversations to keep you on track.
+Most AI assistants are passive. They wait for users to ask questions.
 
-## ✨ Core Features
+Nexus is different.
 
-* **🧠 Long-Term Memory Engine**: Remembers your habits, career goals, relationships, and past conversations.
-* **🔔 Proactive Intelligence**: Analyzes your progress and initiates reminders, encouragement, or course corrections without you prompting it.
-* **🎯 Personal Goal Tracking**: Keeps your KPIs (health, learning, productivity) in check over months and years.
+Nexus is a proactive personal AI assistant that manages daily life, remembers long-term goals, tracks progress, and generates useful guidance at the right moment.
 
-## 🚀 MVP (Minimum Viable Product)
+The long-term vision is to build a **Personal AI Operating System** for everyday life.
 
-Our initial release focuses strictly on establishing the foundational loop:
-1.  **Memory System**: Store and retrieve user context.
-2.  **Goal Tracking**: Define and monitor specific user objectives.
-3.  **Proactive Reminders**: Time-based and context-aware push notifications via AI.
+## MVP Focus
 
-## 🔮 Future Vision
+The first version stays intentionally small. It proves one core loop:
 
-As the memory graph grows, Nexus will evolve into a complete Life Management OS:
-* Automated Calendar & Task Management
-* Smart Email Triage & Auto-replies
-* A true Digital Persona with an emotional moat
+1. Remember who the user is.
+2. Know what the user wants to do.
+3. Track progress through check-ins.
+4. Generate a daily proactive briefing.
 
-## 🛠️ Tech Stack (Planned)
+## Current Version Features
 
-| Component | Technology |
-| :--- | :--- |
-| **Frontend** | React / Flutter |
-| **Backend** | Python / Node.js |
-| **AI / LLM** | OpenAI / Anthropic APIs / Gemini|
-| **Memory** | Vector Database (e.g., Pinecone, Supabase) |
+- **Add Memory**: Store long-term context such as identity, preferences, plans, exams, projects, and important life facts.
+- **Add Goal**: Create goals with descriptions and check-in cadence.
+- **Goal Check-In**: Record progress notes for a goal.
+- **Proactive Review**: Detect goals that have been quiet for too long.
+- **Morning Briefing**: Generate a daily life briefing with date, weather text, important goals, reminders, and one suggested next action.
+- **Local JSON Storage**: Keep all MVP data in `.nexus/state.json` by default.
 
-## 🗺️ Roadmap
+## Example Morning Briefing
 
-- [ ] **Phase 1**: Core Memory System & RAG implementation.
-- [ ] **Phase 2**: Proactive Trigger Engine (Cron jobs + LLM logic).
-- [ ] **Phase 3**: Evolution into a full Personal AI Agent.
+```text
+Good morning, Louis.
 
-## CLI MVP
+Today is June 4. Weather: sunny, high 25 C.
 
-The repo now includes a local Phase 1 CLI MVP that proves the first product loop:
+You have 3 important things today:
 
-- Store long-term memories
-- Track user goals
-- Run a proactive review that flags stale goals or missing life updates
+1. Operating systems review
+2. IELTS listening practice
+3. Continue developing Nexus
 
-### Quick Start
+I suggest you start with "Continue developing Nexus" and finish one 30-minute task.
+
+You do not need to finish everything today. Move the most important step forward first.
+```
+
+## Quick Start
 
 ```bash
 python -m pip install -e .
-nexus memory add "User wants to exercise every morning" --tags health routine
-nexus goal add "Morning workout" --description "20 minutes daily" --cadence-days 2
-nexus review
+
+nexus memory add "Louis is preparing for IELTS and wants to apply for an overseas CS/AI master's program." --tags identity study
+nexus goal add "IELTS listening practice" --description "Complete one focused listening session" --cadence-days 1
+nexus goal add "Develop Nexus" --description "Build the morning briefing module" --cadence-days 2
+nexus briefing --name Louis --weather "weather is sunny, high 25 C"
 ```
+
+## CLI Commands
+
+```bash
+nexus memory add "..." --tags study project
+nexus memory list
+nexus memory search IELTS
+
+nexus goal add "Develop Nexus" --description "Ship MVP features" --cadence-days 2
+nexus goal list
+nexus goal check-in <goal_id> "Finished the first implementation."
+
+nexus review
+nexus briefing --name Louis --weather "weather is sunny, high 25 C"
+```
+
+## Roadmap
+
+- **Phase 1: LifeAgent CLI MVP**: memory, goals, check-ins, morning briefing.
+- **Phase 2: Daily Review and Modes**: evening review, strict/gentle/academic/startup coaching modes.
+- **Phase 3: Life Dashboard**: web dashboard for goals, memory timeline, habits, and AI suggestions.
+- **Phase 4: Integrations**: calendar, weather API, email, todo apps, Notion, GitHub, and health data.
+- **Phase 5: Personal AI OS**: proactive planning, permissioned task execution, and deeper long-term personalization.
+
+## Storage
 
 Data is stored locally in `.nexus/state.json`. Set `NEXUS_HOME` to move storage elsewhere.

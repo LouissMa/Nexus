@@ -1,44 +1,104 @@
-# 🏗️ System Architecture (MVP Phase)
+# Nexus MVP Architecture
 
-NEXUS operates on a decoupled architecture, separating the core AI logic from the frontend interfaces.
+The current version is a local CLI MVP. It intentionally avoids external APIs until the core product loop is proven.
 
-## High-Level Data Flow
+## Current Architecture
 
 ```text
-[User] 
-  │
-  ▼ (Text Input via CLI / Telegram Bot)
-[Frontend Interface]
-  │
-  ▼ (API Request)
-[Backend Server (Python/Node)] ◄────────── [Proactive Engine / Cron Job]
-  │                                                │
-  ├─► [Memory Engine]                              │ (Timer triggers AI
-  │     │                                          │  to check on user)
-  │     ▼                                          │
-  │   [Vector DB (Context/History)]                │
-  │   [SQL DB (Goals/Habits)]                      │
-  │                                                │
-  └─► [LLM Controller] ◄───────────────────────────┘
-        │
-        ▼
-      [LLM API (OpenAI/Anthropic)]
+[User]
+  |
+  v
+[Nexus CLI]
+  |
+  v
+[NexusService]
+  |-- Memory operations
+  |-- Goal operations
+  |-- Goal check-ins
+  |-- Proactive review
+  |-- Morning briefing
+  |
+  v
+[JsonStore]
+  |
+  v
+[.nexus/state.json]
+```
 
-[用户 User] 
-  │
-  ▼ (通过命令行或 Bot 输入文本)
-[前端交互层 Frontend]
-  │
-  ▼ (API 请求)
-[后端服务器 Backend] ◄───────────────────── [主动引擎 Proactive Engine]
-  │                                                │
-  ├─► [记忆引擎 Memory Engine]                     │ (定时器触发 AI
-  │     │                                          │  主动检查用户状态)
-  │     ▼                                          │
-  │   [向量数据库 (存对话/上下文)]                   │
-  │   [关系型数据库 (存目标/习惯)]                   │
-  │                                                │
-  └─► [模型控制器 LLM Controller] ◄────────────────┘
-        │
-        ▼
-      [外部大模型 API (如 OpenAI)]
+## Current Modules
+
+- `src/nexus/cli.py`: command-line interface and argument parsing.
+- `src/nexus/service.py`: product logic for memory, goals, check-ins, review, and briefing.
+- `src/nexus/store.py`: local JSON persistence.
+- `tests/test_cli.py`: end-to-end CLI flow tests.
+
+## Data Model
+
+```text
+Memory
+- id
+- text
+- tags
+- created_at
+
+Goal
+- id
+- title
+- description
+- cadence_days
+- status
+- created_at
+- last_check_in
+- check_ins
+
+CheckIn
+- at
+- note
+```
+
+## MVP Data Flow
+
+```text
+Add memory
+  -> save user context
+
+Add goal
+  -> save target and cadence
+
+Check in
+  -> update progress timestamp and note
+
+Briefing
+  -> load memories and active goals
+  -> select up to three important goals
+  -> run proactive review
+  -> generate daily text summary
+```
+
+## Future Architecture
+
+```text
+[User]
+  |
+  v
+[CLI / Web / Mobile / Chat]
+  |
+  v
+[Backend API]
+  |-- Memory engine
+  |-- Goal engine
+  |-- Briefing engine
+  |-- Review engine
+  |-- Coach mode controller
+  |-- Integration adapters
+  |
+  +--> [Relational DB: goals, tasks, habits]
+  +--> [Vector DB: long-term semantic memory]
+  +--> [Scheduler: morning briefing, evening review, reminders]
+  +--> [LLM API: reasoning and generation]
+  +--> [External tools: calendar, weather, email, Notion, GitHub, health]
+```
+
+## Design Constraint
+
+Nexus should not fake integrations. Until calendar, weather, email, and health data are connected, the CLI accepts explicit text inputs such as `--weather` and uses stored memories/goals as the main context.
