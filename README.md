@@ -1,4 +1,4 @@
-# 🌟 Nexus - LifeAgent
+# 🌟 Nexus
 
 > **Proactive Personal AI OS with Long-Term Memory.** > An AI that doesn't just chat, but remembers your life, tracks your progress, and proactively helps you achieve your goals.
 
@@ -8,7 +8,7 @@
 
 ## 💡 Vision
 
-Current AI tools are entirely passive: **You ask → AI answers.** LifeAgent breaks this paradigm. It acts as your personal digital twin and life manager. It remembers your context, understands your long-term objectives, and initiates conversations to keep you on track.
+Current AI tools are entirely passive: **You ask → AI answers.** Nexus breaks this paradigm. It acts as your personal digital twin and life manager. It remembers your context, understands your long-term objectives, and initiates conversations to keep you on track.
 
 ## ✨ Core Features
 
@@ -25,7 +25,7 @@ Our initial release focuses strictly on establishing the foundational loop:
 
 ## 🔮 Future Vision
 
-As the memory graph grows, LifeAgent will evolve into a complete Life Management OS:
+As the memory graph grows, Nexus will evolve into a complete Life Management OS:
 * Automated Calendar & Task Management
 * Smart Email Triage & Auto-replies
 * A true Digital Persona with an emotional moat
