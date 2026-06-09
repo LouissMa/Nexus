@@ -4,7 +4,7 @@
 
 Nexus is not a normal chatbot. It is a J.A.R.V.I.S.-like personal AI assistant that remembers your goals, understands your life context, and helps you take action every day.
 
-[English](./README.md) | [Chinese](./README_zh.md)
+[English](./README.md) | [Chinese](./README_zh.md)！
 
 ---
 
