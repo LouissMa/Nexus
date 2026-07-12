@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -6,6 +6,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Mapping
+
+from .config import LLMSettings, load_llm_settings
 
 
 class LLMError(RuntimeError):
@@ -18,16 +20,24 @@ class LLMConfig:
     model: str = "gpt-4o-mini"
     base_url: str = "https://api.openai.com/v1"
     timeout_seconds: int = 30
+    provider: str = "openai"
+    model_tier: str = "simple"
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> "LLMConfig":
-        values = env or os.environ
-        timeout = values.get("NEXUS_LLM_TIMEOUT_SECONDS", "30")
+    def from_env(cls, env: Mapping[str, str] | None = None, model_tier: str | None = None) -> "LLMConfig":
+        settings = load_llm_settings(dict(env) if env is not None else None)
+        return cls.from_settings(settings, model_tier=model_tier)
+
+    @classmethod
+    def from_settings(cls, settings: LLMSettings, model_tier: str | None = None) -> "LLMConfig":
+        tier = model_tier or settings.default_tier
         return cls(
-            api_key=values.get("NEXUS_LLM_API_KEY") or values.get("OPENAI_API_KEY"),
-            model=values.get("NEXUS_LLM_MODEL", "gpt-4o-mini"),
-            base_url=values.get("NEXUS_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
-            timeout_seconds=int(timeout),
+            api_key=settings.api_key,
+            model=settings.model_for_tier(tier),
+            base_url=settings.base_url,
+            timeout_seconds=settings.timeout_seconds,
+            provider=settings.provider,
+            model_tier=tier,
         )
 
     @property
@@ -41,7 +51,9 @@ class OpenAICompatibleLLM:
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         if not self.config.api_key:
-            raise LLMError("LLM is not configured. Set NEXUS_LLM_API_KEY or OPENAI_API_KEY.")
+            raise LLMError(
+                "LLM is not configured. Run `nexus config llm set ...` or set NEXUS_LLM_API_KEY/OPENAI_API_KEY."
+            )
 
         payload = {
             "model": self.config.model,

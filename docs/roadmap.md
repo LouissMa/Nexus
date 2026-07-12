@@ -69,3 +69,5 @@ Objective: evolve Nexus from assistant to permissioned personal operating layer.
 - [ ] Memory agent.
 - [ ] Tool agent.
 - [ ] Multi-channel delivery: CLI, web, mobile, chat, and notifications.
+
+

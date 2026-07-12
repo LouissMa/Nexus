@@ -6,6 +6,7 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from .llm import LLMError
+from .rag import MemoryRetriever
 from .store import JsonStore
 
 
@@ -55,20 +56,27 @@ class Goal:
 
 
 class NexusService:
-    def __init__(self, store: JsonStore, llm: BriefingLLM | None = None):
+    def __init__(
+        self,
+        store: JsonStore,
+        llm: BriefingLLM | None = None,
+        memory_retriever: MemoryRetriever | None = None,
+    ):
         self.store = store
         self.llm = llm
+        self.memory_retriever = memory_retriever or MemoryRetriever()
 
     def add_memory(self, text: str, tags: list[str]) -> Memory:
         state = self.store.load()
         memory = Memory(id=str(uuid4())[:8], text=text.strip(), tags=tags)
-        state["memories"].append(asdict(memory))
+        state["memories"].append(self.memory_retriever.enrich_memory(asdict(memory)))
         self.store.save(state)
         return memory
 
     def list_memories(self) -> list[dict[str, Any]]:
         state = self.store.load()
-        return sorted(state["memories"], key=lambda item: item["created_at"], reverse=True)
+        memories = sorted(state["memories"], key=lambda item: item["created_at"], reverse=True)
+        return [self._public_memory(memory) for memory in memories]
 
     def search_memories(self, query: str) -> list[dict[str, Any]]:
         terms = {part.lower() for part in query.split() if part.strip()}
@@ -80,6 +88,10 @@ class NexusService:
                 results.append((score, memory))
         results.sort(key=lambda item: (-item[0], item[1]["created_at"]), reverse=False)
         return [memory for _, memory in results]
+
+    def retrieve_memories(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        state = self.store.load()
+        return self.memory_retriever.retrieve(state.get("memories", []), query, limit)
 
     def add_goal(self, title: str, description: str, cadence_days: int) -> Goal:
         state = self.store.load()
@@ -180,6 +192,7 @@ class NexusService:
             },
             "important_goals": context["important_goals"],
             "relevant_memories": context["relevant_memories"],
+            "memory_retrieval": context["memory_retrieval"],
             "reminders": context["reminders"],
             "suggestion": context["suggestion"],
             "briefing": briefing,
@@ -214,10 +227,15 @@ class NexusService:
         )
 
         important_goals = active_goals[:3]
-        relevant_memories = self._recent_memories(state, limit=8)
         reminders = self.proactive_review(now)["reminders"]
         weather_text = weather or "天气信息暂未接入"
         date_text = f"{now.month}月{now.day}日"
+        memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
+        relevant_memories = self.memory_retriever.retrieve(state.get("memories", []), memory_query, limit=8)
+        retrieval_strategy = "local_sparse_embedding"
+        if not relevant_memories:
+            relevant_memories = self._recent_memories(state, limit=8)
+            retrieval_strategy = "recent_memory_fallback"
 
         if important_goals:
             suggested_goal = important_goals[0]
@@ -236,6 +254,11 @@ class NexusService:
             "weather_text": weather_text,
             "important_goals": important_goals,
             "relevant_memories": relevant_memories,
+            "memory_retrieval": {
+                "query": memory_query,
+                "strategy": retrieval_strategy,
+                "limit": 8,
+            },
             "reminders": reminders,
             "suggestion": suggestion,
         }
@@ -276,11 +299,15 @@ class NexusService:
             "You are Nexus, a proactive personal AI life assistant. "
             "Write in Chinese. Be concise, warm, concrete, and action-oriented. "
             "Do not invent calendar, weather, health, or email data that is not provided. "
+            "Use retrieved long-term memories only when they are relevant. "
             "Turn goals into small next actions."
         )
         memories = self._format_items(
             context["relevant_memories"],
-            lambda item: f"- {item['text']} (tags: {', '.join(item.get('tags', [])) or 'none'})",
+            lambda item: (
+                f"- {item['text']} (tags: {', '.join(item.get('tags', [])) or 'none'}; "
+                f"score: {item.get('retrieval_score', 'fallback')})"
+            ),
         )
         goals = self._format_items(
             context["important_goals"],
@@ -296,6 +323,10 @@ class NexusService:
 Today:
 - Date: {context['date_text']}
 - Weather: {context['weather_text']}
+
+Memory retrieval:
+- Strategy: {context['memory_retrieval']['strategy']}
+- Query: {context['memory_retrieval']['query']}
 
 Relevant long-term memories:
 {memories}
@@ -325,6 +356,26 @@ Output format:
         return "\n".join(formatter(item) for item in items)
 
     @staticmethod
+    def _build_memory_query(
+        user_name: str,
+        weather_text: str,
+        important_goals: list[dict[str, Any]],
+        reminders: list[str],
+    ) -> str:
+        goal_text = " ".join(
+            f"{goal.get('title', '')} {goal.get('description', '')}"
+            for goal in important_goals
+        )
+        reminder_text = " ".join(reminders)
+        return f"{user_name} morning briefing {weather_text} {goal_text} {reminder_text}".strip()
+
+    @staticmethod
+    def _public_memory(memory: dict[str, Any]) -> dict[str, Any]:
+        public = dict(memory)
+        public.pop("embedding", None)
+        return public
+
+    @staticmethod
     def _latest_memory(state: dict[str, Any]) -> dict[str, Any] | None:
         memories = state.get("memories", [])
         if not memories:
@@ -334,7 +385,8 @@ Output format:
     @staticmethod
     def _recent_memories(state: dict[str, Any], limit: int) -> list[dict[str, Any]]:
         memories = state.get("memories", [])
-        return sorted(memories, key=lambda item: item["created_at"], reverse=True)[:limit]
+        public_memories = [NexusService._public_memory(memory) for memory in memories]
+        return sorted(public_memories, key=lambda item: item["created_at"], reverse=True)[:limit]
 
     @staticmethod
     def _goal_to_dict(goal: Goal) -> dict[str, Any]:

@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from nexus.config import load_llm_settings
 from nexus.service import NexusService
 from nexus.store import JsonStore
 
@@ -26,7 +27,7 @@ def run_cli(*args: str, env: dict[str, str]) -> dict:
     return json.loads(result.stdout)
 
 
-def test_memory_goal_and_review_flow(tmp_path: Path) -> None:
+def test_memory_goal_review_and_rag_briefing_flow(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src")
     env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
@@ -35,12 +36,22 @@ def test_memory_goal_and_review_flow(tmp_path: Path) -> None:
 
     memory = run_cli("memory", "add", "User wants to practice English daily", "--tags", "learning", env=env)
     assert memory["status"] == "ok"
+    run_cli("memory", "add", "User is building a personal AI operating system called Nexus", "--tags", "project", env=env)
+
+    state = json.loads((tmp_path / "nexus-home" / "state.json").read_text(encoding="utf-8"))
+    assert "embedding" in state["memories"][0]
 
     goal = run_cli("goal", "add", "Practice English", "--description", "15 minutes speaking", "--cadence-days", "1", env=env)
     goal_id = goal["goal"]["id"]
 
     search = run_cli("memory", "search", "English", env=env)
     assert len(search["results"]) == 1
+    assert "embedding" not in search["results"][0]
+
+    retrieved = run_cli("memory", "retrieve", "English speaking practice", "--limit", "1", env=env)
+    assert retrieved["results"][0]["text"] == "User wants to practice English daily"
+    assert retrieved["results"][0]["retrieval_score"] > 0
+    assert "embedding" not in retrieved["results"][0]
 
     review = run_cli("review", "--now", "2030-01-03T00:00:00+00:00", env=env)
     assert any(goal_id in reminder for reminder in review["reminders"])
@@ -59,6 +70,7 @@ def test_memory_goal_and_review_flow(tmp_path: Path) -> None:
     assert briefing["today"]["date"] == "1月3日"
     assert briefing["important_goals"][0]["id"] == goal_id
     assert briefing["relevant_memories"][0]["text"] == "User wants to practice English daily"
+    assert briefing["memory_retrieval"]["strategy"] == "local_sparse_embedding"
     assert briefing["llm"] == {"requested": False, "used": False, "error": None}
     assert "Practice English" in briefing["briefing"]
     assert "Louis" in briefing["briefing"]
@@ -74,10 +86,53 @@ def test_memory_goal_and_review_flow(tmp_path: Path) -> None:
     assert llm_fallback["llm"]["requested"] is True
     assert llm_fallback["llm"]["used"] is False
     assert "not configured" in llm_fallback["llm"]["error"]
-    assert "prompt" in llm_fallback
+    assert "Memory retrieval" in llm_fallback["prompt"]["user"]
+    assert "retrieved" not in json.dumps(llm_fallback).lower() or "memory_retrieval" in llm_fallback
 
     check_in = run_cli("goal", "check-in", goal_id, "Completed today's session", env=env)
     assert check_in["status"] == "ok"
+
+
+def test_llm_config_set_and_show_masks_api_key(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
+    env.pop("NEXUS_LLM_API_KEY", None)
+    env.pop("OPENAI_API_KEY", None)
+
+    saved = run_cli(
+        "config",
+        "llm",
+        "set",
+        "--provider",
+        "deepseek",
+        "--api-key",
+        "sk-test-secret-value",
+        "--simple-model",
+        "v4flash",
+        "--complex-model",
+        "v4pro",
+        "--default-tier",
+        "simple",
+        env=env,
+    )
+
+    assert saved["status"] == "ok"
+    assert saved["llm"]["provider"] == "deepseek"
+    assert saved["llm"]["api_key"] == "sk-t...alue"
+    assert "sk-test-secret-value" not in json.dumps(saved)
+
+    config_path = tmp_path / "nexus-home" / "config.local.json"
+    assert config_path.exists()
+    settings = load_llm_settings(env={}, path=config_path)
+    assert settings.provider == "deepseek"
+    assert settings.api_key == "sk-test-secret-value"
+    assert settings.model_for_tier("simple") == "v4flash"
+    assert settings.model_for_tier("complex") == "v4pro"
+
+    shown = run_cli("config", "llm", "show", env=env)
+    assert shown["llm"]["api_key"] == "sk-t...alue"
+    assert "sk-test-secret-value" not in json.dumps(shown)
 
 
 class FakeLLM:
@@ -91,12 +146,13 @@ class FakeLLM:
         return "LLM generated briefing"
 
 
-def test_daily_briefing_uses_injected_llm(tmp_path: Path) -> None:
+def test_daily_briefing_uses_injected_llm_and_rag_context(tmp_path: Path) -> None:
     store = JsonStore(tmp_path / "state.json")
     fake_llm = FakeLLM()
     service = NexusService(store, llm=fake_llm)
 
     service.add_memory("Louis is building Nexus as a personal AI OS", ["project"])
+    service.add_memory("Louis wants to improve IELTS listening", ["study"])
     service.add_goal("Build LLM briefing", "Use memories and goals in the prompt", 1)
 
     briefing = service.daily_briefing(
@@ -109,7 +165,9 @@ def test_daily_briefing_uses_injected_llm(tmp_path: Path) -> None:
 
     assert briefing["briefing"] == "LLM generated briefing"
     assert briefing["llm"]["used"] is True
+    assert briefing["memory_retrieval"]["strategy"] == "local_sparse_embedding"
     assert "proactive personal AI life assistant" in fake_llm.system_prompt
     assert "Louis is building Nexus" in fake_llm.user_prompt
+    assert "Memory retrieval" in fake_llm.user_prompt
     assert "Build LLM briefing" in fake_llm.user_prompt
     assert briefing["prompt"]["user"] == fake_llm.user_prompt

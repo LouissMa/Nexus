@@ -35,7 +35,8 @@ The current version is a local CLI MVP with an optional LLM briefing layer. It s
 ## Current Modules
 
 - `src/nexus/cli.py`: command-line interface and argument parsing. It exposes `memory`, `goal`, `review`, and `briefing`. The `briefing` command supports `--llm` and `--show-prompt`.
-- `src/nexus/service.py`: product logic for memory, goals, check-ins, review, briefing context, template rendering, and LLM prompt assembly.
+- `src/nexus/service.py`: product logic for memory, goals, check-ins, review, RAG-backed briefing context, template rendering, and LLM prompt assembly.
+- `src/nexus/rag.py`: local sparse embedding and deterministic memory retrieval for the RAG MVP.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client, environment-based configuration, HTTP request handling, and LLM errors.
 - `src/nexus/store.py`: local JSON persistence.
 - `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
@@ -77,6 +78,27 @@ nexus briefing
   -> return JSON
 ```
 
+
+## RAG Memory Flow
+
+```text
+Add memory
+  -> build local sparse embedding
+  -> store memory + embedding in .nexus/state.json
+
+Retrieve memory
+  -> embed query locally
+  -> score memories by cosine similarity
+  -> return public memory fields + retrieval_score
+
+Briefing
+  -> build query from user name, weather, active goals, and reminders
+  -> retrieve relevant long-term memories
+  -> inject memories and retrieval metadata into the briefing prompt
+  -> fall back to recent memories if no relevant result is found
+```
+
+The current RAG implementation is intentionally local and dependency-free. It proves the product loop before adding external embedding APIs or a vector database.
 ## LLM Briefing Flow
 
 ```text
@@ -139,3 +161,5 @@ NEXUS_LLM_TIMEOUT_SECONDS  default: 30
   +--> [LLM API: reasoning and generation]
   +--> [External tools: calendar, weather, email, Notion, GitHub, health]
 ```
+
+
