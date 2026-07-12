@@ -1,4 +1,4 @@
-# Nexus / LifeAgent
+﻿# Nexus / LifeAgent
 
 > **A proactive personal AI operating system for daily life.**
 
@@ -18,41 +18,17 @@ Nexus is a proactive personal AI assistant that manages daily life, remembers lo
 
 The long-term vision is to build a **Personal AI Operating System** for everyday life.
 
-## MVP Focus
-
-The first version stays intentionally small. It proves one core loop:
-
-1. Remember who the user is.
-2. Know what the user wants to do.
-3. Track progress through check-ins.
-4. Generate a daily proactive briefing.
-
 ## Current Version Features
 
 - **Add Memory**: Store long-term context such as identity, preferences, plans, exams, projects, and important life facts.
+- **Search Memory**: Search local memories by keyword.
 - **Add Goal**: Create goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for a goal.
 - **Proactive Review**: Detect goals that have been quiet for too long.
 - **Morning Briefing**: Generate a daily life briefing with date, weather text, important goals, reminders, and one suggested next action.
+- **LLM Briefing Mode**: Optionally use an OpenAI-compatible LLM to write a more natural briefing from memories, goals, reminders, and weather text.
+- **Prompt Inspection**: Use `--show-prompt` to inspect the exact system/user prompt sent to the LLM.
 - **Local JSON Storage**: Keep all MVP data in `.nexus/state.json` by default.
-
-## Example Morning Briefing
-
-```text
-Good morning, Louis.
-
-Today is June 4. Weather: sunny, high 25 C.
-
-You have 3 important things today:
-
-1. Operating systems review
-2. IELTS listening practice
-3. Continue developing Nexus
-
-I suggest you start with "Continue developing Nexus" and finish one 30-minute task.
-
-You do not need to finish everything today. Move the most important step forward first.
-```
 
 ## Quick Start
 
@@ -63,6 +39,53 @@ nexus memory add "Louis is preparing for IELTS and wants to apply for an oversea
 nexus goal add "IELTS listening practice" --description "Complete one focused listening session" --cadence-days 1
 nexus goal add "Develop Nexus" --description "Build the morning briefing module" --cadence-days 2
 nexus briefing --name Louis --weather "weather is sunny, high 25 C"
+```
+
+## LLM Briefing
+
+Nexus works without an API key. If you pass `--llm` without configuring a key, it safely falls back to the local template and reports the LLM error in JSON.
+
+### Do I Need an API Key?
+
+Only if you want LLM-generated briefings.
+
+- No API key is required for local memory, goals, check-ins, proactive review, or template morning briefing.
+- An API key is required when you run `nexus briefing --llm`.
+- Never commit API keys to GitHub. Store them in environment variables such as `OPENAI_API_KEY` or `NEXUS_LLM_API_KEY`.
+- If no key is configured, Nexus still returns a valid template briefing and includes the reason in `llm.error`.
+
+To enable LLM generation:
+
+```bash
+$env:OPENAI_API_KEY="your-api-key"
+nexus briefing --llm --name Louis --weather "weather is sunny, high 25 C"
+```
+
+Optional environment variables:
+
+```bash
+$env:NEXUS_LLM_API_KEY="your-api-key"        # takes priority over OPENAI_API_KEY
+$env:NEXUS_LLM_MODEL="gpt-4o-mini"           # default model
+$env:NEXUS_LLM_BASE_URL="https://api.openai.com/v1"
+$env:NEXUS_LLM_TIMEOUT_SECONDS="30"
+```
+
+Inspect the prompt without guessing what context is used:
+
+```bash
+nexus briefing --llm --show-prompt --name Louis
+```
+
+Example fallback response when no key is configured:
+
+```json
+{
+  "llm": {
+    "requested": true,
+    "used": false,
+    "error": "LLM client is not configured."
+  }
+}
 ```
 
 ## CLI Commands
@@ -78,16 +101,19 @@ nexus goal check-in <goal_id> "Finished the first implementation."
 
 nexus review
 nexus briefing --name Louis --weather "weather is sunny, high 25 C"
+nexus briefing --llm --show-prompt --name Louis
 ```
 
 ## Roadmap
 
 - **Phase 1: LifeAgent CLI MVP**: memory, goals, check-ins, morning briefing.
-- **Phase 2: Daily Review and Modes**: evening review, strict/gentle/academic/startup coaching modes.
-- **Phase 3: Life Dashboard**: web dashboard for goals, memory timeline, habits, and AI suggestions.
-- **Phase 4: Integrations**: calendar, weather API, email, todo apps, Notion, GitHub, and health data.
-- **Phase 5: Personal AI OS**: proactive planning, permissioned task execution, and deeper long-term personalization.
+- **Phase 2: LLM Briefing**: prompt assembly, OpenAI-compatible LLM client, safe fallback. Completed in the current upgrade.
+- **Phase 3: RAG Memory**: vector search over long-term memories.
+- **Phase 4: Daily Review and Modes**: evening review, strict/gentle/academic/startup coaching modes.
+- **Phase 5: Life Dashboard**: web dashboard for goals, memory timeline, habits, and AI suggestions.
+- **Phase 6: Integrations and Agents**: MCP tools, browser automation, multi-agent planning/reflection.
 
 ## Storage
 
 Data is stored locally in `.nexus/state.json`. Set `NEXUS_HOME` to move storage elsewhere.
+

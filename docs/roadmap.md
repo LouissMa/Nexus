@@ -1,4 +1,4 @@
-# Nexus Development Roadmap
+﻿# Nexus Development Roadmap
 
 ## Phase 1: LifeAgent CLI MVP
 
@@ -7,18 +7,35 @@ Objective: prove the smallest useful loop of a personal AI manager.
 - [x] Project structure and local Python CLI.
 - [x] Local JSON storage.
 - [x] Add long-term memories.
+- [x] Search memories by keyword.
 - [x] Add goals.
 - [x] Goal check-ins.
 - [x] Proactive review for stale goals.
 - [x] Morning briefing command.
 
-Success criteria:
+## Phase 2: LLM Briefing
 
-- The user can record who they are and what they care about.
-- The user can create goals and check in.
-- Nexus can generate a morning briefing based on stored context.
+Objective: make the morning briefing intelligent while keeping the offline MVP stable.
 
-## Phase 2: Daily Review and Coaching Modes
+- [x] Add OpenAI-compatible LLM client.
+- [x] Configure LLM through environment variables.
+- [x] Build structured briefing context from memories, goals, reminders, and weather text.
+- [x] Build inspectable system/user prompts.
+- [x] Add `nexus briefing --llm`.
+- [x] Add `nexus briefing --show-prompt`.
+- [x] Keep safe fallback when LLM is not configured or fails.
+
+## Phase 3: RAG Long-Term Memory
+
+Objective: replace simple recent-memory recall with semantic memory retrieval.
+
+- [ ] Add embedding interface.
+- [ ] Store memory embeddings locally.
+- [ ] Retrieve relevant memories by semantic similarity.
+- [ ] Feed retrieved memories into the briefing prompt.
+- [ ] Add tests for deterministic retrieval behavior.
+
+## Phase 4: Daily Review and Coaching Modes
 
 Objective: make Nexus useful at both the start and end of the day.
 
@@ -28,7 +45,7 @@ Objective: make Nexus useful at both the start and end of the day.
 - [ ] Add structured task priority and due dates.
 - [ ] Improve reminders from simple cadence checks to richer progress signals.
 
-## Phase 3: Life Dashboard
+## Phase 5: Life Dashboard
 
 Objective: make the user's life context visible.
 
@@ -40,24 +57,15 @@ Objective: make the user's life context visible.
 - [ ] Project progress panel.
 - [ ] AI suggestions panel.
 
-## Phase 4: External Integrations
+## Phase 6: Tools, Automation, and Agents
 
-Objective: connect Nexus to the user's real digital life.
+Objective: evolve Nexus from assistant to permissioned personal operating layer.
 
-- [ ] Calendar integration.
-- [ ] Weather API integration.
-- [ ] Todo app integration.
-- [ ] Email summary.
-- [ ] Notion integration.
-- [ ] GitHub project progress integration.
-- [ ] Health and sleep data integration.
-
-## Phase 5: Personal AI Operating System
-
-Objective: evolve from assistant to permissioned personal operating layer.
-
-- [ ] Proactive planning engine.
-- [ ] Natural language command system.
-- [ ] Permissioned task execution.
-- [ ] Long-term personalization.
+- [ ] MCP tool calling.
+- [ ] Browser automation.
+- [ ] Local tool execution with permission boundaries.
+- [ ] Planning agent.
+- [ ] Reflection agent.
+- [ ] Memory agent.
+- [ ] Tool agent.
 - [ ] Multi-channel delivery: CLI, web, mobile, chat, and notifications.

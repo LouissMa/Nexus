@@ -1,9 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
 from datetime import datetime
 
+from .llm import LLMConfig, OpenAICompatibleLLM
 from .service import NexusService
 from .store import JsonStore
 
@@ -11,7 +12,7 @@ from .store import JsonStore
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="nexus",
-        description="NEXUS Phase 1 CLI MVP: memory, goals, and proactive review.",
+        description="NEXUS Phase 1 CLI MVP: memory, goals, proactive review, and LLM briefing.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -50,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
     briefing_parser = subparsers.add_parser("briefing", help="Generate a morning life briefing.")
     briefing_parser.add_argument("--name", default="Louis", help="User name for the greeting.")
     briefing_parser.add_argument("--weather", help="Optional weather summary.")
+    briefing_parser.add_argument("--llm", action="store_true", help="Use configured LLM for the briefing.")
+    briefing_parser.add_argument("--show-prompt", action="store_true", help="Include the generated LLM prompt in JSON output.")
     briefing_parser.add_argument(
         "--now",
         help="Optional ISO timestamp for deterministic briefing runs.",
@@ -99,7 +102,11 @@ def main() -> None:
 
     if args.command == "briefing":
         now = datetime.fromisoformat(args.now) if args.now else None
-        print_json(service.daily_briefing(args.name, args.weather, now))
+        if args.llm:
+            config = LLMConfig.from_env()
+            llm = OpenAICompatibleLLM(config) if config.is_configured else None
+            service = NexusService(JsonStore.from_env(), llm=llm)
+        print_json(service.daily_briefing(args.name, args.weather, now, args.llm, args.show_prompt))
         return
 
     parser.error("Unknown command")
