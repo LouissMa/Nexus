@@ -75,22 +75,29 @@ def test_memory_goal_review_and_rag_briefing_flow(tmp_path: Path) -> None:
     assert "Practice English" in briefing["briefing"]
     assert "Louis" in briefing["briefing"]
 
+    check_in = run_cli("goal", "check-in", goal_id, "Completed today's English session", env=env)
+    assert check_in["status"] == "ok"
+
+    daily_review = run_cli("review", "day", "--name", "Louis", env=env)
+    assert daily_review["user_name"] == "Louis"
+    assert daily_review["completed_goals"][0]["id"] == goal_id
+    assert daily_review["today_check_ins"][0]["note"] == "Completed today's English session"
+    assert daily_review["memory_retrieval"]["strategy"] == "local_sparse_embedding"
+    assert "Practice English" in daily_review["review"]
+    assert daily_review["tomorrow_priorities"]
+
     llm_fallback = run_cli(
-        "briefing",
+        "review",
+        "day",
         "--llm",
         "--show-prompt",
-        "--now",
-        "2030-01-03T08:00:00+00:00",
         env=env,
     )
     assert llm_fallback["llm"]["requested"] is True
     assert llm_fallback["llm"]["used"] is False
     assert "not configured" in llm_fallback["llm"]["error"]
+    assert "evening daily review" in llm_fallback["prompt"]["user"]
     assert "Memory retrieval" in llm_fallback["prompt"]["user"]
-    assert "retrieved" not in json.dumps(llm_fallback).lower() or "memory_retrieval" in llm_fallback
-
-    check_in = run_cli("goal", "check-in", goal_id, "Completed today's session", env=env)
-    assert check_in["status"] == "ok"
 
 
 def test_llm_config_set_and_show_masks_api_key(tmp_path: Path) -> None:
@@ -143,7 +150,7 @@ class FakeLLM:
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
-        return "LLM generated briefing"
+        return "LLM generated output"
 
 
 def test_daily_briefing_uses_injected_llm_and_rag_context(tmp_path: Path) -> None:
@@ -163,7 +170,7 @@ def test_daily_briefing_uses_injected_llm_and_rag_context(tmp_path: Path) -> Non
         include_prompt=True,
     )
 
-    assert briefing["briefing"] == "LLM generated briefing"
+    assert briefing["briefing"] == "LLM generated output"
     assert briefing["llm"]["used"] is True
     assert briefing["memory_retrieval"]["strategy"] == "local_sparse_embedding"
     assert "proactive personal AI life assistant" in fake_llm.system_prompt
@@ -171,3 +178,27 @@ def test_daily_briefing_uses_injected_llm_and_rag_context(tmp_path: Path) -> Non
     assert "Memory retrieval" in fake_llm.user_prompt
     assert "Build LLM briefing" in fake_llm.user_prompt
     assert briefing["prompt"]["user"] == fake_llm.user_prompt
+
+
+def test_daily_review_uses_injected_llm_and_reflection_context(tmp_path: Path) -> None:
+    store = JsonStore(tmp_path / "state.json")
+    fake_llm = FakeLLM()
+    service = NexusService(store, llm=fake_llm)
+
+    service.add_memory("Louis is building Nexus as a personal AI OS", ["project"])
+    goal = service.add_goal("Build Daily Review", "Create evening reflection loop", 1)
+    service.check_in_goal(goal.id, "Implemented the review command")
+
+    review = service.daily_review(
+        user_name="Louis",
+        use_llm=True,
+        include_prompt=True,
+    )
+
+    assert review["review"] == "LLM generated output"
+    assert review["llm"]["used"] is True
+    assert review["completed_goals"][0]["id"] == goal.id
+    assert "evening daily review" in fake_llm.user_prompt
+    assert "Build Daily Review" in fake_llm.user_prompt
+    assert "Implemented the review command" in fake_llm.user_prompt
+    assert review["prompt"]["user"] == fake_llm.user_prompt

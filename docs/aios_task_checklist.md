@@ -14,6 +14,7 @@ Status legend:
 - [x] LLM briefing mode with OpenAI-compatible API support.
 - [x] Local LLM provider configuration with provider/model tiers and masked API key display.
 - [x] Local RAG memory MVP using deterministic sparse embeddings.
+- [x] Daily Review / Reflection MVP for evening summaries and tomorrow priorities.
 - [x] Local JSON storage under `.nexus/state.json`.
 - [x] Secret local config path ignored by Git: `.nexus/config.local.json`.
 
@@ -22,7 +23,8 @@ Status legend:
 Current status: `[~]` Local MVP completed. Real vector retrieval is still future work.
 
 - [x] Generate local memory embeddings when memories are added.
-- [x] Add `nexus memory retrieve` for relevant memory retrieval.
+- [x] Add 
+exus memory retrieve` for relevant memory retrieval.
 - [x] Inject retrieved memories into briefing context and LLM prompt.
 - [x] Include retrieval metadata such as query, strategy, and score.
 - [ ] Add real embedding model support.
@@ -55,13 +57,15 @@ Current status: `[ ]` Not started.
 
 ## 4. Planning / Reflection
 
-Current status: `[ ]` Not started.
+Current status: `[~]` Daily Review / Reflection MVP completed. Deeper planning is still future work.
 
 - [ ] Add daily planning command.
 - [ ] Break long-term goals into today's tasks.
-- [ ] Add evening review command.
-- [ ] Generate today summary and tomorrow plan.
-- [ ] Track blockers and unresolved tasks.
+- [x] Add evening review command: 
+exus review day`.
+- [x] Generate today summary and tomorrow priorities.
+- [x] Include completed goals, quiet goals, check-ins, reminders, and RAG memories.
+- [ ] Track blockers and unresolved tasks as structured fields.
 - [ ] Add coach modes: strict, gentle, academic, startup.
 
 ## 5. Multi-Agent Architecture
@@ -116,3 +120,5 @@ Current status: `[ ]` Not started.
 - [ ] Run tests before committing when possible.
 - [ ] Ask the user whether to push, unless the user explicitly asked to push in the current request.
 - [ ] Never commit API keys or local secret config files.
+
+

@@ -47,14 +47,23 @@ def build_parser() -> argparse.ArgumentParser:
     goal_check_in.add_argument("goal_id", help="Goal identifier.")
     goal_check_in.add_argument("note", help="Short progress note.")
 
-    review_parser = subparsers.add_parser("review", help="Run proactive reminder review.")
+    review_parser = subparsers.add_parser("review", help="Run proactive reminders or daily reflection.")
+    review_parser.add_argument("review_command", nargs="?", choices=["day"], help="Use `day` for evening daily review.")
+    review_parser.add_argument("--name", default="User", help="User name for daily review.")
+    review_parser.add_argument("--llm", action="store_true", help="Use configured LLM for daily review.")
+    review_parser.add_argument(
+        "--model-tier",
+        choices=["simple", "complex"],
+        help="Model tier to use for LLM review generation. Defaults to configured tier.",
+    )
+    review_parser.add_argument("--show-prompt", action="store_true", help="Include the generated LLM prompt in JSON output.")
     review_parser.add_argument(
         "--now",
         help="Optional ISO timestamp for deterministic review runs.",
     )
 
     briefing_parser = subparsers.add_parser("briefing", help="Generate a morning life briefing.")
-    briefing_parser.add_argument("--name", default="Louis", help="User name for the greeting.")
+    briefing_parser.add_argument("--name", default="User", help="User name for the greeting.")
     briefing_parser.add_argument("--weather", help="Optional weather summary.")
     briefing_parser.add_argument("--llm", action="store_true", help="Use configured LLM for the briefing.")
     briefing_parser.add_argument(
@@ -126,6 +135,13 @@ def main() -> None:
 
     if args.command == "review":
         now = datetime.fromisoformat(args.now) if args.now else None
+        if args.review_command == "day":
+            if args.llm:
+                config = LLMConfig.from_env(model_tier=args.model_tier)
+                llm = OpenAICompatibleLLM(config) if config.is_configured else None
+                service = NexusService(JsonStore.from_env(), llm=llm)
+            print_json(service.daily_review(args.name, now, args.llm, args.show_prompt))
+            return
         print_json(service.proactive_review(now))
         return
 
@@ -161,4 +177,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 

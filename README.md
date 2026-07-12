@@ -23,6 +23,7 @@ The long-term vision is to build a **Personal AI Operating System**.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
+- **Daily Review / Reflection**: Generate an evening review with completed goals, quiet goals, RAG memories, and tomorrow priorities.
 - **Morning Briefing**: Generate a template daily briefing from goals, reminders, weather text, and memories.
 - **LLM Briefing**: Optionally use an OpenAI-compatible LLM for more natural briefings.
 - **LLM Provider Config**: Save local provider/model settings, including `simple` and `complex` model tiers.
@@ -52,9 +53,12 @@ nexus briefing --llm --show-prompt --name Louis
 
 What happens:
 
-- `nexus memory add` stores a deterministic local sparse embedding.
-- `nexus memory retrieve` returns relevant memories with `retrieval_score`.
-- `nexus briefing` builds a retrieval query from goals, reminders, weather text, and user context.
+- 
+exus memory add` stores a deterministic local sparse embedding.
+- 
+exus memory retrieve` returns relevant memories with `retrieval_score`.
+- 
+exus briefing` builds a retrieval query from goals, reminders, weather text, and user context.
 - If retrieval finds no relevant memories, Nexus falls back to recent memories.
 
 Future work: replace the local sparse embedder with a real embedding model and vector database.
@@ -111,6 +115,8 @@ nexus goal list
 nexus goal check-in <goal_id> "Finished today's session."
 
 nexus review
+nexus review day --name Louis
+nexus review day --llm --show-prompt --name Louis
 nexus briefing --name Louis --weather "weather is sunny, high 25 C"
 nexus briefing --llm --show-prompt --name Louis
 
@@ -142,4 +148,7 @@ When implementing new features:
 - **Phase 1**: CLI MVP: memory, goals, check-ins, proactive review, morning briefing. Done.
 - **Phase 2**: LLM briefing and provider configuration. Done.
 - **Phase 3**: Local RAG long-term memory MVP. Done.
-- **Next**: Daily Review / Reflection, real integrations, MCP tool calling, multi-agent architecture, scheduler, dashboard, and browser/local automation.
+- **Phase 4**: Daily Review / Reflection MVP. Done.
+- **Next**: Real integrations, MCP tool calling, multi-agent architecture, scheduler, dashboard, and browser/local automation.
+
+
