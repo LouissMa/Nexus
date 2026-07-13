@@ -1,4 +1,4 @@
-﻿# Nexus Development Roadmap
+# Nexus Development Roadmap
 
 ## Phase 1: LifeAgent CLI MVP
 
@@ -27,23 +27,29 @@ Objective: make the morning briefing intelligent while keeping the offline MVP s
 
 ## Phase 3: RAG Long-Term Memory
 
-Objective: replace simple recent-memory recall with semantic memory retrieval.
+Objective: replace simple recent-memory recall with relevant local memory retrieval.
 
-- [ ] Add embedding interface.
-- [ ] Store memory embeddings locally.
-- [ ] Retrieve relevant memories by semantic similarity.
-- [ ] Feed retrieved memories into the briefing prompt.
-- [ ] Add tests for deterministic retrieval behavior.
+- [x] Add local embedding interface.
+- [x] Store deterministic sparse memory embeddings locally.
+- [x] Retrieve relevant memories by similarity.
+- [x] Feed retrieved memories into briefing and review prompts.
+- [x] Add tests for deterministic retrieval behavior.
 
-## Phase 4: Daily Review and Coaching Modes
+Production-grade neural embeddings, vector database persistence, re-indexing, importance scoring, and memory compression remain future RAG work.
+
+## Phase 4: Daily Planning, Review, and Coaching Modes
 
 Objective: make Nexus useful at both the start and end of the day.
 
-- [ ] Add evening review command.
-- [ ] Generate "today summary + tomorrow plan".
-- [ ] Add coach tone modes: strict, gentle, academic, startup.
-- [ ] Add structured task priority and due dates.
-- [ ] Improve reminders from simple cadence checks to richer progress signals.
+- [x] Add persistent daily planning command.
+- [x] Decompose active long-term goals into prioritized daily tasks.
+- [x] Add task status, blocker, unresolved-item, and note updates.
+- [x] Add evening review command.
+- [x] Generate today summary and tomorrow priorities.
+- [x] Add coach tone modes: strict, gentle, academic, startup.
+- [x] Feed structured task outcomes and blockers into Reflection prompts.
+
+Calendar-aware scheduling, automatic replanning, and agentic execution remain future work.
 
 ## Phase 5: Life Dashboard
 
@@ -69,5 +75,3 @@ Objective: evolve Nexus from assistant to permissioned personal operating layer.
 - [ ] Memory agent.
 - [ ] Tool agent.
 - [ ] Multi-channel delivery: CLI, web, mobile, chat, and notifications.
-
-

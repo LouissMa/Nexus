@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -67,7 +67,7 @@ def test_memory_goal_review_and_rag_briefing_flow(tmp_path: Path) -> None:
         env=env,
     )
     assert briefing["user_name"] == "Louis"
-    assert briefing["today"]["date"] == "1月3日"
+    assert briefing["today"]["date"] == "1\u67083\u65e5"
     assert briefing["important_goals"][0]["id"] == goal_id
     assert briefing["relevant_memories"][0]["text"] == "User wants to practice English daily"
     assert briefing["memory_retrieval"]["strategy"] == "local_sparse_embedding"
@@ -164,7 +164,7 @@ def test_daily_briefing_uses_injected_llm_and_rag_context(tmp_path: Path) -> Non
 
     briefing = service.daily_briefing(
         user_name="Louis",
-        weather="天气晴，最高 25 C",
+        weather="\u5929\u6c14\u6674\uff0c\u6700\u9ad8 25 C",
         now=None,
         use_llm=True,
         include_prompt=True,
@@ -202,3 +202,59 @@ def test_daily_review_uses_injected_llm_and_reflection_context(tmp_path: Path) -
     assert "Build Daily Review" in fake_llm.user_prompt
     assert "Implemented the review command" in fake_llm.user_prompt
     assert review["prompt"]["user"] == fake_llm.user_prompt
+
+
+def test_daily_planning_tasks_blockers_and_coach_modes(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
+    env.pop("NEXUS_LLM_API_KEY", None)
+    env.pop("OPENAI_API_KEY", None)
+
+    run_cli("goal", "add", "Prepare IELTS", "--description", "Complete one listening set", env=env)
+    run_cli("goal", "add", "Build Nexus", "--description", "Implement the planning module", env=env)
+
+    plan = run_cli(
+        "plan", "day", "--name", "Louis", "--coach-mode", "academic",
+        "--now", "2030-01-03T08:00:00+00:00", "--show-prompt", env=env,
+    )
+    assert plan["plan_date"] == "2030-01-03"
+    assert plan["coach_mode"] == "academic"
+    assert len(plan["tasks"]) == 2
+    assert plan["tasks"][0]["goal_id"]
+    assert plan["tasks"][0]["status"] == "pending"
+    assert "academic study coach" in plan["prompt"]["system"]
+
+    repeated = run_cli("plan", "day", "--now", "2030-01-03T09:00:00+00:00", env=env)
+    assert [task["id"] for task in repeated["tasks"]] == [task["id"] for task in plan["tasks"]]
+
+    task_id = plan["tasks"][0]["id"]
+    updated = run_cli(
+        "task", "update", task_id,
+        "--blocker", "Need a practice audio source",
+        "--unresolved", "Choose tomorrow's audio set",
+        "--note", "Reviewed the test format",
+        env=env,
+    )
+    assert updated["task"]["status"] == "blocked"
+    assert updated["task"]["blocker"] == "Need a practice audio source"
+    assert updated["task"]["unresolved"] == ["Choose tomorrow's audio set"]
+
+    completed_task_id = plan["tasks"][1]["id"]
+    completed = run_cli("task", "update", completed_task_id, "--status", "completed", env=env)
+    assert completed["task"]["status"] == "completed"
+    review = run_cli(
+        "review", "day", "--name", "Louis", "--coach-mode", "strict",
+        "--now", "2030-01-03T20:00:00+00:00", "--show-prompt", env=env,
+    )
+    assert review["coach_mode"] == "strict"
+    assert review["completed_tasks"][0]["id"] == completed_task_id
+    assert review["blocked_tasks"][0]["id"] == task_id
+    assert review["unresolved_tasks"][0]["item"] == "Choose tomorrow's audio set"
+    assert "Need a practice audio source" in review["review"]
+    assert "strict execution coach" in review["prompt"]["system"]
+    assert "Structured unresolved items" in review["prompt"]["user"]
+    assert review["tomorrow_priorities"][0].startswith("Resolve blocker")
+
+    listed = run_cli("task", "list", "--date", "2030-01-03", env=env)
+    assert len(listed["tasks"]) == 2

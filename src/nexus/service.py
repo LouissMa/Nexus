@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -6,6 +6,7 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from .llm import LLMError
+from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .rag import MemoryRetriever
 from .store import JsonStore
 
@@ -121,6 +122,116 @@ class NexusService:
             return goal
         raise ValueError(f"Goal '{goal_id}' not found.")
 
+    def list_daily_tasks(self, plan_date: str | None = None) -> list[dict[str, Any]]:
+        tasks = self.store.load().get("daily_tasks", [])
+        if plan_date:
+            tasks = [task for task in tasks if task.get("plan_date") == plan_date]
+        return sorted(tasks, key=lambda task: (task.get("plan_date", ""), task.get("priority", 99)))
+
+    def update_daily_task(
+        self,
+        task_id: str,
+        status: str | None = None,
+        blocker: str | None = None,
+        unresolved: list[str] | None = None,
+        note: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        if status is not None and status not in TASK_STATUSES:
+            raise ValueError(f"Unknown task status '{status}'.")
+        state = self.store.load()
+        for task in state.get("daily_tasks", []):
+            if task.get("id") != task_id:
+                continue
+            if status:
+                task["status"] = status
+            if blocker is not None:
+                task["blocker"] = blocker.strip() or None
+                if task["blocker"]:
+                    task["status"] = "blocked"
+                elif task.get("status") == "blocked":
+                    task["status"] = status or "pending"
+            if unresolved:
+                task.setdefault("unresolved", []).extend(item.strip() for item in unresolved if item.strip())
+            if note:
+                task.setdefault("notes", []).append(note.strip())
+            if task.get("status") == "completed":
+                task["blocker"] = None
+            task["updated_at"] = isoformat(now or utc_now())
+            self.store.save(state)
+            return task
+        raise ValueError(f"Daily task '{task_id}' not found.")
+
+    def daily_plan(
+        self,
+        user_name: str = "User",
+        now: datetime | None = None,
+        coach_mode: str = "gentle",
+        use_llm: bool = False,
+        include_prompt: bool = False,
+    ) -> dict[str, Any]:
+        now = now or utc_now()
+        profile = coach_profile(coach_mode)
+        state = self.store.load()
+        plan_date = now.date().isoformat()
+        tasks = [task for task in state.get("daily_tasks", []) if task.get("plan_date") == plan_date]
+        if not tasks:
+            goals = [goal for goal in state.get("goals", []) if goal.get("status") == "active"]
+            goals.sort(key=lambda goal: parse_timestamp(goal.get("last_check_in")) or parse_timestamp(goal.get("created_at")) or now)
+            tasks = build_daily_tasks(goals, plan_date, isoformat(now))
+            state.setdefault("daily_tasks", []).extend(tasks)
+            self.store.save(state)
+
+        query = " ".join([user_name, "daily plan"] + [f"{task['goal_title']} {task['title']}" for task in tasks])
+        memories = self.memory_retriever.retrieve(state.get("memories", []), query, limit=6)
+        strategy = "local_sparse_embedding"
+        if not memories:
+            memories = self._recent_memories(state, limit=6)
+            strategy = "recent_memory_fallback"
+
+        task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
+        memory_text = self._format_items(memories, lambda memory: f"- {memory['text']}")
+        system_prompt = (
+            "You are Nexus, a proactive personal AI planner. Write in Chinese. "
+            f"Act as a {profile.label}. {profile.instruction} "
+            "Use only the supplied goals, tasks, and memories."
+        )
+        user_prompt = f"""Create a practical daily plan for {user_name} on {plan_date}.
+
+Structured tasks:
+{task_text}
+
+Relevant long-term memories:
+{memory_text}
+
+Keep the tasks concrete and preserve their priority order."""
+        plan_text = "\n".join([f"Daily plan for {user_name} ({plan_date}, {coach_mode} mode):", task_text, "", profile.closing])
+        llm_info = self._empty_llm_info(use_llm)
+        if use_llm:
+            if self.llm is None:
+                llm_info["error"] = "LLM client is not configured."
+            else:
+                try:
+                    plan_text = self.llm.generate(system_prompt, user_prompt)
+                    llm_info["used"] = True
+                except LLMError as error:
+                    llm_info["error"] = str(error)
+
+        response = {
+            "generated_at": isoformat(now),
+            "user_name": user_name,
+            "plan_date": plan_date,
+            "coach_mode": coach_mode,
+            "tasks": tasks,
+            "relevant_memories": memories,
+            "memory_retrieval": {"query": query, "strategy": strategy, "limit": 6},
+            "plan": plan_text,
+            "llm": llm_info,
+        }
+        if include_prompt:
+            response["prompt"] = {"system": system_prompt, "user": user_prompt}
+        return response
+
     def proactive_review(self, now: datetime | None = None) -> dict[str, Any]:
         now = now or utc_now()
         state = self.store.load()
@@ -160,9 +271,10 @@ class NexusService:
         now: datetime | None = None,
         use_llm: bool = False,
         include_prompt: bool = False,
+        coach_mode: str = "gentle",
     ) -> dict[str, Any]:
         now = now or utc_now()
-        context = self._build_daily_review_context(user_name, now)
+        context = self._build_daily_review_context(user_name, now, coach_mode)
         template_review = self._render_template_daily_review(context)
         system_prompt, user_prompt = self._build_daily_review_prompt(context)
         llm_info = self._empty_llm_info(use_llm)
@@ -182,6 +294,12 @@ class NexusService:
             "generated_at": isoformat(now),
             "user_name": user_name,
             "date": context["date_text"],
+            "coach_mode": coach_mode,
+            "daily_tasks": context["daily_tasks"],
+            "completed_tasks": context["completed_tasks"],
+            "blocked_tasks": context["blocked_tasks"],
+            "unresolved_tasks": context["unresolved_tasks"],
+            "progressed_goals": context["completed_goals"],
             "completed_goals": context["completed_goals"],
             "pending_goals": context["pending_goals"],
             "today_check_ins": context["today_check_ins"],
@@ -250,9 +368,15 @@ class NexusService:
 
         return response
 
-    def _build_daily_review_context(self, user_name: str, now: datetime) -> dict[str, Any]:
+    def _build_daily_review_context(self, user_name: str, now: datetime, coach_mode: str) -> dict[str, Any]:
         state = self.store.load()
         active_goals = [goal for goal in state.get("goals", []) if goal.get("status") == "active"]
+        profile = coach_profile(coach_mode)
+        plan_date = now.date().isoformat()
+        daily_tasks = [task for task in state.get("daily_tasks", []) if task.get("plan_date") == plan_date]
+        completed_tasks = [task for task in daily_tasks if task.get("status") == "completed"]
+        blocked_tasks = [task for task in daily_tasks if task.get("status") == "blocked"]
+        unresolved_tasks = [{"task_id": task["id"], "task_title": task["title"], "item": item} for task in daily_tasks for item in task.get("unresolved", [])]
         today_check_ins: list[dict[str, Any]] = []
         completed_goals: list[dict[str, Any]] = []
         pending_goals: list[dict[str, Any]] = []
@@ -282,8 +406,16 @@ class NexusService:
             retrieval_strategy = "recent_memory_fallback"
 
         tomorrow_priorities = self._tomorrow_priorities(pending_goals, completed_goals)
+        task_priorities = [f"Resolve blocker for '{task['title']}': {task.get('blocker')}" for task in blocked_tasks]
+        task_priorities.extend(f"Carry forward '{item['item']}' from '{item['task_title']}'" for item in unresolved_tasks)
+        tomorrow_priorities = (task_priorities + tomorrow_priorities)[:3]
         return {
             "user_name": user_name,
+            "coach_profile": profile,
+            "daily_tasks": daily_tasks,
+            "completed_tasks": completed_tasks,
+            "blocked_tasks": blocked_tasks,
+            "unresolved_tasks": unresolved_tasks,
             "date_text": f"{now.month}月{now.day}日",
             "completed_goals": completed_goals,
             "pending_goals": pending_goals,
@@ -322,6 +454,15 @@ class NexusService:
         else:
             lines.append("所有活跃目标今天都有记录，节奏不错。")
 
+        if context["blocked_tasks"]:
+            lines.extend(["", "Blocked tasks:"])
+            for task in context["blocked_tasks"]:
+                lines.append(f"- {task['title']}: {task.get('blocker') or 'reason not recorded'}")
+
+        if context["unresolved_tasks"]:
+            lines.extend(["", "Unresolved items:"])
+            for item in context["unresolved_tasks"]:
+                lines.append(f"- {item['task_title']}: {item['item']}")
         if context["reminders"]:
             lines.append("")
             lines.append("需要注意的提醒：")
@@ -333,6 +474,7 @@ class NexusService:
             lines.append(f"- {priority}")
 
         lines.extend(["", "今天先收尾，明天继续把最重要的一步往前推。"])
+        lines.extend(["", context["coach_profile"].closing])
         return "\n".join(lines)
 
     def _build_briefing_context(
@@ -427,6 +569,7 @@ class NexusService:
             "You are Nexus, a proactive personal AI life assistant. "
             "Write in Chinese. Create a concise evening reflection. "
             "Focus on what moved forward, what is stuck, and what should happen tomorrow. "
+            f"Act as a {context['coach_profile'].label}. {context['coach_profile'].instruction} "
             "Do not invent tasks or external data that were not provided."
         )
         memories = self._format_items(
@@ -446,6 +589,8 @@ class NexusService:
         )
         reminders = self._format_items(context["reminders"], lambda item: f"- {item}")
         priorities = self._format_items(context["tomorrow_priorities"], lambda item: f"- {item}")
+        task_state = self._format_items(context["daily_tasks"], lambda task: f"- {task['title']} | status: {task['status']} | blocker: {task.get('blocker') or 'none'}")
+        unresolved = self._format_items(context["unresolved_tasks"], lambda item: f"- {item['task_title']}: {item['item']}")
 
         user_prompt = f"""Generate an evening daily review for {context['user_name']}.
 
@@ -470,6 +615,11 @@ Proactive reminders:
 Suggested tomorrow priorities:
 {priorities}
 
+Daily task state:
+{task_state}
+
+Structured unresolved items:
+{unresolved}
 Output format:
 1. Today summary
 2. Completed / moved forward
@@ -627,4 +777,3 @@ Output format:
         data = asdict(goal)
         data["check_ins"] = [asdict(check_in) for check_in in goal.check_ins]
         return data
-

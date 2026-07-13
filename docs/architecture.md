@@ -1,4 +1,4 @@
-﻿# Nexus MVP Architecture
+# Nexus MVP Architecture
 
 The current version is a local CLI MVP with an optional LLM briefing layer. It still works fully offline by default, and only calls an external LLM when the user explicitly passes `--llm` and configures an API key.
 
@@ -34,9 +34,10 @@ The current version is a local CLI MVP with an optional LLM briefing layer. It s
 
 ## Current Modules
 
-- `src/nexus/cli.py`: command-line interface and argument parsing. It exposes `memory`, `goal`, `review`, and `briefing`. The `briefing` command supports `--llm` and `--show-prompt`.
-- `src/nexus/service.py`: product logic for memory, goals, check-ins, review, RAG-backed briefing context, template rendering, and LLM prompt assembly.
+- `src/nexus/cli.py`: CLI parsing for `memory`, `goal`, `plan`, `task`, `review`, `briefing`, and `config`.
+- `src/nexus/service.py`: Application orchestration for memory/RAG, goals, persistent daily planning, structured task updates, reflection, coach-aware prompts, and briefings.
 - `src/nexus/rag.py`: local sparse embedding and deterministic memory retrieval for the RAG MVP.
+- src/nexus/planning.py: daily-task decomposition rules, task status vocabulary, and Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client, environment-based configuration, HTTP request handling, and LLM errors.
 - `src/nexus/store.py`: local JSON persistence.
 - `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
@@ -78,6 +79,31 @@ nexus briefing
   -> return JSON
 ```
 
+
+## Planning / Reflection Flow
+
+```text
+nexus plan day
+  -> load active long-term goals
+  -> sort goals by oldest progress
+  -> create up to three prioritized daily tasks
+  -> persist tasks in .nexus/state.json
+  -> retrieve relevant memories
+  -> render local plan or optional LLM plan with Coach mode
+
+nexus task update <task_id>
+  -> update pending / in_progress / completed / blocked status
+  -> store blocker, unresolved items, and progress notes
+
+nexus review day
+  -> collect today's task state and goal check-ins
+  -> collect blockers and unresolved items
+  -> retrieve relevant long-term memories
+  -> place carry-forward work into tomorrow priorities
+  -> render local reflection or optional LLM reflection with Coach mode
+```
+
+Daily plans are idempotent per date: running `nexus plan day` again returns the existing tasks instead of creating duplicates.
 
 ## RAG Memory Flow
 
@@ -161,5 +187,3 @@ NEXUS_LLM_TIMEOUT_SECONDS  default: 30
   +--> [LLM API: reasoning and generation]
   +--> [External tools: calendar, weather, email, Notion, GitHub, health]
 ```
-
-

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -6,6 +6,7 @@ from datetime import datetime
 
 from .config import load_llm_settings, update_llm_settings
 from .llm import LLMConfig, OpenAICompatibleLLM
+from .planning import COACH_MODES, TASK_STATUSES
 from .service import NexusService
 from .store import JsonStore
 
@@ -47,9 +48,30 @@ def build_parser() -> argparse.ArgumentParser:
     goal_check_in.add_argument("goal_id", help="Goal identifier.")
     goal_check_in.add_argument("note", help="Short progress note.")
 
+    plan_parser = subparsers.add_parser("plan", help="Create and inspect daily plans.")
+    plan_parser.add_argument("plan_command", choices=["day"], help="Create today's structured plan.")
+    plan_parser.add_argument("--name", default="User")
+    plan_parser.add_argument("--coach-mode", choices=COACH_MODES, default="gentle")
+    plan_parser.add_argument("--llm", action="store_true")
+    plan_parser.add_argument("--model-tier", choices=["simple", "complex"])
+    plan_parser.add_argument("--show-prompt", action="store_true")
+    plan_parser.add_argument("--now", help="Optional ISO timestamp for deterministic planning.")
+
+    task_parser = subparsers.add_parser("task", help="Inspect or update planned daily tasks.")
+    task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
+    task_list = task_subparsers.add_parser("list", help="List planned tasks.")
+    task_list.add_argument("--date", help="Filter by YYYY-MM-DD plan date.")
+    task_update = task_subparsers.add_parser("update", help="Update task progress and reflection fields.")
+    task_update.add_argument("task_id")
+    task_update.add_argument("--status", choices=TASK_STATUSES)
+    task_update.add_argument("--blocker", help="Structured reason the task is blocked; empty text clears it.")
+    task_update.add_argument("--unresolved", action="append", default=[], help="Open item to carry into review; repeat as needed.")
+    task_update.add_argument("--note", help="Append a progress note.")
+
     review_parser = subparsers.add_parser("review", help="Run proactive reminders or daily reflection.")
     review_parser.add_argument("review_command", nargs="?", choices=["day"], help="Use `day` for evening daily review.")
     review_parser.add_argument("--name", default="User", help="User name for daily review.")
+    review_parser.add_argument("--coach-mode", choices=COACH_MODES, default="gentle")
     review_parser.add_argument("--llm", action="store_true", help="Use configured LLM for daily review.")
     review_parser.add_argument(
         "--model-tier",
@@ -133,6 +155,30 @@ def main() -> None:
             print_json({"status": "ok", "goal": goal})
             return
 
+    if args.command == "plan":
+        now = datetime.fromisoformat(args.now) if args.now else None
+        if args.llm:
+            config = LLMConfig.from_env(model_tier=args.model_tier)
+            llm = OpenAICompatibleLLM(config) if config.is_configured else None
+            service = NexusService(JsonStore.from_env(), llm=llm)
+        print_json(service.daily_plan(
+            user_name=args.name, now=now, coach_mode=args.coach_mode,
+            use_llm=args.llm, include_prompt=args.show_prompt,
+        ))
+        return
+
+    if args.command == "task":
+        if args.task_command == "list":
+            print_json({"tasks": service.list_daily_tasks(args.date)})
+            return
+        if args.task_command == "update":
+            task = service.update_daily_task(
+                args.task_id, status=args.status, blocker=args.blocker,
+                unresolved=args.unresolved, note=args.note,
+            )
+            print_json({"status": "ok", "task": task})
+            return
+
     if args.command == "review":
         now = datetime.fromisoformat(args.now) if args.now else None
         if args.review_command == "day":
@@ -140,7 +186,7 @@ def main() -> None:
                 config = LLMConfig.from_env(model_tier=args.model_tier)
                 llm = OpenAICompatibleLLM(config) if config.is_configured else None
                 service = NexusService(JsonStore.from_env(), llm=llm)
-            print_json(service.daily_review(args.name, now, args.llm, args.show_prompt))
+            print_json(service.daily_review(user_name=args.name, now=now, use_llm=args.llm, include_prompt=args.show_prompt, coach_mode=args.coach_mode))
             return
         print_json(service.proactive_review(now))
         return
@@ -177,6 +223,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-

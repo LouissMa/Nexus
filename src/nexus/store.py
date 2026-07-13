@@ -10,6 +10,7 @@ from typing import Any
 DEFAULT_STATE = {
     "memories": [],
     "goals": [],
+    "daily_tasks": [],
 }
 
 

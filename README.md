@@ -1,4 +1,4 @@
-﻿# Nexus / LifeAgent
+# Nexus / LifeAgent
 
 > **A proactive personal AI operating system for daily life.**
 
@@ -23,7 +23,10 @@ The long-term vision is to build a **Personal AI Operating System**.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
-- **Daily Review / Reflection**: Generate an evening review with completed goals, quiet goals, RAG memories, and tomorrow priorities.
+- **Daily Planning**: Decompose active long-term goals into persistent, prioritized tasks for today.
+- **Structured Task Tracking**: Update task status, blockers, unresolved items, and progress notes.
+- **Daily Review / Reflection**: Review progressed goals, task outcomes, blockers, RAG memories, and tomorrow priorities.
+- **Coach Modes**: Use strict, gentle, academic, or startup guidance for plans and reviews.
 - **Morning Briefing**: Generate a template daily briefing from goals, reminders, weather text, and memories.
 - **LLM Briefing**: Optionally use an OpenAI-compatible LLM for more natural briefings.
 - **LLM Provider Config**: Save local provider/model settings, including `simple` and `complex` model tiers.
@@ -53,19 +56,39 @@ nexus briefing --llm --show-prompt --name Louis
 
 What happens:
 
-- 
-exus memory add` stores a deterministic local sparse embedding.
-- 
-exus memory retrieve` returns relevant memories with `retrieval_score`.
-- 
-exus briefing` builds a retrieval query from goals, reminders, weather text, and user context.
+- `nexus memory add` stores a deterministic local sparse embedding.
+- `nexus memory retrieve` returns relevant memories with `retrieval_score`.
+- `nexus briefing` builds a retrieval query from goals, reminders, weather text, and user context.
 - If retrieval finds no relevant memories, Nexus falls back to recent memories.
 
-Future work: replace the local sparse embedder with a real embedding model and vector database.
+This is a completed local RAG MVP, not production-grade vector RAG. Real neural embedding models, vector database persistence, re-indexing, importance scoring, and memory compression remain future work.
+
+## Daily Planning and Reflection
+
+Create today's plan from active long-term goals:
+
+```bash
+nexus plan day --name Louis --coach-mode academic
+nexus plan day --llm --model-tier complex --show-prompt
+```
+
+The first run creates up to three prioritized tasks and saves them in `.nexus/state.json`. Re-running the command on the same date returns the same tasks instead of creating duplicates.
+
+Track execution and reflection data:
+
+```bash
+nexus task list
+nexus task update <task_id> --status in_progress --note "Started the first practice set"
+nexus task update <task_id> --blocker "Need calendar access" --unresolved "Reschedule this task tomorrow"
+nexus task update <task_id> --status completed
+nexus review day --name Louis --coach-mode strict
+```
+
+A blocker automatically marks the task as `blocked`. Daily Review carries blocked and unresolved work into tomorrow priorities. Coach modes are `strict`, `gentle`, `academic`, and `startup`.
 
 ## LLM Usage
 
-Nexus works without an API key for local memory, goals, check-ins, proactive review, template briefing, and local RAG retrieval.
+Nexus works without an API key for local memory, goals, planning, task updates, check-ins, proactive/daily review, template briefing, and local RAG retrieval.
 
 An API key is only required when you run LLM-backed features such as:
 
@@ -114,6 +137,10 @@ nexus goal add "Develop Nexus" --description "Ship MVP features" --cadence-days 
 nexus goal list
 nexus goal check-in <goal_id> "Finished today's session."
 
+nexus plan day --name Louis --coach-mode academic
+nexus task list
+nexus task update <task_id> --status completed
+
 nexus review
 nexus review day --name Louis
 nexus review day --llm --show-prompt --name Louis
@@ -148,7 +175,6 @@ When implementing new features:
 - **Phase 1**: CLI MVP: memory, goals, check-ins, proactive review, morning briefing. Done.
 - **Phase 2**: LLM briefing and provider configuration. Done.
 - **Phase 3**: Local RAG long-term memory MVP. Done.
-- **Phase 4**: Daily Review / Reflection MVP. Done.
-- **Next**: Real integrations, MCP tool calling, multi-agent architecture, scheduler, dashboard, and browser/local automation.
-
-
+- **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
+- **RAG next step**: Neural embeddings, vector database persistence, re-indexing, importance scoring, and memory compression.
+- **AIOS next step**: Real integrations, MCP tool calling, multi-agent architecture, scheduler, dashboard, and browser/local automation.

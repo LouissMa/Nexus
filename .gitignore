@@ -211,3 +211,6 @@ __marimo__/
 
 # Local test scratch space
 .tmp/
+
+# Alternate pytest output when .tmp ACLs are unavailable
+test-output-*/
