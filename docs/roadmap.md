@@ -51,27 +51,75 @@ Objective: make Nexus useful at both the start and end of the day.
 
 Calendar-aware scheduling, automatic replanning, and agentic execution remain future work.
 
-## Phase 5: Life Dashboard
+## Phase 5: RAG 2.0 Foundation
 
-Objective: make the user's life context visible.
+Objective: replace the local sparse-vector MVP with production-oriented semantic retrieval.
 
-- [ ] Web dashboard.
-- [ ] Today view.
-- [ ] Long-term goals view.
-- [ ] Memory timeline.
-- [ ] Habit tracker.
-- [ ] Project progress panel.
-- [ ] AI suggestions panel.
+- [ ] Add a real embedding provider interface and implementation.
+- [ ] Add vector database persistence.
+- [ ] Add `nexus memory reindex` with migration support.
+- [ ] Add hybrid retrieval and retrieval-quality tests.
+- [ ] Keep local sparse retrieval as an offline fallback.
 
-## Phase 6: Tools, Automation, and Agents
+## Phase 6: Real Tool Integrations
 
-Objective: evolve Nexus from assistant to permissioned personal operating layer.
+Objective: connect Nexus to useful external context through explicit adapters.
 
-- [ ] MCP tool calling.
-- [ ] Browser automation.
-- [ ] Local tool execution with permission boundaries.
-- [ ] Planning agent.
-- [ ] Reflection agent.
-- [ ] Memory agent.
-- [ ] Tool agent.
-- [ ] Multi-channel delivery: CLI, web, mobile, chat, and notifications.
+- [ ] Weather integration.
+- [ ] Calendar and todo integration.
+- [ ] GitHub and Notion integration.
+- [ ] Email and local filesystem integration.
+- [ ] Add credentials, permission boundaries, and audit records.
+
+## Phase 7: MCP Tool Calling
+
+Objective: give Nexus a standard, permissioned way to discover and call tools.
+
+- [ ] MCP server configuration and discovery.
+- [ ] Tool schemas and adapter interface.
+- [ ] Per-tool approval policy.
+- [ ] Tool call logs, errors, retries, and result normalization.
+- [ ] Let planning flows invoke approved tools.
+
+## Phase 8: Multi-Agent Coordination
+
+Objective: separate complex responsibilities without fragmenting the user experience.
+
+- [ ] Memory Agent.
+- [ ] Planner Agent.
+- [ ] Tool Agent.
+- [ ] Reflection Agent.
+- [ ] Coach Agent.
+- [ ] Orchestration, shared state, budgets, and traceability.
+
+## Phase 9: Advanced Long-Term Memory
+
+Objective: make memory useful and maintainable at personal scale.
+
+- [ ] Memory importance scoring.
+- [ ] Deduplication and conflict handling.
+- [ ] Compression, summarization, and archival.
+- [ ] Forgetting, retention, privacy, and user controls.
+- [ ] Retrieval re-ranking using task and time context.
+
+## Phase 10: Proactive Runtime and Dashboard
+
+Objective: make Nexus available at the right time and make its state visible.
+
+- [ ] Scheduler for morning briefings, evening reviews, and reminders.
+- [ ] Notification channels and quiet hours.
+- [ ] Web dashboard with Today, goals, tasks, memory, and tool activity.
+- [ ] Permission, audit, and agent activity views.
+- [ ] Browser and approved local automation.
+
+## Phase 11: Multimodal and Embodied Interfaces
+
+Objective: explore additional interfaces around the stable Nexus core.
+
+- [ ] Voice input, wake-word flow, and speech output.
+- [ ] Permissioned vision and household context.
+- [ ] Smart-home adapters and family profiles.
+- [ ] Robotics adapter with simulation-first safety testing.
+- [ ] Research companion workflows for literature, code, and experiments.
+
+This phase is a long-term research direction. It does not imply that the current project is AGI or can autonomously control a home or robot.

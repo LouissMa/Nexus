@@ -166,7 +166,7 @@ NEXUS_LLM_TIMEOUT_SECONDS  default: 30
 [User]
   |
   v
-[CLI / Web / Mobile / Chat]
+[CLI / Web / Mobile / Chat / Voice gateway / Vision gateway]
   |
   v
 [Backend API]
@@ -180,6 +180,8 @@ NEXUS_LLM_TIMEOUT_SECONDS  default: 30
   |-- Coach mode controller
   |-- MCP tool adapters
   |-- Browser/local automation adapters
+  |-- Smart-home adapters (long-term)
+  |-- Robotics adapters (long-term, simulation-first)
   |
   +--> [Relational DB: goals, tasks, habits]
   +--> [Vector DB: long-term semantic memory]
@@ -187,3 +189,4 @@ NEXUS_LLM_TIMEOUT_SECONDS  default: 30
   +--> [LLM API: reasoning and generation]
   +--> [External tools: calendar, weather, email, Notion, GitHub, health]
 ```
+The architecture keeps one Nexus core across interfaces. Voice, vision, home, and robotics integrations are future adapters behind the same permission and audit boundaries; they are not part of the current CLI product.

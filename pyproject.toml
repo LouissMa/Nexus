@@ -1,7 +1,7 @@
 [project]
 name = "nexus-lifeagent"
 version = "0.1.0"
-description = "NEXUS Phase 1 CLI MVP for memory, goals, and proactive reminders."
+description = "A proactive personal AI assistant with long-term memory, daily planning, and reflection."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [

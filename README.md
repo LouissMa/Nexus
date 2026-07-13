@@ -1,8 +1,8 @@
 # Nexus / LifeAgent
 
-> **A proactive personal AI operating system for daily life.**
+> **A proactive personal AI assistant with long-term memory, planning, and reflection.**
 
-Nexus is a J.A.R.V.I.S.-like personal AI assistant that remembers your goals, retrieves relevant long-term context, and helps you take action every day.
+Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, builds daily plans, and helps users reflect and take action.
 
 [English](./README.md) | [Chinese](./README_zh.md)
 
@@ -14,7 +14,9 @@ Most AI assistants are passive. They wait for users to ask questions.
 
 Nexus is different: it is designed to remember, plan, remind, review, and eventually act through approved tools.
 
-The long-term vision is to build a **Personal AI Operating System**.
+The current project focuses on a dependable personal assistant core: memory, goals, planning, reflection, and optional LLM generation.
+
+Over time, this core can become a **Personal AI Operating System** shared by CLI, web, voice, and vision interfaces. Permissioned integrations may later connect it to digital tools, home devices, and robotic systems. These are long-term directions, not current capabilities.
 
 ## Current Features
 
@@ -176,5 +178,7 @@ When implementing new features:
 - **Phase 2**: LLM briefing and provider configuration. Done.
 - **Phase 3**: Local RAG long-term memory MVP. Done.
 - **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
-- **RAG next step**: Neural embeddings, vector database persistence, re-indexing, importance scoring, and memory compression.
-- **AIOS next step**: Real integrations, MCP tool calling, multi-agent architecture, scheduler, dashboard, and browser/local automation.
+- **Next**: RAG 2.0 with real embeddings, vector database persistence, and re-indexing.
+- **Then**: Real tool integrations, MCP tool calling, and a permission model.
+- **Later**: Multi-agent coordination, advanced memory importance/compression, proactive triggers, and the dashboard.
+- **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.

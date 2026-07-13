@@ -8,6 +8,17 @@ Status legend:
 - `[~]` In progress / MVP exists but needs deeper implementation
 - `[ ]` Not started
 
+## Agreed Implementation Order
+
+1. Planning / Reflection. Completed.
+2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing.
+3. Real tool integrations.
+4. MCP tool calling and permissions.
+5. Multi-Agent coordination.
+6. Advanced memory importance, compression, and retention.
+7. Proactive triggers and Dashboard.
+8. Long-term multimodal, smart-home, and robotics interfaces after the core is dependable.
+
 ## Completed Foundation
 
 - [x] CLI MVP for memory, goals, check-ins, proactive review, and morning briefing.
@@ -119,6 +130,18 @@ Current status: `[ ]` Not started.
 - [ ] README/report generation workflow.
 - [ ] Local command execution with explicit permission checks.
 - [ ] Audit log for automated actions.
+
+## 9. Long-Term Multimodal And Embodied Interfaces
+
+Current status: `[ ]` Research direction, not started.
+
+- [ ] Voice input and speech output.
+- [ ] Permissioned visual context.
+- [ ] Smart-home adapters and family profiles.
+- [ ] Robotics adapter with simulation-first safety controls.
+- [ ] Research companion workflows for literature, code, and experiments.
+
+These interfaces should reuse the same Nexus memory, planning, permission, and tool layers. They are not current capabilities and should not be presented as AGI.
 
 ## Maintenance Rules
 
