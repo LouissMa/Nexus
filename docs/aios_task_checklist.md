@@ -13,7 +13,7 @@ Status legend:
 1. Planning / Reflection. Completed.
 2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing. Completed.
 3. Real tool integrations. Completed.
-4. MCP tool calling and permissions.
+4. MCP tool calling and permissions. Completed.
 5. Multi-Agent coordination.
 6. Advanced memory importance, compression, and retention.
 7. Proactive triggers and Dashboard.
@@ -71,17 +71,22 @@ Current status: `[x]` Permissioned read-only integration phase completed.
 - [x] Add `nexus briefing --live-tools` for weather, calendar, and todo context.
 - [x] Add deterministic tests plus a real Open-Meteo smoke test.
 
-All Phase 6 adapters are intentionally read-only. Mutating external systems, confirmation flows, retries, and normalized agent tool schemas belong to the next MCP phase.
+All Phase 6 adapters remain intentionally read-only. Phase 7 adds separately configured MCP tools with explicit policies, one-shot approvals, bounded transport retries, and normalized results.
 
 ## 3. MCP Tool Calling
 
-Current status: `[ ]` Not started.
+Current status: `[x]` Permissioned MCP client phase completed.
 
-- [ ] Define MCP tool adapter interface.
-- [ ] Add MCP server discovery/configuration.
-- [ ] Add safe tool permission model.
-- [ ] Add tool call logging.
-- [ ] Let Nexus call approved MCP tools from planning flows.
+- [x] Define MCP gateway, tool-schema, and normalized result interfaces.
+- [x] Add stdio and Streamable HTTP server configuration and tool discovery.
+- [x] Add deny, ask, and allow per-tool permission policies.
+- [x] Add explicit one-shot approval for ask-policy calls.
+- [x] Add secret-safe discovery/call logging, bounded transport retries, and error normalization.
+- [x] Let `nexus plan day --live-mcp` call explicitly configured allow-policy planning tools.
+- [x] Preserve local Planning when an MCP server or tool fails.
+- [x] Add fake-gateway tests plus real stdio and Streamable HTTP protocol tests.
+
+Deferred to later phases: autonomous LLM tool selection, a dedicated Tool Agent, and exposing Nexus itself as an MCP server.
 
 ## 4. Planning / Reflection
 

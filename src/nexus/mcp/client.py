@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, AsyncIterator, Callable
 
 from .models import MCPCallResult, MCPToolError, MCPToolSchema, MCPTransportError
@@ -17,11 +17,15 @@ class MCPGateway:
     def call_tool(
         self, server: dict[str, Any], tool: str, arguments: dict[str, Any]
     ) -> MCPCallResult:
-        return asyncio.run(self._with_timeout(self._call_tool(server, tool, arguments), server))
+        return asyncio.run(
+            self._with_timeout(self._call_tool(server, tool, arguments), server)
+        )
 
     async def _with_timeout(self, operation: Any, server: dict[str, Any]) -> Any:
         try:
-            return await asyncio.wait_for(operation, timeout=server.get("timeout_seconds", 30))
+            return await asyncio.wait_for(
+                operation, timeout=server.get("timeout_seconds", 30)
+            )
         except MCPToolError:
             raise
         except TimeoutError as exc:
@@ -29,7 +33,19 @@ class MCPGateway:
         except MCPTransportError:
             raise
         except Exception as exc:
-            raise MCPTransportError(f"MCP transport failed: {exc}") from exc
+            detail = self._safe_transport_error(exc, server)
+            raise MCPTransportError(f"MCP transport failed: {detail}") from exc
+
+    @staticmethod
+    def _safe_transport_error(error: Exception, server: dict[str, Any]) -> str:
+        message = str(error)
+        secrets = [server.get("url")]
+        secrets.extend(server.get("headers", {}).values())
+        secrets.extend(server.get("env", {}).values())
+        for secret in secrets:
+            if secret:
+                message = message.replace(str(secret), "***")
+        return message
 
     async def _list_tools(self, server: dict[str, Any]) -> list[MCPToolSchema]:
         async with self._session(server) as session:
@@ -56,7 +72,11 @@ class MCPGateway:
                     text.append(content.text)
                 else:
                     dump = getattr(content, "model_dump", None)
-                    item = dump(mode="json") if dump else {"type": getattr(content, "type", "unknown")}
+                    item = (
+                        dump(mode="json")
+                        if dump
+                        else {"type": getattr(content, "type", "unknown")}
+                    )
                     content_metadata.append(item)
             result = MCPCallResult(
                 tool=tool,
@@ -75,6 +95,7 @@ class MCPGateway:
             return self.session_factory(server)
         return self._sdk_session(server)
 
+    @asynccontextmanager
     async def _sdk_session(self, server: dict[str, Any]) -> AsyncIterator[Any]:
         try:
             import httpx

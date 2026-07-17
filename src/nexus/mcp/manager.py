@@ -49,7 +49,9 @@ class MCPManager:
             self._audit("discover", server_name, "success", duration=started)
             return tools
         except MCPError as exc:
-            self._audit("discover", server_name, "error", error=str(exc), duration=started)
+            self._audit(
+                "discover", server_name, "error", error=str(exc), duration=started
+            )
             raise
 
     def call(
@@ -82,22 +84,39 @@ class MCPManager:
                     executed_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
                 )
                 self._audit(
-                    "call", server_name, "success", tool, arguments,
-                    duration=started, attempt_count=attempt,
+                    "call",
+                    server_name,
+                    "success",
+                    tool,
+                    arguments,
+                    duration=started,
+                    attempt_count=attempt,
                 )
                 return completed
             except MCPTransportError as exc:
                 if attempt < max_attempts:
                     continue
                 self._audit(
-                    "call", server_name, "error", tool, arguments, str(exc),
-                    started, attempt,
+                    "call",
+                    server_name,
+                    "error",
+                    tool,
+                    arguments,
+                    str(exc),
+                    started,
+                    attempt,
                 )
                 raise
             except MCPError as exc:
                 self._audit(
-                    "call", server_name, "error", tool, arguments, str(exc),
-                    started, attempt,
+                    "call",
+                    server_name,
+                    "error",
+                    tool,
+                    arguments,
+                    str(exc),
+                    started,
+                    attempt,
                 )
                 raise
         raise AssertionError("MCP retry loop ended unexpectedly.")
@@ -110,24 +129,30 @@ class MCPManager:
             for binding in server.get("planning_tools", []):
                 tool = binding["tool"]
                 if server.get("tool_policies", {}).get(tool, "ask") != "allow":
-                    context["errors"].append({
-                        "server": server_name,
-                        "tool": tool,
-                        "error": "Planning tool policy must be 'allow'.",
-                    })
+                    context["errors"].append(
+                        {
+                            "server": server_name,
+                            "tool": tool,
+                            "error": "Planning tool policy must be 'allow'.",
+                        }
+                    )
                     continue
                 try:
                     result = self.call(server_name, tool, binding.get("arguments", {}))
-                    context["results"].append({
-                        "server": server_name,
-                        **result.to_dict(),
-                    })
+                    context["results"].append(
+                        {
+                            "server": server_name,
+                            **result.to_dict(),
+                        }
+                    )
                 except MCPError as exc:
-                    context["errors"].append({
-                        "server": server_name,
-                        "tool": tool,
-                        "error": str(exc),
-                    })
+                    context["errors"].append(
+                        {
+                            "server": server_name,
+                            "tool": tool,
+                            "error": str(exc),
+                        }
+                    )
         return context
 
     def audit_events(self, limit: int = 50) -> list[dict[str, Any]]:
@@ -152,7 +177,9 @@ class MCPManager:
         duration: float | None = None,
         attempt_count: int = 1,
     ) -> None:
-        duration_ms = int((monotonic() - duration) * 1000) if duration is not None else 0
+        duration_ms = (
+            int((monotonic() - duration) * 1000) if duration is not None else 0
+        )
         self.audit_logger.record(
             action=action,
             server=server,

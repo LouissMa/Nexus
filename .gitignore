@@ -211,6 +211,7 @@ __marimo__/
 .nexus/qdrant/
 .nexus/models/
 .nexus/tool_audit.jsonl
+.nexus/mcp_audit.jsonl
 
 # Local test scratch space
 .tmp/

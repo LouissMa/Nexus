@@ -30,9 +30,18 @@ def test_mcp_cli_configuration_policy_and_planning_binding(tmp_path: Path) -> No
     env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
 
     _, added = run_cli(
-        "config", "mcp", "add", "research",
-        "--transport", "stdio", "--command", sys.executable,
-        "--arg", "server.py", "--env", "TOKEN=top-secret",
+        "config",
+        "mcp",
+        "add",
+        "research",
+        "--transport",
+        "stdio",
+        "--command",
+        sys.executable,
+        "--arg",
+        "server.py",
+        "--env",
+        "TOKEN=top-secret",
         env=env,
     )
     assert added["status"] == "ok"
@@ -41,8 +50,14 @@ def test_mcp_cli_configuration_policy_and_planning_binding(tmp_path: Path) -> No
 
     run_cli("config", "mcp", "policy", "research", "search", "allow", env=env)
     _, binding = run_cli(
-        "config", "mcp", "planning-tool", "research", "search",
-        "--arguments", '{"query":"Nexus"}', env=env,
+        "config",
+        "mcp",
+        "planning-tool",
+        "research",
+        "search",
+        "--arguments",
+        '{"query":"Nexus"}',
+        env=env,
     )
     assert binding["servers"]["research"]["planning_tools"][0]["tool"] == "search"
 
@@ -61,8 +76,14 @@ def test_mcp_cli_rejects_invalid_json_without_connecting(tmp_path: Path) -> None
     env["PYTHONPATH"] = str(ROOT / "src")
     env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
     code, output = run_cli(
-        "mcp", "call", "missing", "search", "--arguments", "not-json",
-        env=env, check=False,
+        "mcp",
+        "call",
+        "missing",
+        "search",
+        "--arguments",
+        "not-json",
+        env=env,
+        check=False,
     )
     assert code == 2
     assert output["status"] == "error"

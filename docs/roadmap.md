@@ -74,17 +74,19 @@ Objective: connect Nexus to useful external context through explicit adapters.
 - [x] Add success/failure audit records without secrets.
 - [x] Add live weather/calendar/todo context to morning briefings.
 
-The integration layer is read-only by design. Write actions and per-action confirmations are Phase 7 MCP work.
+The Phase 6 integration layer remains read-only by design. Phase 7 can call external MCP tools, including potentially mutating tools, only through explicit deny/ask/allow policies.
 
 ## Phase 7: MCP Tool Calling
 
 Objective: give Nexus a standard, permissioned way to discover and call tools.
 
-- [ ] MCP server configuration and discovery.
-- [ ] Tool schemas and adapter interface.
-- [ ] Per-tool approval policy.
-- [ ] Tool call logs, errors, retries, and result normalization.
-- [ ] Let planning flows invoke approved tools.
+- [x] MCP server configuration and discovery over stdio and Streamable HTTP.
+- [x] Tool schemas and an official-SDK gateway interface.
+- [x] Per-tool deny, ask, and allow approval policies.
+- [x] Secret-safe call logs, errors, bounded retries, and result normalization.
+- [x] Let planning flows invoke explicitly approved tools with partial-failure fallback.
+
+Nexus is an MCP client in this phase. Autonomous LLM tool selection belongs to the Multi-Agent Tool Agent phase; exposing Nexus itself as an MCP server remains separate future work.
 
 ## Phase 8: Multi-Agent Coordination
 

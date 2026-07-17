@@ -8,8 +8,21 @@ from typing import Any
 
 
 class MCPAuditLogger:
-    SECRET_KEYS = {"token", "password", "api_key", "authorization", "secret", "headers", "env", "url"}
+    SECRET_KEYS = {
+        "token",
+        "password",
+        "api_key",
+        "authorization",
+        "secret",
+        "headers",
+        "env",
+        "url",
+    }
     URL_PATTERN = re.compile(r"https?://[^\s'\"]+", re.IGNORECASE)
+    BEARER_PATTERN = re.compile(r"(Bearer\s+)[^\s,;]+", re.IGNORECASE)
+    ASSIGNMENT_PATTERN = re.compile(
+        r"((?:token|password|api[_-]?key|secret)=)[^&\s]+", re.IGNORECASE
+    )
 
     def __init__(self, path: Path):
         self.path = path
@@ -45,7 +58,9 @@ class MCPAuditLogger:
         if not self.path.exists():
             return []
         events: list[dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines()[-max(1, limit) :]:
+        for line in self.path.read_text(encoding="utf-8").splitlines()[
+            -max(1, limit) :
+        ]:
             try:
                 events.append(json.loads(line))
             except json.JSONDecodeError:
@@ -54,10 +69,15 @@ class MCPAuditLogger:
 
     def _sanitize(self, value: Any, key: str = "") -> Any:
         lowered = key.lower()
-        if lowered in self.SECRET_KEYS or any(part in lowered for part in ("token", "password", "secret", "key")):
+        if lowered in self.SECRET_KEYS or any(
+            part in lowered for part in ("token", "password", "secret", "key")
+        ):
             return "***"
         if isinstance(value, dict):
-            return {item_key: self._sanitize(item, item_key) for item_key, item in value.items()}
+            return {
+                item_key: self._sanitize(item, item_key)
+                for item_key, item in value.items()
+            }
         if isinstance(value, list):
             return [self._sanitize(item) for item in value]
         if isinstance(value, str):
@@ -67,4 +87,6 @@ class MCPAuditLogger:
     def _sanitize_error(self, error: str | None) -> str | None:
         if error is None:
             return None
-        return self.URL_PATTERN.sub("***", error)
+        sanitized = self.URL_PATTERN.sub("***", error)
+        sanitized = self.BEARER_PATTERN.sub(r"\1***", sanitized)
+        return self.ASSIGNMENT_PATTERN.sub(r"\1***", sanitized)

@@ -126,14 +126,18 @@ def _validate_server(name: str, value: Any) -> dict[str, Any]:
     server = deepcopy(value)
     transport = server.get("transport")
     if transport not in MCP_TRANSPORTS:
-        raise ValueError(f"MCP server '{name}' has unsupported transport '{transport}'.")
+        raise ValueError(
+            f"MCP server '{name}' has unsupported transport '{transport}'."
+        )
     if transport == "stdio" and not server.get("command"):
         raise ValueError(f"MCP stdio server '{name}' requires command.")
     if transport == "streamable_http":
         url = server.get("url")
         parsed = urlparse(str(url or ""))
         if not url or parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError(f"MCP Streamable HTTP server '{name}' requires a valid url.")
+            raise ValueError(
+                f"MCP Streamable HTTP server '{name}' requires a valid url."
+            )
 
     timeout = server.get("timeout_seconds", 30)
     retries = server.get("max_retries", 1)
@@ -155,7 +159,9 @@ def _validate_server(name: str, value: Any) -> dict[str, Any]:
         not isinstance(tool, str) or policy not in MCP_POLICIES
         for tool, policy in policies.items()
     ):
-        raise ValueError("MCP tool policies must map tool names to deny, ask, or allow.")
+        raise ValueError(
+            "MCP tool policies must map tool names to deny, ask, or allow."
+        )
     if not isinstance(planning_tools, list):
         raise ValueError("MCP planning_tools must be a list.")
     for binding in planning_tools:
@@ -164,7 +170,9 @@ def _validate_server(name: str, value: Any) -> dict[str, Any]:
             or not isinstance(binding.get("tool"), str)
             or not isinstance(binding.get("arguments", {}), dict)
         ):
-            raise ValueError("Each MCP planning tool requires a tool name and object arguments.")
+            raise ValueError(
+                "Each MCP planning tool requires a tool name and object arguments."
+            )
 
     server.setdefault("enabled", True)
     server["args"] = args

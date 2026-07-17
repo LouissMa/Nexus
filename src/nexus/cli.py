@@ -16,6 +16,17 @@ from .config import (
 )
 from .integrations.core import ToolError
 from .integrations.manager import build_tool_manager
+from .mcp.config import (
+    disable_mcp_server,
+    load_mcp_settings,
+    masked_mcp_settings,
+    remove_mcp_server,
+    set_mcp_planning_tool,
+    set_mcp_tool_policy,
+    upsert_mcp_server,
+)
+from .mcp.manager import build_mcp_manager
+from .mcp.models import MCPError
 from .llm import LLMConfig, OpenAICompatibleLLM
 from .planning import COACH_MODES, TASK_STATUSES
 from .rag import build_memory_retriever
@@ -70,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan_parser.add_argument("--llm", action="store_true")
     plan_parser.add_argument("--model-tier", choices=["simple", "complex"])
     plan_parser.add_argument("--show-prompt", action="store_true")
+    plan_parser.add_argument("--live-mcp", action="store_true", help="Run approved MCP planning tools.")
     plan_parser.add_argument("--now", help="Optional ISO timestamp for deterministic planning.")
 
     task_parser = subparsers.add_parser("task", help="Inspect or update planned daily tasks.")
@@ -145,6 +157,18 @@ def build_parser() -> argparse.ArgumentParser:
     audit_tool = tool_subparsers.add_parser("audit")
     audit_tool.add_argument("--limit", type=int, default=50)
 
+    mcp_parser = subparsers.add_parser("mcp", help="Discover and call permissioned MCP tools.")
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command", required=True)
+    mcp_subparsers.add_parser("servers", help="List configured MCP servers.")
+    mcp_tools = mcp_subparsers.add_parser("tools", help="Discover tools from a server.")
+    mcp_tools.add_argument("server")
+    mcp_call = mcp_subparsers.add_parser("call", help="Call one MCP tool.")
+    mcp_call.add_argument("server")
+    mcp_call.add_argument("tool")
+    mcp_call.add_argument("--arguments", default="{}", help="JSON object arguments.")
+    mcp_call.add_argument("--approve", action="store_true", help="Approve one ask-policy call.")
+    mcp_audit = mcp_subparsers.add_parser("audit", help="Show secret-safe MCP audit events.")
+    mcp_audit.add_argument("--limit", type=int, default=50)
     config_parser = subparsers.add_parser("config", help="Manage local Nexus configuration.")
     config_subparsers = config_parser.add_subparsers(dest="config_command", required=True)
     llm_parser = config_subparsers.add_parser("llm", help="Manage local LLM configuration.")
@@ -194,8 +218,54 @@ def build_parser() -> argparse.ArgumentParser:
     tool_disable.add_argument("tool_name", choices=["weather", "calendar", "todo", "github", "notion", "email", "filesystem"])
     tool_config_subparsers.add_parser("show", help="Show tool configuration with masked secrets.")
 
+    mcp_config_parser = config_subparsers.add_parser("mcp", help="Manage MCP server configuration.")
+    mcp_config_subparsers = mcp_config_parser.add_subparsers(dest="mcp_config_command", required=True)
+    mcp_add = mcp_config_subparsers.add_parser("add", help="Add or replace an MCP server.")
+    mcp_add.add_argument("server_name")
+    mcp_add.add_argument("--transport", choices=["stdio", "streamable_http"], required=True)
+    mcp_add.add_argument("--command", dest="server_command")
+    mcp_add.add_argument("--arg", action="append", default=[], dest="server_args")
+    mcp_add.add_argument("--url")
+    mcp_add.add_argument("--header", action="append", default=[])
+    mcp_add.add_argument("--env", action="append", default=[])
+    mcp_add.add_argument("--timeout-seconds", type=int, default=30)
+    mcp_add.add_argument("--max-retries", type=int, default=1)
+    mcp_disable = mcp_config_subparsers.add_parser("disable")
+    mcp_disable.add_argument("server_name")
+    mcp_remove = mcp_config_subparsers.add_parser("remove")
+    mcp_remove.add_argument("server_name")
+    mcp_policy = mcp_config_subparsers.add_parser("policy")
+    mcp_policy.add_argument("server_name")
+    mcp_policy.add_argument("tool")
+    mcp_policy.add_argument("policy", choices=["deny", "ask", "allow"])
+    mcp_planning = mcp_config_subparsers.add_parser("planning-tool")
+    mcp_planning.add_argument("server_name")
+    mcp_planning.add_argument("tool")
+    mcp_planning.add_argument("--arguments", default="{}")
+    mcp_config_subparsers.add_parser("show")
     return parser
 
+
+def parse_json_object(value: str) -> dict[str, object]:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Arguments must be valid JSON: {exc.msg}.") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Arguments JSON must be an object.")
+    return parsed
+
+
+def parse_pairs(values: list[str], label: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"{label} must use KEY=VALUE format.")
+        key, item = value.split("=", 1)
+        if not key:
+            raise ValueError(f"{label} key cannot be empty.")
+        parsed[key] = item
+    return parsed
 
 def print_json(data: object) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
@@ -210,6 +280,8 @@ def main() -> None:
     service = NexusService(store, memory_retriever=retriever)
     tool_settings = load_tool_settings()
     tool_manager = build_tool_manager(tool_settings, nexus_home())
+    mcp_settings = load_mcp_settings()
+    mcp_manager = build_mcp_manager(mcp_settings, nexus_home())
 
     if args.command == "memory":
         if args.memory_command == "add":
@@ -264,6 +336,31 @@ def main() -> None:
             raise SystemExit(1) from exc
         return
 
+    if args.command == "mcp":
+        if args.mcp_command == "servers":
+            print_json({"servers": mcp_manager.servers()})
+            return
+        if args.mcp_command == "audit":
+            print_json({"events": mcp_manager.audit_events(args.limit)})
+            return
+        arguments: dict[str, object] = {}
+        if args.mcp_command == "call":
+            try:
+                arguments = parse_json_object(args.arguments)
+            except ValueError as exc:
+                print_json({"status": "error", "error": str(exc)})
+                raise SystemExit(2) from exc
+        try:
+            if args.mcp_command == "tools":
+                tools = mcp_manager.discover(args.server)
+                print_json({"server": args.server, "tools": [tool.to_dict() for tool in tools]})
+            else:
+                result = mcp_manager.call(args.server, args.tool, arguments, approved=args.approve)
+                print_json({"status": "ok", "server": args.server, "result": result.to_dict()})
+        except MCPError as exc:
+            print_json({"status": "error", "error": str(exc)})
+            raise SystemExit(1) from exc
+        return
     if args.command == "goal":
         if args.goal_command == "add":
             goal = service.add_goal(args.title, args.description, args.cadence_days)
@@ -279,6 +376,7 @@ def main() -> None:
 
     if args.command == "plan":
         now = datetime.fromisoformat(args.now) if args.now else None
+        mcp_context = mcp_manager.planning_context() if args.live_mcp else None
         if args.llm:
             config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = OpenAICompatibleLLM(config) if config.is_configured else None
@@ -286,6 +384,7 @@ def main() -> None:
         print_json(service.daily_plan(
             user_name=args.name, now=now, coach_mode=args.coach_mode,
             use_llm=args.llm, include_prompt=args.show_prompt,
+            mcp_context=mcp_context,
         ))
         return
 
@@ -403,6 +502,39 @@ def main() -> None:
             print_json({"tools": masked_tool_settings(load_tool_settings())})
             return
 
+    if args.command == "config" and args.config_command == "mcp":
+        try:
+            if args.mcp_config_command == "add":
+                server = {
+                    "enabled": True,
+                    "transport": args.transport,
+                    "timeout_seconds": args.timeout_seconds,
+                    "max_retries": args.max_retries,
+                    "tool_policies": {},
+                    "planning_tools": [],
+                }
+                if args.transport == "stdio":
+                    server.update({"command": args.server_command, "args": args.server_args, "env": parse_pairs(args.env, "Environment")})
+                else:
+                    server.update({"url": args.url, "headers": parse_pairs(args.header, "Header")})
+                settings, path = upsert_mcp_server(args.server_name, server)
+            elif args.mcp_config_command == "disable":
+                settings, path = disable_mcp_server(args.server_name)
+            elif args.mcp_config_command == "remove":
+                settings, path = remove_mcp_server(args.server_name)
+            elif args.mcp_config_command == "policy":
+                settings, path = set_mcp_tool_policy(args.server_name, args.tool, args.policy)
+            elif args.mcp_config_command == "planning-tool":
+                arguments = parse_json_object(args.arguments)
+                settings, path = set_mcp_planning_tool(args.server_name, args.tool, arguments)
+            else:
+                print_json({"servers": masked_mcp_settings(load_mcp_settings())})
+                return
+        except ValueError as exc:
+            print_json({"status": "error", "error": str(exc)})
+            raise SystemExit(2) from exc
+        print_json({"status": "ok", "path": str(path), "servers": masked_mcp_settings(settings)})
+        return
     parser.error("Unknown command")
 
 

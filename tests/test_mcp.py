@@ -117,7 +117,10 @@ class FakeGateway:
                 name="search",
                 title="Research Search",
                 description="Search papers",
-                input_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+                input_schema={
+                    "type": "object",
+                    "properties": {"query": {"type": "string"}},
+                },
             )
         ]
 
@@ -206,7 +209,11 @@ def test_planning_context_uses_only_explicit_allow_bindings(tmp_path: Path) -> N
     assert context["results"][0]["tool"] == "search"
     assert context["results"][0]["structured_data"] == {"count": 2}
     assert context["errors"] == [
-        {"server": "research", "tool": "draft", "error": "Planning tool policy must be 'allow'."}
+        {
+            "server": "research",
+            "tool": "draft",
+            "error": "Planning tool policy must be 'allow'.",
+        }
     ]
 
 
@@ -218,7 +225,7 @@ def test_mcp_audit_redacts_sensitive_arguments_and_errors(tmp_path: Path) -> Non
         tool="search",
         status="error",
         arguments={"token": "secret-token", "nested": {"password": "hidden"}},
-        error="request failed for https://secret.example/mcp?token=secret-token",
+        error="request failed for https://secret.example/mcp?token=secret-token Authorization: Bearer bearer-secret",
         duration_ms=12,
         attempt_count=1,
     )
@@ -226,4 +233,4 @@ def test_mcp_audit_redacts_sensitive_arguments_and_errors(tmp_path: Path) -> Non
     assert "secret-token" not in encoded
     assert "hidden" not in encoded
     assert "secret.example" not in encoded
-
+    assert "bearer-secret" not in encoded

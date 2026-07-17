@@ -1,6 +1,6 @@
 # Nexus MVP Architecture
 
-The current version is a local-first CLI assistant with optional LLM generation and optional semantic RAG. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; hosted embeddings are optional because FastEmbed can run locally.
+The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, permissioned real tools, and a standards-based MCP client. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; hosted embeddings and MCP servers are optional.
 
 ## Current Architecture
 
@@ -46,6 +46,10 @@ The current version is a local-first CLI assistant with optional LLM generation 
 - `src/nexus/integrations/web_tools.py`: Open-Meteo, Todoist, GitHub, and Notion adapters.
 - `src/nexus/integrations/personal_tools.py`: recurring iCalendar, read-only IMAP, and bounded filesystem adapters.
 - `src/nexus/integrations/manager.py`: tool registry, execution orchestration, auditing, and live briefing aggregation.
+- `src/nexus/mcp/config.py`: MCP server validation, local configuration, tool policies, Planning bindings, and masking.
+- `src/nexus/mcp/client.py`: official SDK lifecycle for stdio and Streamable HTTP, discovery, calls, and normalized results.
+- `src/nexus/mcp/manager.py`: permission enforcement, bounded retries, audit orchestration, and partial-failure Planning aggregation.
+- `src/nexus/mcp/audit.py`: secret-safe MCP JSONL audit trail.
 - `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
 
 ## Data Model
@@ -199,12 +203,46 @@ nexus briefing --live-tools
 
 Current tool adapters are read-only. Email uses a verified TLS context and opens the mailbox with `readonly=True`. Filesystem paths are resolved before access and must stay inside explicitly configured roots. Calendar URLs, tokens, and passwords are masked and never written to the audit log.
 
+## MCP Client Flow
+
+```text
+nexus config mcp add <server>
+  -> validate stdio command/arguments or Streamable HTTP URL/headers
+  -> save the definition only in ignored .nexus/config.local.json
+  -> mask URL, headers, and child-process environment in CLI output
+
+nexus mcp tools <server>
+  -> open the configured transport
+  -> complete MCP initialization and capability negotiation
+  -> list tools
+  -> normalize names, descriptions, titles, and input JSON Schemas
+  -> append a secret-safe discovery audit event
+
+nexus mcp call <server> <tool>
+  -> require enabled server
+  -> apply deny / ask / allow policy
+  -> require --approve for one ask-policy call
+  -> call through the official MCP SDK
+  -> retry only eligible transport failures within the configured bound
+  -> never retry an MCP-declared tool error
+  -> normalize text, structured content, non-text metadata, attempts, and timestamp
+  -> append a secret-safe success, denial, or failure audit event
+
+nexus plan day --live-mcp
+  -> run only explicit planning-tool bindings with allow policy
+  -> keep successful results when another binding fails
+  -> inject normalized MCP context into the local plan and optional LLM prompt
+  -> preserve normal local Planning when no MCP result is available
+```
+
+Nexus supports standard stdio and Streamable HTTP transports. Phase 7 intentionally makes Nexus an MCP client only.
+
 ## Design Constraints
 
 - Nexus does not fake integrations. Weather, iCalendar, Todoist, GitHub, Notion, IMAP headers, and bounded local files now use real adapters; unavailable providers remain explicit in structured errors.
 - LLM usage must be optional. The local template path remains the stable fallback.
 - The service layer owns product decisions. The CLI only parses arguments and wires dependencies.
-- Prompt construction is inspectable with `--show-prompt`, so future RAG and agent behavior can be debugged clearly.
+- Prompt construction is inspectable with `--show-prompt`, so RAG, MCP Planning context, and future agent behavior can be debugged clearly.
 
 ## Future Architecture
 

@@ -23,6 +23,7 @@ Over time, this core can become a **Personal AI Operating System** shared by CLI
 - **Memory**: Add, list, keyword-search, and RAG-retrieve long-term memories.
 - **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
 - **Permissioned Real Tools**: Read live weather, iCalendar events, Todoist tasks, GitHub repositories, Notion pages, IMAP headers, and approved local files.
+- **MCP Tool Calling**: Configure stdio or Streamable HTTP MCP servers, discover schemas, apply deny/ask/allow policies, call tools, audit activity, and enrich daily planning.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
@@ -123,12 +124,52 @@ nexus briefing --name Louis --live-tools --llm
 Safety boundaries:
 
 - Every tool must be explicitly configured and enabled.
-- Phase 6 integrations are read-only. Write actions are deferred to the MCP permission phase.
+- Phase 6 integrations remain read-only. MCP servers may expose mutating tools, so Nexus gates every MCP tool with deny/ask/allow policy.
 - IMAP mailboxes are opened in read-only mode and only message headers are returned.
 - Filesystem operations are limited to configured roots and reject path traversal or access outside those roots.
 - Calendar feed URLs, tokens, and passwords are stored only in the ignored local config and masked in CLI output.
 - Every success and failure is appended to the ignored local audit log at `.nexus/tool_audit.jsonl`.
 - Run `nexus config tool disable <tool>` to revoke a tool without deleting its local settings.
+
+## MCP Tool Calling
+
+Install the official stable MCP Python SDK:
+
+```bash
+python -m pip install -e ".[mcp]"
+```
+
+Configure a local stdio server or a remote Streamable HTTP server:
+
+```bash
+nexus config mcp add research --transport stdio --command python --arg path/to/mcp_server.py
+nexus config mcp add remote --transport streamable_http --url "https://mcp.example/mcp" --header "Authorization=Bearer your-token"
+nexus config mcp show
+```
+
+Discover schemas and set a per-tool policy:
+
+```bash
+nexus mcp servers
+nexus mcp tools research
+nexus config mcp policy research search ask
+nexus mcp call research search --arguments '{"query":"MCP research"}' --approve
+nexus mcp audit --limit 20
+```
+
+Policies are `deny`, `ask`, and `allow`. Unknown tools default to `ask`; `ask` requires the one-shot `--approve` flag. Transport failures use bounded retries, while MCP-declared tool errors are never retried because a tool may have side effects.
+
+To enrich Planning, explicitly bind a tool and set its policy to `allow`:
+
+```bash
+nexus config mcp policy research search allow
+nexus config mcp planning-tool research search --arguments '{"query":"today research priorities"}'
+nexus plan day --name Louis --live-mcp
+```
+
+Planning executes only explicit `planning-tool` bindings with an `allow` policy. Successful results and failures are returned in `mcp_context`; one failed server does not stop the local plan. Server definitions stay in ignored `.nexus/config.local.json`, masked CLI output never reveals URLs, headers, or environment secrets, and MCP audit records go to ignored `.nexus/mcp_audit.jsonl`.
+
+
 
 ## Daily Planning and Reflection
 
@@ -251,6 +292,7 @@ When implementing new features:
 - **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
 - **Phase 5**: RAG 2.0 with real embeddings, Qdrant persistence, hybrid retrieval, and re-indexing. Done.
 - **Phase 6**: Permissioned read-only real tool integrations and live briefing context. Done.
-- **Next**: MCP tool calling, write-action permissions, and result normalization.
+- **Phase 7**: Permissioned MCP client with stdio/Streamable HTTP, discovery, policies, audit, retries, normalized results, and Planning context. Done.
+- **Next**: Multi-agent coordination with Memory, Planner, Tool, Reflection, and Coach responsibilities.
 - **Later**: Multi-agent coordination, advanced memory importance/compression, proactive triggers, and the dashboard.
 - **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.

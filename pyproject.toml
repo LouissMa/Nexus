@@ -1,7 +1,7 @@
 [project]
 name = "nexus-lifeagent"
 version = "0.1.0"
-description = "A proactive personal AI assistant with memory, planning, reflection, RAG, and permissioned real tools."
+description = "A proactive personal AI assistant with memory, planning, RAG, permissioned real tools, and MCP tool calling."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -15,6 +15,9 @@ rag = [
 tools = [
   "icalendar>=6,<7",
   "recurring-ical-events>=3.8,<4",
+]
+mcp = [
+  "mcp>=1.27,<2",
 ]
 
 [project.scripts]

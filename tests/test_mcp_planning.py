@@ -16,7 +16,9 @@ class FakeLLM:
         return "MCP-aware plan"
 
 
-def test_daily_plan_includes_mcp_context_in_output_template_and_prompt(tmp_path: Path) -> None:
+def test_daily_plan_includes_mcp_context_in_output_template_and_prompt(
+    tmp_path: Path,
+) -> None:
     llm = FakeLLM()
     service = NexusService(JsonStore(tmp_path / "state.json"), llm=llm)
     service.add_goal("Research MCP", "Read protocol papers", 1)
@@ -60,7 +62,9 @@ def test_daily_plan_preserves_mcp_errors_without_failing(tmp_path: Path) -> None
     service = NexusService(JsonStore(tmp_path / "state.json"))
     context = {
         "results": [],
-        "errors": [{"server": "offline", "tool": "search", "error": "connection failed"}],
+        "errors": [
+            {"server": "offline", "tool": "search", "error": "connection failed"}
+        ],
     }
     plan = service.daily_plan(
         now=datetime(2030, 1, 3, tzinfo=UTC),

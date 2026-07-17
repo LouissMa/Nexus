@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
@@ -196,6 +197,7 @@ class NexusService:
         coach_mode: str = "gentle",
         use_llm: bool = False,
         include_prompt: bool = False,
+        mcp_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
         profile = coach_profile(coach_mode)
@@ -219,10 +221,12 @@ class NexusService:
 
         task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
         memory_text = self._format_items(memories, lambda memory: f"- {memory['text']}")
+        mcp_context = mcp_context or {"results": [], "errors": []}
+        mcp_text = self._format_mcp_context(mcp_context)
         system_prompt = (
             "You are Nexus, a proactive personal AI planner. Write in Chinese. "
             f"Act as a {profile.label}. {profile.instruction} "
-            "Use only the supplied goals, tasks, and memories."
+            "Use only the supplied goals, tasks, memories, and approved MCP context."
         )
         user_prompt = f"""Create a practical daily plan for {user_name} on {plan_date}.
 
@@ -232,8 +236,13 @@ Structured tasks:
 Relevant long-term memories:
 {memory_text}
 
+Approved MCP tool context:
+{mcp_text}
+
 Keep the tasks concrete and preserve their priority order."""
         plan_text = "\n".join([f"Daily plan for {user_name} ({plan_date}, {coach_mode} mode):", task_text, "", profile.closing])
+        if mcp_context.get("results") or mcp_context.get("errors"):
+            plan_text = "\n".join([plan_text, "", "MCP context:", mcp_text])
         llm_info = self._empty_llm_info(use_llm)
         if use_llm:
             if self.llm is None:
@@ -253,6 +262,7 @@ Keep the tasks concrete and preserve their priority order."""
             "tasks": tasks,
             "relevant_memories": memories,
             "memory_retrieval": retrieval_metadata,
+            "mcp_context": mcp_context,
             "plan": plan_text,
             "llm": llm_info,
         }
@@ -260,6 +270,24 @@ Keep the tasks concrete and preserve their priority order."""
             response["prompt"] = {"system": system_prompt, "user": user_prompt}
         return response
 
+    @staticmethod
+    def _format_mcp_context(context: dict[str, Any]) -> str:
+        lines: list[str] = []
+        for result in context.get("results", []):
+            label = f"{result.get('server')}/{result.get('tool')}"
+            text = "; ".join(str(item) for item in result.get("text", []) if item)
+            structured = result.get("structured_data")
+            detail = text or (
+                json.dumps(structured, ensure_ascii=False, sort_keys=True)
+                if structured is not None
+                else "completed"
+            )
+            lines.append(f"- {label}: {detail}")
+        for error in context.get("errors", []):
+            lines.append(
+                f"- {error.get('server')}/{error.get('tool')}: {error.get('error')}"
+            )
+        return "\n".join(lines) if lines else "- No MCP context requested."
     def proactive_review(self, now: datetime | None = None) -> dict[str, Any]:
         now = now or utc_now()
         state = self.store.load()
@@ -299,6 +327,7 @@ Keep the tasks concrete and preserve their priority order."""
         now: datetime | None = None,
         use_llm: bool = False,
         include_prompt: bool = False,
+        mcp_context: dict[str, Any] | None = None,
         coach_mode: str = "gentle",
     ) -> dict[str, Any]:
         now = now or utc_now()
@@ -354,6 +383,7 @@ Keep the tasks concrete and preserve their priority order."""
         now: datetime | None = None,
         use_llm: bool = False,
         include_prompt: bool = False,
+        mcp_context: dict[str, Any] | None = None,
         external_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
