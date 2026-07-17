@@ -208,6 +208,8 @@ __marimo__/
 
 # Nexus local runtime data and secrets
 .nexus/config.local.json
+.nexus/qdrant/
+.nexus/models/
 
 # Local test scratch space
 .tmp/

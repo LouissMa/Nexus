@@ -1,6 +1,6 @@
 # Nexus MVP Architecture
 
-The current version is a local CLI MVP with an optional LLM briefing layer. It still works fully offline by default, and only calls an external LLM when the user explicitly passes `--llm` and configures an API key.
+The current version is a local-first CLI assistant with optional LLM generation and optional semantic RAG. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; hosted embeddings are optional because FastEmbed can run locally.
 
 ## Current Architecture
 
@@ -36,7 +36,9 @@ The current version is a local CLI MVP with an optional LLM briefing layer. It s
 
 - `src/nexus/cli.py`: CLI parsing for `memory`, `goal`, `plan`, `task`, `review`, `briefing`, and `config`.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, persistent daily planning, structured task updates, reflection, coach-aware prompts, and briefings.
-- `src/nexus/rag.py`: local sparse embedding and deterministic memory retrieval for the RAG MVP.
+- `src/nexus/embeddings.py`: FastEmbed and OpenAI-compatible neural embedding providers.
+- `src/nexus/vector_store.py`: local/remote Qdrant persistence and collection operations.
+- `src/nexus/rag.py`: sparse retrieval, semantic indexing, hybrid score fusion, metadata, re-indexing, and fallback.
 - src/nexus/planning.py: daily-task decomposition rules, task status vocabulary, and Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client, environment-based configuration, HTTP request handling, and LLM errors.
 - `src/nexus/store.py`: local JSON persistence.
@@ -105,26 +107,40 @@ nexus review day
 
 Daily plans are idempotent per date: running `nexus plan day` again returns the existing tasks instead of creating duplicates.
 
-## RAG Memory Flow
+## RAG 2.0 Memory Flow
 
 ```text
+Configure
+  -> choose local FastEmbed or an OpenAI-compatible embedding endpoint
+  -> choose local Qdrant persistence or remote Qdrant
+
 Add memory
-  -> build local sparse embedding
-  -> store memory + embedding in .nexus/state.json
+  -> store deterministic sparse features in .nexus/state.json
+  -> generate a neural embedding when semantic RAG is enabled
+  -> incrementally upsert vector + public payload into Qdrant
 
 Retrieve memory
-  -> embed query locally
-  -> score memories by cosine similarity
-  -> return public memory fields + retrieval_score
+  -> generate dense query embedding
+  -> query Qdrant semantic candidates
+  -> score local sparse candidates
+  -> fuse dense and sparse scores
+  -> return memories plus provider/model/strategy/score/error metadata
+  -> automatically use sparse-only results if semantic retrieval fails
 
-Briefing
-  -> build query from user name, weather, active goals, and reminders
+Re-index
+  -> load all memories
+  -> regenerate embeddings with the current provider/model
+  -> recreate the Qdrant collection
+  -> persist index metadata in .nexus/state.json
+
+Briefing / Planning / Review
+  -> build a task-specific retrieval query
   -> retrieve relevant long-term memories
-  -> inject memories and retrieval metadata into the briefing prompt
-  -> fall back to recent memories if no relevant result is found
+  -> inject memories and retrieval metadata into local and LLM contexts
 ```
 
-The current RAG implementation is intentionally local and dependency-free. It proves the product loop before adding external embedding APIs or a vector database.
+Local FastEmbed requires no API key but downloads its model on first use. Hosted embedding providers require their own API key. The local Qdrant index lives under `.nexus/qdrant/` and is not committed.
+
 ## LLM Briefing Flow
 
 ```text

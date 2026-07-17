@@ -11,7 +11,7 @@ Status legend:
 ## Agreed Implementation Order
 
 1. Planning / Reflection. Completed.
-2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing.
+2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing. Completed.
 3. Real tool integrations.
 4. MCP tool calling and permissions.
 5. Multi-Agent coordination.
@@ -31,24 +31,27 @@ Status legend:
 
 ## 1. RAG Long-Term Memory
 
-Current status: `[~]` Local dependency-free RAG MVP completed. Production-grade vector RAG is not completed.
-
-Completed local MVP:
+Current status: `[x]` RAG 2.0 foundation completed. Advanced memory lifecycle work is tracked separately in Phase 9.
 
 - [x] Generate deterministic local sparse embeddings when memories are added.
 - [x] Add `nexus memory retrieve` for relevant memory retrieval.
-- [x] Inject retrieved memories into briefing and review contexts and LLM prompts.
-- [x] Include retrieval metadata such as query, strategy, and score.
+- [x] Inject retrieved memories into briefing, planning, and review contexts and LLM prompts.
+- [x] Include query, strategy, provider, model, candidate counts, component scores, and errors in retrieval metadata.
+- [x] Add a real embedding provider interface.
+- [x] Add local FastEmbed support without an API key.
+- [x] Add OpenAI-compatible hosted embedding support.
+- [x] Add persistent local or remote Qdrant vector storage.
+- [x] Add `nexus memory reindex` and `nexus memory index-status`.
+- [x] Incrementally index newly added memories.
+- [x] Add dense+sparse hybrid retrieval with local sparse fallback.
+- [x] Add deterministic retrieval, re-index, empty-index, and secret-masking tests.
 
-Remaining production-grade work:
+Deferred to Advanced Long-Term Memory (Phase 9):
 
-- [ ] Add real embedding model support.
-- [ ] Add vector database persistence.
-- [ ] Add memory re-index command.
 - [ ] Add memory importance scoring.
+- [ ] Add deduplication and conflict handling.
 - [ ] Add memory compression/summarization for long-term scale.
-
-This section stays `[~]` because the current sparse vectors are deterministic local feature vectors stored in JSON. They prove the RAG flow without an API, but they are not neural embeddings and do not provide a scalable vector index.
+- [ ] Add retention, forgetting, privacy, and user controls.
 
 ## 2. Real Tool Integrations
 

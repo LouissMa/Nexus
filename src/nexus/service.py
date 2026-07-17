@@ -70,7 +70,13 @@ class NexusService:
     def add_memory(self, text: str, tags: list[str]) -> Memory:
         state = self.store.load()
         memory = Memory(id=str(uuid4())[:8], text=text.strip(), tags=tags)
-        state["memories"].append(self.memory_retriever.enrich_memory(asdict(memory)))
+        enriched = self.memory_retriever.enrich_memory(asdict(memory))
+        state["memories"].append(enriched)
+        report = self.memory_retriever.index_memories([enriched])
+        if report is not None:
+            report["updated_at"] = isoformat(utc_now())
+            report["memory_count"] = len(state["memories"])
+            state["rag_index"] = report
         self.store.save(state)
         return memory
 
@@ -91,8 +97,29 @@ class NexusService:
         return [memory for _, memory in results]
 
     def retrieve_memories(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        return self.retrieve_memories_result(query, limit)["results"]
+
+    def retrieve_memories_result(self, query: str, limit: int = 5) -> dict[str, Any]:
         state = self.store.load()
-        return self.memory_retriever.retrieve(state.get("memories", []), query, limit)
+        result = self.memory_retriever.retrieve_result(state.get("memories", []), query, limit)
+        return {"query": query, "results": result.memories, "memory_retrieval": result.metadata}
+
+    def reindex_memories(self) -> dict[str, Any]:
+        state = self.store.load()
+        report = self.memory_retriever.reindex(state.get("memories", []))
+        report["updated_at"] = isoformat(utc_now())
+        report["memory_count"] = len(state.get("memories", []))
+        state["rag_index"] = report
+        self.store.save(state)
+        return report
+
+    def rag_status(self) -> dict[str, Any]:
+        state = self.store.load()
+        return {
+            "runtime": self.memory_retriever.status(),
+            "last_index": state.get("rag_index"),
+            "memory_count": len(state.get("memories", [])),
+        }
 
     def add_goal(self, title: str, description: str, cadence_days: int) -> Goal:
         state = self.store.load()
@@ -183,11 +210,12 @@ class NexusService:
             self.store.save(state)
 
         query = " ".join([user_name, "daily plan"] + [f"{task['goal_title']} {task['title']}" for task in tasks])
-        memories = self.memory_retriever.retrieve(state.get("memories", []), query, limit=6)
-        strategy = "local_sparse_embedding"
+        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), query, limit=6)
+        memories = retrieval.memories
+        retrieval_metadata = retrieval.metadata
         if not memories:
             memories = self._recent_memories(state, limit=6)
-            strategy = "recent_memory_fallback"
+            retrieval_metadata["strategy"] = "recent_memory_fallback"
 
         task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
         memory_text = self._format_items(memories, lambda memory: f"- {memory['text']}")
@@ -224,7 +252,7 @@ Keep the tasks concrete and preserve their priority order."""
             "coach_mode": coach_mode,
             "tasks": tasks,
             "relevant_memories": memories,
-            "memory_retrieval": {"query": query, "strategy": strategy, "limit": 6},
+            "memory_retrieval": retrieval_metadata,
             "plan": plan_text,
             "llm": llm_info,
         }
@@ -399,11 +427,12 @@ Keep the tasks concrete and preserve their priority order."""
 
         reminders = self.proactive_review(now)["reminders"]
         memory_query = self._build_review_memory_query(user_name, completed_goals, pending_goals, today_check_ins, reminders)
-        relevant_memories = self.memory_retriever.retrieve(state.get("memories", []), memory_query, limit=8)
-        retrieval_strategy = "local_sparse_embedding"
+        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), memory_query, limit=8)
+        relevant_memories = retrieval.memories
+        retrieval_metadata = retrieval.metadata
         if not relevant_memories:
             relevant_memories = self._recent_memories(state, limit=8)
-            retrieval_strategy = "recent_memory_fallback"
+            retrieval_metadata["strategy"] = "recent_memory_fallback"
 
         tomorrow_priorities = self._tomorrow_priorities(pending_goals, completed_goals)
         task_priorities = [f"Resolve blocker for '{task['title']}': {task.get('blocker')}" for task in blocked_tasks]
@@ -421,11 +450,7 @@ Keep the tasks concrete and preserve their priority order."""
             "pending_goals": pending_goals,
             "today_check_ins": today_check_ins,
             "relevant_memories": relevant_memories,
-            "memory_retrieval": {
-                "query": memory_query,
-                "strategy": retrieval_strategy,
-                "limit": 8,
-            },
+            "memory_retrieval": retrieval_metadata,
             "reminders": reminders,
             "tomorrow_priorities": tomorrow_priorities,
         }
@@ -501,11 +526,12 @@ Keep the tasks concrete and preserve their priority order."""
         weather_text = weather or "天气信息暂未接入"
         date_text = f"{now.month}月{now.day}日"
         memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
-        relevant_memories = self.memory_retriever.retrieve(state.get("memories", []), memory_query, limit=8)
-        retrieval_strategy = "local_sparse_embedding"
+        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), memory_query, limit=8)
+        relevant_memories = retrieval.memories
+        retrieval_metadata = retrieval.metadata
         if not relevant_memories:
             relevant_memories = self._recent_memories(state, limit=8)
-            retrieval_strategy = "recent_memory_fallback"
+            retrieval_metadata["strategy"] = "recent_memory_fallback"
 
         if important_goals:
             suggested_goal = important_goals[0]
@@ -524,11 +550,7 @@ Keep the tasks concrete and preserve their priority order."""
             "weather_text": weather_text,
             "important_goals": important_goals,
             "relevant_memories": relevant_memories,
-            "memory_retrieval": {
-                "query": memory_query,
-                "strategy": retrieval_strategy,
-                "limit": 8,
-            },
+            "memory_retrieval": retrieval_metadata,
             "reminders": reminders,
             "suggestion": suggestion,
         }

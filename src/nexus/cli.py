@@ -4,9 +4,16 @@ import argparse
 import json
 from datetime import datetime
 
-from .config import load_llm_settings, update_llm_settings
+from .config import (
+    load_embedding_settings,
+    load_llm_settings,
+    nexus_home,
+    update_embedding_settings,
+    update_llm_settings,
+)
 from .llm import LLMConfig, OpenAICompatibleLLM
 from .planning import COACH_MODES, TASK_STATUSES
+from .rag import build_memory_retriever
 from .service import NexusService
 from .store import JsonStore
 
@@ -14,7 +21,7 @@ from .store import JsonStore
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="nexus",
-        description="NEXUS Phase 1 CLI MVP: memory, goals, proactive review, and LLM briefing.",
+        description="Nexus personal AI: memory, planning, reflection, LLM, and hybrid RAG.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -33,6 +40,9 @@ def build_parser() -> argparse.ArgumentParser:
     memory_retrieve = memory_subparsers.add_parser("retrieve", help="Retrieve relevant memories with local RAG.")
     memory_retrieve.add_argument("query", help="Semantic retrieval query.")
     memory_retrieve.add_argument("--limit", type=int, default=5, help="Maximum number of memories to return.")
+
+    memory_subparsers.add_parser("reindex", help="Rebuild the semantic memory index.")
+    memory_subparsers.add_parser("index-status", help="Show semantic memory index status.")
 
     goal_parser = subparsers.add_parser("goal", help="Manage tracked goals.")
     goal_subparsers = goal_parser.add_subparsers(dest="goal_command", required=True)
@@ -115,6 +125,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     llm_subparsers.add_parser("show", help="Show local LLM configuration with masked API key.")
 
+    embedding_parser = config_subparsers.add_parser("embedding", help="Manage semantic RAG configuration.")
+    embedding_subparsers = embedding_parser.add_subparsers(dest="embedding_command", required=True)
+
+    embedding_set = embedding_subparsers.add_parser("set", help="Save embedding and Qdrant configuration.")
+    embedding_set.add_argument("--provider", choices=["local_sparse", "fastembed", "openai", "custom"], required=True)
+    embedding_set.add_argument("--model")
+    embedding_set.add_argument("--api-key", help="Required for hosted embedding providers.")
+    embedding_set.add_argument("--base-url", help="OpenAI-compatible API base URL.")
+    embedding_set.add_argument("--qdrant-url", help="Remote Qdrant URL; local persistence is used when omitted.")
+    embedding_set.add_argument("--qdrant-api-key")
+    embedding_set.add_argument("--collection", default="nexus_memories")
+    embedding_set.add_argument("--timeout-seconds", type=int, default=30)
+    embedding_subparsers.add_parser("show", help="Show semantic RAG configuration with masked secrets.")
+
     return parser
 
 
@@ -125,7 +149,10 @@ def print_json(data: object) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    service = NexusService(JsonStore.from_env())
+    store = JsonStore.from_env()
+    embedding_settings = load_embedding_settings()
+    retriever = build_memory_retriever(embedding_settings, nexus_home())
+    service = NexusService(store, memory_retriever=retriever)
 
     if args.command == "memory":
         if args.memory_command == "add":
@@ -139,7 +166,14 @@ def main() -> None:
             print_json({"results": service.search_memories(args.query)})
             return
         if args.memory_command == "retrieve":
-            print_json({"query": args.query, "results": service.retrieve_memories(args.query, args.limit)})
+            print_json(service.retrieve_memories_result(args.query, args.limit))
+            return
+        if args.memory_command == "reindex":
+            report = service.reindex_memories()
+            print_json({"status": "error" if report.get("error") else "ok", "index": report})
+            return
+        if args.memory_command == "index-status":
+            print_json({"index": service.rag_status()})
             return
 
     if args.command == "goal":
@@ -160,7 +194,7 @@ def main() -> None:
         if args.llm:
             config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = OpenAICompatibleLLM(config) if config.is_configured else None
-            service = NexusService(JsonStore.from_env(), llm=llm)
+            service = NexusService(store, llm=llm, memory_retriever=retriever)
         print_json(service.daily_plan(
             user_name=args.name, now=now, coach_mode=args.coach_mode,
             use_llm=args.llm, include_prompt=args.show_prompt,
@@ -185,7 +219,7 @@ def main() -> None:
             if args.llm:
                 config = LLMConfig.from_env(model_tier=args.model_tier)
                 llm = OpenAICompatibleLLM(config) if config.is_configured else None
-                service = NexusService(JsonStore.from_env(), llm=llm)
+                service = NexusService(store, llm=llm, memory_retriever=retriever)
             print_json(service.daily_review(user_name=args.name, now=now, use_llm=args.llm, include_prompt=args.show_prompt, coach_mode=args.coach_mode))
             return
         print_json(service.proactive_review(now))
@@ -196,7 +230,7 @@ def main() -> None:
         if args.llm:
             config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = OpenAICompatibleLLM(config) if config.is_configured else None
-            service = NexusService(JsonStore.from_env(), llm=llm)
+            service = NexusService(store, llm=llm, memory_retriever=retriever)
         print_json(service.daily_briefing(args.name, args.weather, now, args.llm, args.show_prompt))
         return
 
@@ -216,6 +250,24 @@ def main() -> None:
         if args.llm_command == "show":
             settings = load_llm_settings()
             print_json({"llm": settings.masked()})
+            return
+
+    if args.command == "config" and args.config_command == "embedding":
+        if args.embedding_command == "set":
+            settings, path = update_embedding_settings(
+                provider=args.provider,
+                model=args.model,
+                api_key=args.api_key,
+                base_url=args.base_url,
+                qdrant_url=args.qdrant_url,
+                qdrant_api_key=args.qdrant_api_key,
+                collection_name=args.collection,
+                timeout_seconds=args.timeout_seconds,
+            )
+            print_json({"status": "ok", "path": str(path), "embedding": settings.masked()})
+            return
+        if args.embedding_command == "show":
+            print_json({"embedding": load_embedding_settings().masked()})
             return
 
     parser.error("Unknown command")

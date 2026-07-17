@@ -8,6 +8,11 @@ authors = [
   { name = "Bingnan Ma" }
 ]
 
+[project.optional-dependencies]
+rag = [
+  "qdrant-client[fastembed]>=1.14.2,<2",
+]
+
 [project.scripts]
 nexus = "nexus.cli:main"
 

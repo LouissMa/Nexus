@@ -6,9 +6,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from nexus.config import load_llm_settings
+from nexus.config import load_embedding_settings, load_llm_settings
+from nexus.rag import MemoryRetriever, SemanticMemoryIndex
 from nexus.service import NexusService
 from nexus.store import JsonStore
+from nexus.vector_store import QdrantVectorStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -258,3 +260,100 @@ def test_daily_planning_tasks_blockers_and_coach_modes(tmp_path: Path) -> None:
 
     listed = run_cli("task", "list", "--date", "2030-01-03", env=env)
     assert len(listed["tasks"]) == 2
+
+
+class FakeEmbeddingProvider:
+    provider_name = "fake"
+    model_name = "fake-semantic-v1"
+
+    @staticmethod
+    def _vector(text: str) -> list[float]:
+        lowered = text.lower()
+        if any(term in lowered for term in ("ielts", "language exam", "listening")):
+            return [1.0, 0.0, 0.0]
+        if any(term in lowered for term in ("robot", "robotics", "hardware")):
+            return [0.0, 1.0, 0.0]
+        return [0.0, 0.0, 1.0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vector(text)
+
+
+def test_semantic_rag_reindex_and_hybrid_retrieval(tmp_path: Path) -> None:
+    vector_store = QdrantVectorStore(
+        collection_name="test_memories",
+        location=":memory:",
+    )
+    retriever = MemoryRetriever(
+        semantic_index=SemanticMemoryIndex(FakeEmbeddingProvider(), vector_store)
+    )
+    service = NexusService(JsonStore(tmp_path / "state.json"), memory_retriever=retriever)
+
+    service.add_memory("Louis wants to improve IELTS listening", ["study"])
+    service.add_memory("Louis is researching household robotics hardware", ["project"])
+
+    retrieved = service.retrieve_memories_result("language exam preparation", limit=1)
+    assert retrieved["results"][0]["text"] == "Louis wants to improve IELTS listening"
+    assert retrieved["memory_retrieval"]["strategy"] == "hybrid_dense_sparse"
+    assert retrieved["memory_retrieval"]["provider"] == "fake"
+    assert retrieved["memory_retrieval"]["dense_candidates"] == 2
+    assert retrieved["results"][0]["dense_score"] > 0
+
+    report = service.reindex_memories()
+    assert report["error"] is None
+    assert report["indexed"] == 2
+    assert report["dimension"] == 3
+
+    status = service.rag_status()
+    assert status["runtime"]["enabled"] is True
+    assert status["runtime"]["collection_exists"] is True
+    assert status["runtime"]["count"] == 2
+
+    empty_service = NexusService(JsonStore(tmp_path / "empty-state.json"), memory_retriever=retriever)
+    cleared = empty_service.reindex_memories()
+    assert cleared["indexed"] == 0
+    assert service.rag_status()["runtime"]["count"] == 0
+
+
+def test_embedding_config_set_and_show_masks_secrets(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
+    env.pop("NEXUS_EMBEDDING_API_KEY", None)
+    env.pop("NEXUS_QDRANT_API_KEY", None)
+
+    saved = run_cli(
+        "config",
+        "embedding",
+        "set",
+        "--provider",
+        "openai",
+        "--api-key",
+        "emb-test-secret-value",
+        "--qdrant-url",
+        "https://qdrant.example.test",
+        "--qdrant-api-key",
+        "qdrant-test-secret-value",
+        env=env,
+    )
+
+    assert saved["status"] == "ok"
+    assert saved["embedding"]["provider"] == "openai"
+    assert saved["embedding"]["api_key"] == "emb-...alue"
+    assert saved["embedding"]["qdrant_api_key"] == "qdra...alue"
+    assert "emb-test-secret-value" not in json.dumps(saved)
+    assert "qdrant-test-secret-value" not in json.dumps(saved)
+
+    config_path = tmp_path / "nexus-home" / "config.local.json"
+    settings = load_embedding_settings(env={}, path=config_path)
+    assert settings.provider == "openai"
+    assert settings.model == "text-embedding-3-small"
+    assert settings.api_key == "emb-test-secret-value"
+    assert settings.qdrant_api_key == "qdrant-test-secret-value"
+
+    shown = run_cli("config", "embedding", "show", env=env)
+    assert "emb-test-secret-value" not in json.dumps(shown)
+    assert "qdrant-test-secret-value" not in json.dumps(shown)

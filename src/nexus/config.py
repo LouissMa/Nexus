@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -22,6 +22,25 @@ PROVIDER_PRESETS = {
         "base_url": "https://api.openai.com/v1",
         "simple_model": "gpt-4o-mini",
         "complex_model": "gpt-4o",
+    },
+}
+
+EMBEDDING_PRESETS = {
+    "local_sparse": {
+        "base_url": None,
+        "model": "local-sparse-v1",
+    },
+    "fastembed": {
+        "base_url": None,
+        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    },
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small",
+    },
+    "custom": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "text-embedding-3-small",
     },
 }
 
@@ -49,6 +68,36 @@ class LLMSettings:
     def masked(self) -> dict[str, Any]:
         data = asdict(self)
         data["api_key"] = mask_secret(self.api_key)
+        return data
+
+
+@dataclass(frozen=True)
+class EmbeddingSettings:
+    provider: str = "local_sparse"
+    model: str = "local-sparse-v1"
+    api_key: str | None = None
+    base_url: str | None = None
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
+    collection_name: str = "nexus_memories"
+    timeout_seconds: int = 30
+
+    @property
+    def semantic_enabled(self) -> bool:
+        return self.provider != "local_sparse"
+
+    @property
+    def is_configured(self) -> bool:
+        if self.provider == "fastembed":
+            return True
+        if self.provider in {"openai", "custom"}:
+            return bool(self.api_key and self.base_url)
+        return self.provider == "local_sparse"
+
+    def masked(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["api_key"] = mask_secret(self.api_key)
+        data["qdrant_api_key"] = mask_secret(self.qdrant_api_key)
         return data
 
 
@@ -91,13 +140,8 @@ def load_llm_settings(env: dict[str, str] | None = None, path: Path | None = Non
     llm = config.get("llm", {})
     provider = values.get("NEXUS_LLM_PROVIDER") or llm.get("provider") or "openai"
     preset = PROVIDER_PRESETS.get(provider, PROVIDER_PRESETS["custom"])
-
     timeout_value = values.get("NEXUS_LLM_TIMEOUT_SECONDS") or llm.get("timeout_seconds") or 30
-    api_key = (
-        values.get("NEXUS_LLM_API_KEY")
-        or values.get("OPENAI_API_KEY")
-        or llm.get("api_key")
-    )
+    api_key = values.get("NEXUS_LLM_API_KEY") or values.get("OPENAI_API_KEY") or llm.get("api_key")
 
     return LLMSettings(
         provider=provider,
@@ -134,5 +178,72 @@ def update_llm_settings(
     )
     config = load_local_config(path)
     config["llm"] = asdict(settings)
+    saved_path = save_local_config(config, path)
+    return settings, saved_path
+
+
+def load_embedding_settings(
+    env: dict[str, str] | None = None,
+    path: Path | None = None,
+) -> EmbeddingSettings:
+    values = env or os.environ
+    config = load_local_config(path)
+    embedding = config.get("embedding", {})
+    provider = values.get("NEXUS_EMBEDDING_PROVIDER") or embedding.get("provider") or "local_sparse"
+    preset = EMBEDDING_PRESETS.get(provider, EMBEDDING_PRESETS["custom"])
+    base_url = values.get("NEXUS_EMBEDDING_BASE_URL") or embedding.get("base_url") or preset["base_url"]
+    api_key = (
+        values.get("NEXUS_EMBEDDING_API_KEY")
+        or (values.get("OPENAI_API_KEY") if provider == "openai" else None)
+        or embedding.get("api_key")
+    )
+    timeout_value = (
+        values.get("NEXUS_EMBEDDING_TIMEOUT_SECONDS")
+        or embedding.get("timeout_seconds")
+        or 30
+    )
+    return EmbeddingSettings(
+        provider=provider,
+        model=values.get("NEXUS_EMBEDDING_MODEL") or embedding.get("model") or preset["model"],
+        api_key=api_key,
+        base_url=base_url.rstrip("/") if base_url else None,
+        qdrant_url=values.get("NEXUS_QDRANT_URL") or embedding.get("qdrant_url"),
+        qdrant_api_key=values.get("NEXUS_QDRANT_API_KEY") or embedding.get("qdrant_api_key"),
+        collection_name=(
+            values.get("NEXUS_QDRANT_COLLECTION")
+            or embedding.get("collection_name")
+            or "nexus_memories"
+        ),
+        timeout_seconds=int(timeout_value),
+    )
+
+
+def update_embedding_settings(
+    provider: str,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    qdrant_url: str | None = None,
+    qdrant_api_key: str | None = None,
+    collection_name: str = "nexus_memories",
+    timeout_seconds: int = 30,
+    path: Path | None = None,
+) -> tuple[EmbeddingSettings, Path]:
+    if provider not in EMBEDDING_PRESETS:
+        provider = "custom"
+    preset = EMBEDDING_PRESETS[provider]
+    selected_base_url = base_url or preset["base_url"]
+    settings = EmbeddingSettings(
+        provider=provider,
+        model=model or preset["model"],
+        api_key=api_key,
+        base_url=selected_base_url.rstrip("/") if selected_base_url else None,
+        qdrant_url=qdrant_url,
+        qdrant_api_key=qdrant_api_key,
+        collection_name=collection_name,
+        timeout_seconds=timeout_seconds,
+    )
+    config = load_local_config(path)
+    config["embedding"] = asdict(settings)
     saved_path = save_local_config(config, path)
     return settings, saved_path

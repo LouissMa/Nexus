@@ -11,6 +11,7 @@ DEFAULT_STATE = {
     "memories": [],
     "goals": [],
     "daily_tasks": [],
+    "rag_index": None,
 }
 
 

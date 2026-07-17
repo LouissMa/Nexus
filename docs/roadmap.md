@@ -55,11 +55,12 @@ Calendar-aware scheduling, automatic replanning, and agentic execution remain fu
 
 Objective: replace the local sparse-vector MVP with production-oriented semantic retrieval.
 
-- [ ] Add a real embedding provider interface and implementation.
-- [ ] Add vector database persistence.
-- [ ] Add `nexus memory reindex` with migration support.
-- [ ] Add hybrid retrieval and retrieval-quality tests.
-- [ ] Keep local sparse retrieval as an offline fallback.
+- [x] Add FastEmbed and OpenAI-compatible embedding providers.
+- [x] Add local/remote Qdrant vector persistence.
+- [x] Add `nexus memory reindex` and index status reporting.
+- [x] Add incremental indexing for new memories.
+- [x] Add dense+sparse hybrid retrieval and retrieval-quality tests.
+- [x] Keep local sparse retrieval as an offline fallback.
 
 ## Phase 6: Real Tool Integrations
 

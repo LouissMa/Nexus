@@ -21,7 +21,7 @@ Over time, this core can become a **Personal AI Operating System** shared by CLI
 ## Current Features
 
 - **Memory**: Add, list, keyword-search, and RAG-retrieve long-term memories.
-- **RAG Long-Term Memory**: Store local sparse embeddings and retrieve relevant memories for briefings.
+- **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
@@ -47,23 +47,32 @@ nexus goal add "Develop Nexus" --description "Build the morning briefing module"
 nexus briefing --name Louis --weather "weather is sunny, high 25 C"
 ```
 
-## RAG Long-Term Memory
+## RAG 2.0 Long-Term Memory
 
-The current RAG MVP is local and does not require an external embedding API.
+Nexus now supports production-oriented semantic retrieval while preserving a dependency-free offline fallback.
+
+Install the optional local RAG stack:
 
 ```bash
-nexus memory retrieve "IELTS listening practice" --limit 3
-nexus briefing --llm --show-prompt --name Louis
+python -m pip install -e ".[rag]"
+nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+nexus memory reindex
+nexus memory index-status
+nexus memory retrieve "language exam preparation" --limit 3
 ```
 
-What happens:
+FastEmbed runs locally and needs no API key. Its model is downloaded on first use. Vectors are persisted by Qdrant under `.nexus/qdrant/`, which is ignored by Git.
 
-- `nexus memory add` stores a deterministic local sparse embedding.
-- `nexus memory retrieve` returns relevant memories with `retrieval_score`.
-- `nexus briefing` builds a retrieval query from goals, reminders, weather text, and user context.
-- If retrieval finds no relevant memories, Nexus falls back to recent memories.
+Nexus can also use OpenAI or another OpenAI-compatible embedding endpoint:
 
-This is a completed local RAG MVP, not production-grade vector RAG. Real neural embedding models, vector database persistence, re-indexing, importance scoring, and memory compression remain future work.
+```bash
+nexus config embedding set --provider openai --api-key "your-key"
+nexus config embedding set --provider custom --base-url "https://provider.example/v1" --model "embedding-model" --api-key "your-key"
+```
+
+The retrieval pipeline combines dense semantic scores with local sparse scores. If the embedding model, API, or vector store is unavailable, Nexus reports the error in retrieval metadata and automatically continues with local sparse retrieval. New memories are indexed incrementally; run `nexus memory reindex` after changing the provider/model or migrating existing memories.
+
+RAG 2.0 covers neural embeddings, vector persistence, re-indexing, hybrid retrieval, status metadata, and fallback behavior. Memory importance scoring, deduplication, compression, summarization, and retention policies remain Phase 9 work.
 
 ## Daily Planning and Reflection
 
@@ -107,6 +116,8 @@ For project testing, save provider/model settings locally:
 ```bash
 nexus config llm set --provider deepseek --api-key "your-key" --simple-model v4flash --complex-model v4pro --default-tier simple
 nexus config llm show
+nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+nexus config embedding show
 ```
 
 The config is saved to:
@@ -134,6 +145,8 @@ nexus memory add "..." --tags study project
 nexus memory list
 nexus memory search IELTS
 nexus memory retrieve "IELTS listening practice" --limit 5
+nexus memory reindex
+nexus memory index-status
 
 nexus goal add "Develop Nexus" --description "Ship MVP features" --cadence-days 2
 nexus goal list
@@ -151,6 +164,8 @@ nexus briefing --llm --show-prompt --name Louis
 
 nexus config llm set --provider deepseek --api-key "your-key" --simple-model v4flash --complex-model v4pro
 nexus config llm show
+nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+nexus config embedding show
 ```
 
 ## Project Tracking
@@ -178,7 +193,8 @@ When implementing new features:
 - **Phase 2**: LLM briefing and provider configuration. Done.
 - **Phase 3**: Local RAG long-term memory MVP. Done.
 - **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
-- **Next**: RAG 2.0 with real embeddings, vector database persistence, and re-indexing.
-- **Then**: Real tool integrations, MCP tool calling, and a permission model.
+- **Phase 5**: RAG 2.0 with real embeddings, Qdrant persistence, hybrid retrieval, and re-indexing. Done.
+- **Next**: Real tool integrations.
+- **Then**: MCP tool calling and a permission model.
 - **Later**: Multi-agent coordination, advanced memory importance/compression, proactive triggers, and the dashboard.
 - **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.
