@@ -1,7 +1,7 @@
 [project]
 name = "nexus-lifeagent"
 version = "0.1.0"
-description = "A proactive personal AI assistant with long-term memory, daily planning, and reflection."
+description = "A proactive personal AI assistant with memory, planning, reflection, RAG, and permissioned real tools."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -11,6 +11,10 @@ authors = [
 [project.optional-dependencies]
 rag = [
   "qdrant-client[fastembed]>=1.14.2,<2",
+]
+tools = [
+  "icalendar>=6,<7",
+  "recurring-ical-events>=3.8,<4",
 ]
 
 [project.scripts]

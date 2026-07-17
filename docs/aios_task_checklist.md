@@ -12,7 +12,7 @@ Status legend:
 
 1. Planning / Reflection. Completed.
 2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing. Completed.
-3. Real tool integrations.
+3. Real tool integrations. Completed.
 4. MCP tool calling and permissions.
 5. Multi-Agent coordination.
 6. Advanced memory importance, compression, and retention.
@@ -55,15 +55,23 @@ Deferred to Advanced Long-Term Memory (Phase 9):
 
 ## 2. Real Tool Integrations
 
-Current status: `[ ]` Not started.
+Current status: `[x]` Permissioned read-only integration phase completed.
 
-- [ ] Weather API integration.
-- [ ] Calendar integration.
-- [ ] GitHub integration.
-- [ ] Notion integration.
-- [ ] Email integration.
-- [ ] Todo/task app integration.
-- [ ] Local filesystem integration with permission boundaries.
+- [x] Weather integration through Open-Meteo geocoding and forecast APIs.
+- [x] Calendar integration through private/public iCalendar feed URLs.
+- [x] Expand recurring iCalendar events for courses and meetings.
+- [x] Todo integration through the current Todoist API.
+- [x] GitHub repository metadata and open-issue integration.
+- [x] Notion page-title search integration.
+- [x] Read-only IMAP email-header integration.
+- [x] Local filesystem list/read/search with configured-root boundaries.
+- [x] Store credentials only in ignored local config or environment variables.
+- [x] Require explicit tool enablement and operation-level permissions.
+- [x] Add secret-safe success/failure audit logging.
+- [x] Add `nexus briefing --live-tools` for weather, calendar, and todo context.
+- [x] Add deterministic tests plus a real Open-Meteo smoke test.
+
+All Phase 6 adapters are intentionally read-only. Mutating external systems, confirmation flows, retries, and normalized agent tool schemas belong to the next MCP phase.
 
 ## 3. MCP Tool Calling
 

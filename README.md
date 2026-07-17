@@ -2,7 +2,7 @@
 
 > **A proactive personal AI assistant with long-term memory, planning, and reflection.**
 
-Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, builds daily plans, and helps users reflect and take action.
+Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, builds daily plans, connects approved real-world tools, and helps users reflect and take action.
 
 [English](./README.md) | [Chinese](./README_zh.md)
 
@@ -22,6 +22,7 @@ Over time, this core can become a **Personal AI Operating System** shared by CLI
 
 - **Memory**: Add, list, keyword-search, and RAG-retrieve long-term memories.
 - **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
+- **Permissioned Real Tools**: Read live weather, iCalendar events, Todoist tasks, GitHub repositories, Notion pages, IMAP headers, and approved local files.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
@@ -73,6 +74,61 @@ nexus config embedding set --provider custom --base-url "https://provider.exampl
 The retrieval pipeline combines dense semantic scores with local sparse scores. If the embedding model, API, or vector store is unavailable, Nexus reports the error in retrieval metadata and automatically continues with local sparse retrieval. New memories are indexed incrementally; run `nexus memory reindex` after changing the provider/model or migrating existing memories.
 
 RAG 2.0 covers neural embeddings, vector persistence, re-indexing, hybrid retrieval, status metadata, and fallback behavior. Memory importance scoring, deduplication, compression, summarization, and retention policies remain Phase 9 work.
+
+## Real Tool Integrations
+
+Install the optional calendar dependencies:
+
+```bash
+python -m pip install -e ".[tools]"
+```
+
+Configure only the tools you want to enable:
+
+```bash
+nexus config tool set weather --location "Shanghai"
+nexus config tool set calendar --calendar-url "https://calendar.example/private.ics"
+nexus config tool set todo --token "your-todoist-token"
+nexus config tool set github --repo "LouissMa/Nexus"
+nexus config tool set notion --token "your-notion-token"
+nexus config tool set email --host "imap.example.com" --username "you@example.com" --password "app-password" --mailbox INBOX
+nexus config tool set filesystem --root "D:/AI_Projects/Nexus"
+nexus config tool show
+```
+
+For private repositories or higher API limits, configure GitHub again with `--token "your-github-token"`.
+
+Run integrations explicitly:
+
+```bash
+nexus tool weather
+nexus tool calendar --days 2
+nexus tool todo --limit 20
+nexus tool github --limit 10
+nexus tool notion --query "research"
+nexus tool email --limit 10
+nexus tool files list .
+nexus tool files read README.md
+nexus tool files search . --query "RAG"
+nexus tool audit --limit 20
+```
+
+Use configured weather, calendar, and Todoist data in the morning briefing:
+
+```bash
+nexus briefing --name Louis --live-tools
+nexus briefing --name Louis --live-tools --llm
+```
+
+Safety boundaries:
+
+- Every tool must be explicitly configured and enabled.
+- Phase 6 integrations are read-only. Write actions are deferred to the MCP permission phase.
+- IMAP mailboxes are opened in read-only mode and only message headers are returned.
+- Filesystem operations are limited to configured roots and reject path traversal or access outside those roots.
+- Calendar feed URLs, tokens, and passwords are stored only in the ignored local config and masked in CLI output.
+- Every success and failure is appended to the ignored local audit log at `.nexus/tool_audit.jsonl`.
+- Run `nexus config tool disable <tool>` to revoke a tool without deleting its local settings.
 
 ## Daily Planning and Reflection
 
@@ -194,7 +250,7 @@ When implementing new features:
 - **Phase 3**: Local RAG long-term memory MVP. Done.
 - **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
 - **Phase 5**: RAG 2.0 with real embeddings, Qdrant persistence, hybrid retrieval, and re-indexing. Done.
-- **Next**: Real tool integrations.
-- **Then**: MCP tool calling and a permission model.
+- **Phase 6**: Permissioned read-only real tool integrations and live briefing context. Done.
+- **Next**: MCP tool calling, write-action permissions, and result normalization.
 - **Later**: Multi-agent coordination, advanced memory importance/compression, proactive triggers, and the dashboard.
 - **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.

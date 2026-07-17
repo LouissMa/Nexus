@@ -354,9 +354,10 @@ Keep the tasks concrete and preserve their priority order."""
         now: datetime | None = None,
         use_llm: bool = False,
         include_prompt: bool = False,
+        external_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
-        context = self._build_briefing_context(user_name, weather, now)
+        context = self._build_briefing_context(user_name, weather, now, external_context)
         template_briefing = self._render_template_briefing(context)
         system_prompt, user_prompt = self._build_briefing_prompt(context)
         llm_info = self._empty_llm_info(use_llm)
@@ -384,6 +385,7 @@ Keep the tasks concrete and preserve their priority order."""
             "memory_retrieval": context["memory_retrieval"],
             "reminders": context["reminders"],
             "suggestion": context["suggestion"],
+            "live_context": context["live_context"],
             "briefing": briefing,
             "llm": llm_info,
         }
@@ -507,6 +509,7 @@ Keep the tasks concrete and preserve their priority order."""
         user_name: str,
         weather: str | None,
         now: datetime,
+        external_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         state = self.store.load()
         active_goals = [
@@ -523,7 +526,14 @@ Keep the tasks concrete and preserve their priority order."""
 
         important_goals = active_goals[:3]
         reminders = self.proactive_review(now)["reminders"]
-        weather_text = weather or "天气信息暂未接入"
+        live_context = external_context or {
+            "weather": None,
+            "calendar": [],
+            "todos": [],
+            "errors": [],
+        }
+        live_weather = live_context.get("weather") or {}
+        weather_text = weather or live_weather.get("summary") or "天气信息暂未接入"
         date_text = f"{now.month}月{now.day}日"
         memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
         retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), memory_query, limit=8)
@@ -553,6 +563,7 @@ Keep the tasks concrete and preserve their priority order."""
             "memory_retrieval": retrieval_metadata,
             "reminders": reminders,
             "suggestion": suggestion,
+            "live_context": live_context,
         }
 
     def _render_template_briefing(self, context: dict[str, Any]) -> str:
@@ -575,6 +586,19 @@ Keep the tasks concrete and preserve their priority order."""
                     lines.append(f"{index}. {goal['title']}")
         else:
             lines.append("你今天还没有设置重要目标。")
+
+        calendar_events = context["live_context"].get("calendar", [])
+        if calendar_events:
+            lines.extend(["", "今日日程："])
+            for event in calendar_events[:5]:
+                lines.append(f"- {event.get('start', '')} {event.get('summary', 'Untitled event')}")
+
+        todos = context["live_context"].get("todos", [])
+        if todos:
+            lines.extend(["", "外部待办："])
+            for task in todos[:5]:
+                due = f"（{task['due']}）" if task.get("due") else ""
+                lines.append(f"- {task.get('content', '')}{due}")
 
         lines.extend(["", context["suggestion"]])
 
@@ -674,6 +698,18 @@ Output format:
             ),
         )
         reminders = self._format_items(context["reminders"], lambda item: f"- {item}")
+        calendar_events = self._format_items(
+            context["live_context"].get("calendar", []),
+            lambda item: f"- {item.get('start')} | {item.get('summary')} | {item.get('location') or 'no location'}",
+        )
+        todos = self._format_items(
+            context["live_context"].get("todos", []),
+            lambda item: f"- {item.get('content')} | due: {item.get('due') or 'none'} | priority: {item.get('priority')}",
+        )
+        tool_errors = self._format_items(
+            context["live_context"].get("errors", []),
+            lambda item: f"- {item.get('tool')}: {item.get('error')}",
+        )
 
         user_prompt = f"""Generate a morning briefing for {context['user_name']}.
 
@@ -690,6 +726,15 @@ Relevant long-term memories:
 
 Important active goals:
 {goals}
+
+Live calendar events:
+{calendar_events}
+
+Live external todos:
+{todos}
+
+Tool errors (report uncertainty; do not invent missing data):
+{tool_errors}
 
 Proactive reminders:
 {reminders}

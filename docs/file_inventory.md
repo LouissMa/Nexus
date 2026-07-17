@@ -6,21 +6,26 @@ This file explains the role of important files in the Nexus project. Update it w
 
 - `README.md`: English project overview, quick start, current features, LLM setup, RAG usage, development workflow, and roadmap summary.
 - `README_zh.md`: Chinese project overview and usage guide. Keep it synchronized with `README.md` for user-facing changes.
-- `pyproject.toml`: Python package metadata, CLI entry point, and optional `rag` dependencies for Qdrant/FastEmbed.
+- `pyproject.toml`: Python package metadata, CLI entry point, optional `rag` dependencies, and optional `tools` dependencies for iCalendar parsing and recurrence expansion.
 - `.gitignore`: Ignores Python build/cache files, local secrets, and the local Qdrant index under `.nexus/qdrant/`.
 - `褰撳墠鐩爣`: Local Chinese goal note file from earlier project planning.
 
 ## Source Code
 
 - `src/nexus/__init__.py`: Package marker and short package description.
-- `src/nexus/cli.py`: Command-line interface for memory, semantic re-index/status, goals, planning, task updates, review, briefings, LLM configuration, and Embedding/Qdrant configuration.
+- `src/nexus/cli.py`: Command-line interface for memory, goals, planning, reviews, briefings, LLM/RAG configuration, tool configuration, tool execution, and audit inspection.
 - `src/nexus/store.py`: JSON persistence for memories, goals, and persistent daily tasks in `.nexus/state.json` or `NEXUS_HOME/state.json`.
-- `src/nexus/service.py`: Main application service for memory/RAG, goals, planning, structured task updates, reflection, coach-aware prompts, proactive review, and morning briefings.
+- `src/nexus/service.py`: Main application service for memory/RAG, goals, planning, reflection, and morning briefings with optional live weather/calendar/todo context.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client. Reads provider settings, selects model tier, calls chat completions, and normalizes LLM errors.
-- `src/nexus/config.py`: Local configuration for LLM and Embedding providers, models, API endpoints, local/remote Qdrant, timeouts, and masked secrets.
+- `src/nexus/config.py`: Local configuration for LLM, Embedding/Qdrant, and external tools; validates required settings and masks all configured secrets.
 - `src/nexus/embeddings.py`: Embedding provider abstraction plus local FastEmbed and OpenAI-compatible embedding implementations.
 - `src/nexus/rag.py`: RAG orchestration for sparse retrieval, semantic indexing, dense+sparse fusion, metadata, re-indexing, and automatic fallback.
 - `src/nexus/vector_store.py`: Qdrant adapter supporting local persistence, remote Qdrant, collection lifecycle, upsert, search, clear, and status.
+- `src/nexus/integrations/__init__.py`: Public entry point for the permissioned integration package.
+- `src/nexus/integrations/core.py`: Shared tool contracts, HTTP client, permission checks, structured results, and secret-safe JSONL auditing.
+- `src/nexus/integrations/web_tools.py`: Open-Meteo weather, Todoist, GitHub, and Notion read-only adapters.
+- `src/nexus/integrations/personal_tools.py`: Recurring iCalendar, read-only IMAP email headers, and permission-bounded local filesystem adapters.
+- `src/nexus/integrations/manager.py`: Adapter registry, permissioned execution, audit orchestration, and live briefing aggregation.
 - src/nexus/planning.py: Planning domain rules. Defines persistent daily-task construction, valid task statuses, and strict/gentle/academic/startup Coach profiles.
 
 ## Documentation
@@ -33,13 +38,15 @@ This file explains the role of important files in the Nexus project. Update it w
 
 ## Tests
 
-- `tests/test_cli.py`: End-to-end CLI and service tests for memory, goals, RAG, planning, task blockers/unresolved items, Coach modes, reflection, briefings, and LLM fallback/configuration.
+- `tests/test_cli.py`: End-to-end CLI and service tests for memory, goals, RAG, planning, reflection, briefings, and LLM fallback/configuration.
+- `tests/test_integrations.py`: Deterministic tests for all real-tool adapters, recurring events, permissions, audit redaction, filesystem boundaries, CLI execution, and live briefing context.
 
 ## Local Runtime Data
 
 - `.nexus/state.json`: Local runtime state for memories, goals, and daily tasks. This can contain personal user data.
 - `.nexus/config.local.json`: Local private LLM, Embedding, and Qdrant provider/API-key/model configuration. This file is ignored by Git and must not be committed.
 - `.nexus/qdrant/`: Local persistent semantic-memory vector index. Ignored by Git.
+- `.nexus/tool_audit.jsonl`: Secret-safe success/failure audit trail for external tool calls. Ignored by Git.
 - `.nexus/models/`: Local FastEmbed model cache. Ignored by Git.
 - `.tmp/`: Local scratch/test space. Ignored by Git.
 

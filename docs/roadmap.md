@@ -66,11 +66,15 @@ Objective: replace the local sparse-vector MVP with production-oriented semantic
 
 Objective: connect Nexus to useful external context through explicit adapters.
 
-- [ ] Weather integration.
-- [ ] Calendar and todo integration.
-- [ ] GitHub and Notion integration.
-- [ ] Email and local filesystem integration.
-- [ ] Add credentials, permission boundaries, and audit records.
+- [x] Add live weather through Open-Meteo.
+- [x] Add iCalendar feeds with recurring-event expansion.
+- [x] Add Todoist, GitHub, Notion, and read-only IMAP integrations.
+- [x] Add permission-bounded local filesystem list/read/search.
+- [x] Add local credential configuration, explicit enable/disable controls, and masked output.
+- [x] Add success/failure audit records without secrets.
+- [x] Add live weather/calendar/todo context to morning briefings.
+
+The integration layer is read-only by design. Write actions and per-action confirmations are Phase 7 MCP work.
 
 ## Phase 7: MCP Tool Calling
 

@@ -44,6 +44,17 @@ EMBEDDING_PRESETS = {
     },
 }
 
+TOOL_NAMES = ("weather", "calendar", "todo", "github", "notion", "email", "filesystem")
+TOOL_ALLOWED_OPERATIONS = {
+    "weather": ["read"],
+    "calendar": ["read"],
+    "todo": ["read"],
+    "github": ["read"],
+    "notion": ["read"],
+    "email": ["read"],
+    "filesystem": ["list", "read", "search"],
+}
+TOOL_SECRET_FIELDS = {"token", "password", "calendar_url"}
 
 @dataclass(frozen=True)
 class LLMSettings:
@@ -135,7 +146,7 @@ def save_local_config(config: dict[str, Any], path: Path | None = None) -> Path:
 
 
 def load_llm_settings(env: dict[str, str] | None = None, path: Path | None = None) -> LLMSettings:
-    values = env or os.environ
+    values = os.environ if env is None else env
     config = load_local_config(path)
     llm = config.get("llm", {})
     provider = values.get("NEXUS_LLM_PROVIDER") or llm.get("provider") or "openai"
@@ -186,7 +197,7 @@ def load_embedding_settings(
     env: dict[str, str] | None = None,
     path: Path | None = None,
 ) -> EmbeddingSettings:
-    values = env or os.environ
+    values = os.environ if env is None else env
     config = load_local_config(path)
     embedding = config.get("embedding", {})
     provider = values.get("NEXUS_EMBEDDING_PROVIDER") or embedding.get("provider") or "local_sparse"
@@ -247,3 +258,89 @@ def update_embedding_settings(
     config["embedding"] = asdict(settings)
     saved_path = save_local_config(config, path)
     return settings, saved_path
+
+def load_tool_settings(
+    env: dict[str, str] | None = None,
+    path: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    values = os.environ if env is None else env
+    stored = load_local_config(path).get("tools", {})
+    settings = {name: dict(stored.get(name, {})) for name in TOOL_NAMES}
+    overlays: dict[str, dict[str, Any]] = {
+        "weather": {"location": values.get("NEXUS_WEATHER_LOCATION")},
+        "calendar": {"calendar_url": values.get("NEXUS_CALENDAR_URL")},
+        "todo": {"token": values.get("NEXUS_TODOIST_TOKEN")},
+        "github": {
+            "token": values.get("NEXUS_GITHUB_TOKEN"),
+            "repo": values.get("NEXUS_GITHUB_REPO"),
+        },
+        "notion": {"token": values.get("NEXUS_NOTION_TOKEN")},
+        "email": {
+            "host": values.get("NEXUS_IMAP_HOST"),
+            "port": values.get("NEXUS_IMAP_PORT"),
+            "username": values.get("NEXUS_IMAP_USERNAME"),
+            "password": values.get("NEXUS_IMAP_PASSWORD"),
+            "mailbox": values.get("NEXUS_IMAP_MAILBOX"),
+        },
+        "filesystem": {
+            "roots": (
+                values["NEXUS_FILESYSTEM_ROOTS"].split(os.pathsep)
+                if values.get("NEXUS_FILESYSTEM_ROOTS")
+                else None
+            ),
+        },
+    }
+    for name, tool_values in overlays.items():
+        configured_by_env = False
+        for key, value in tool_values.items():
+            if value is not None:
+                settings[name][key] = int(value) if key == "port" else value
+                configured_by_env = True
+        if configured_by_env:
+            settings[name]["enabled"] = True
+        settings[name].setdefault("enabled", False)
+        settings[name].setdefault("allowed_operations", TOOL_ALLOWED_OPERATIONS[name])
+    return settings
+
+
+def update_tool_settings(
+    tool: str,
+    values: dict[str, Any] | None = None,
+    *,
+    enabled: bool = True,
+    path: Path | None = None,
+) -> tuple[dict[str, dict[str, Any]], Path]:
+    if tool not in TOOL_NAMES:
+        raise ValueError(f"Unknown tool '{tool}'.")
+    config = load_local_config(path)
+    tools = config.setdefault("tools", {})
+    current = dict(tools.get(tool, {}))
+    current.update({key: value for key, value in (values or {}).items() if value is not None})
+    current["enabled"] = enabled
+    current["allowed_operations"] = TOOL_ALLOWED_OPERATIONS[tool]
+    required_fields = {
+        "weather": ["location"],
+        "calendar": ["calendar_url"],
+        "todo": ["token"],
+        "github": ["repo"],
+        "notion": ["token"],
+        "email": ["host", "username", "password"],
+        "filesystem": ["roots"],
+    }[tool]
+    missing = [field for field in required_fields if not current.get(field)]
+    if enabled and missing:
+        raise ValueError(f"Tool '{tool}' is missing required configuration: {', '.join(missing)}.")
+    tools[tool] = current
+    saved_path = save_local_config(config, path)
+    return load_tool_settings(env={}, path=saved_path), saved_path
+
+
+def masked_tool_settings(settings: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    masked: dict[str, dict[str, Any]] = {}
+    for name, config in settings.items():
+        public = dict(config)
+        for key in TOOL_SECRET_FIELDS:
+            if public.get(key):
+                public[key] = "***configured***" if key == "calendar_url" else mask_secret(str(public[key]))
+        masked[name] = public
+    return masked

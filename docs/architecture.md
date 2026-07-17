@@ -42,6 +42,10 @@ The current version is a local-first CLI assistant with optional LLM generation 
 - src/nexus/planning.py: daily-task decomposition rules, task status vocabulary, and Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client, environment-based configuration, HTTP request handling, and LLM errors.
 - `src/nexus/store.py`: local JSON persistence.
+- `src/nexus/integrations/core.py`: HTTP normalization, permission policy, tool results, and secret-safe audit logging.
+- `src/nexus/integrations/web_tools.py`: Open-Meteo, Todoist, GitHub, and Notion adapters.
+- `src/nexus/integrations/personal_tools.py`: recurring iCalendar, read-only IMAP, and bounded filesystem adapters.
+- `src/nexus/integrations/manager.py`: tool registry, execution orchestration, auditing, and live briefing aggregation.
 - `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
 
 ## Data Model
@@ -169,9 +173,35 @@ NEXUS_LLM_BASE_URL         default: https://api.openai.com/v1
 NEXUS_LLM_TIMEOUT_SECONDS  default: 30
 ```
 
+## Real Tool Integration Flow
+
+```text
+nexus config tool set <tool>
+  -> validate required settings
+  -> save secrets in ignored .nexus/config.local.json
+  -> explicitly enable read-only operations
+
+nexus tool <tool>
+  -> ToolManager
+  -> PermissionPolicy checks tool + operation
+  -> adapter calls Open-Meteo / iCalendar / Todoist / GitHub / Notion / IMAP / filesystem
+  -> normalize result
+  -> append secret-safe success or failure to .nexus/tool_audit.jsonl
+  -> return structured JSON
+
+nexus briefing --live-tools
+  -> fetch configured weather
+  -> expand upcoming one-off and recurring calendar events
+  -> fetch active Todoist tasks
+  -> keep partial results when one provider fails
+  -> inject live context and provider errors into template and LLM prompts
+```
+
+Current tool adapters are read-only. Email uses a verified TLS context and opens the mailbox with `readonly=True`. Filesystem paths are resolved before access and must stay inside explicitly configured roots. Calendar URLs, tokens, and passwords are masked and never written to the audit log.
+
 ## Design Constraints
 
-- Nexus should not fake integrations. Until calendar, weather, email, and health data are connected, the CLI accepts explicit text inputs such as `--weather`.
+- Nexus does not fake integrations. Weather, iCalendar, Todoist, GitHub, Notion, IMAP headers, and bounded local files now use real adapters; unavailable providers remain explicit in structured errors.
 - LLM usage must be optional. The local template path remains the stable fallback.
 - The service layer owns product decisions. The CLI only parses arguments and wires dependencies.
 - Prompt construction is inspectable with `--show-prompt`, so future RAG and agent behavior can be debugged clearly.
