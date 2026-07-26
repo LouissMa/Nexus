@@ -212,6 +212,7 @@ __marimo__/
 .nexus/models/
 .nexus/tool_audit.jsonl
 .nexus/mcp_audit.jsonl
+.nexus/agent_runs.jsonl
 
 # Local test scratch space
 .tmp/

@@ -2,7 +2,7 @@
 
 > **一个具备长期记忆、规划和复盘能力的主动型个人 AI 助手。**
 
-Nexus 是一个开源、本地优先的个人 AI 助手。它会记住目标、检索相关上下文、生成每日计划、连接获得授权的真实工具，并帮助用户复盘和采取行动。
+Nexus 是一个开源、本地优先的个人 AI 助手。它会记住目标、检索相关上下文、协调专职 Agent、连接获得授权的真实工具，并帮助用户复盘和采取行动。
 
 [English](./README.md) | [中文](./README_zh.md)
 
@@ -24,6 +24,7 @@ Nexus 不同：它的目标是记忆、规划、提醒、复盘，并在获得�
 - **RAG 2.0 长期记忆**：支持真实神经网络 Embedding、Qdrant 持久化、稠密+稀疏混合检索、重新索引与离线降级。
 - **受权限控制的真实工具**：读取实时天气、iCalendar 日程、Todoist、GitHub、Notion、IMAP 邮件头和授权目录中的本地文件。
 - **MCP 工具调用**：配置 stdio 或 Streamable HTTP MCP Server，发现工具 Schema，应用 deny/ask/allow 权限，调用与审计工具，并为每日规划补充上下文。
+- **多 Agent 协作**：通过有预算约束的 Memory、Tool、Planner、Reflection 和 Coach Agent 完成规划、复盘和简报，并保留隐私安全的运行轨迹。
 - **目标追踪**：添加目标，设置描述和检查周期。
 - **目标打卡**：记录目标进展。
 - **主动复盘**：发现长期未推进的目标并生成提醒。
@@ -171,12 +172,31 @@ Planning 只执行显式配置的 `planning-tool`，并且其权限必须为 `al
 
 
 
+## 多 Agent 协作
+
+Phase 8 在保留全部原有本地命令的前提下，增加可选的 Agent 执行层：
+
+```bash
+nexus plan day --agents --coach-mode startup
+nexus review day --agents --coach-mode academic
+nexus briefing --agents --live-tools
+nexus briefing --agents --llm --model-tier complex
+nexus agent runs --limit 10
+nexus agent show <run_id>
+```
+
+规划和简报执行 `Memory -> Tool -> Planner -> Coach`，每日复盘执行 `Memory -> Reflection -> Coach`。不配置 API key 也可以运行 Agent 模式；加上 `--llm` 后，已配置的模型可以从获准的 MCP 候选工具中选择，并生成最终的 Coach 回复。
+
+每次运行最多执行 8 个 Agent 步骤、3 次 LLM 调用和 3 次 MCP 调用，并共享 60 秒截止时间。生产环境中的 MCP 与 LLM timeout 会压缩到剩余时间，每个专职 Agent 返回后还会再次检查截止时间。Tool Agent 只能自主调用已启用且策略明确为 `allow` 的 MCP 工具，绝不会在无人确认时执行 `ask` 或 `deny` 工具。任一专职 Agent 失败时，系统会退回原有本地规划、复盘或简报，而不是让整个工作流失败。
+
+隐私安全的轨迹保存在被 Git 忽略的 `.nexus/agent_runs.jsonl`。轨迹包含步骤顺序、状态、耗时、预算使用、检索元数据和工具名称，但不保存 Prompt、记忆正文、原始工具结果、凭据或工具参数值。
 ## 每日规划与复盘
 
 根据活跃的长期目标生成今日计划：
 
 ```bash
 nexus plan day --name Louis --coach-mode academic
+nexus plan day --agents --coach-mode startup
 nexus plan day --llm --model-tier complex --show-prompt
 ```
 
@@ -250,14 +270,19 @@ nexus goal list
 nexus goal check-in <goal_id> "完成了今天的训练。"
 
 nexus plan day --name Louis --coach-mode academic
+nexus plan day --agents --coach-mode startup
 nexus task list
 nexus task update <task_id> --status completed
 
 nexus review
 nexus review day --name Louis
 nexus review day --llm --show-prompt --name Louis
+nexus review day --agents --name Louis
 nexus briefing --name Louis --weather "天气晴，最高 25 C"
 nexus briefing --llm --show-prompt --name Louis
+nexus briefing --agents --llm --name Louis
+nexus agent runs --limit 10
+nexus agent show <run_id>
 
 nexus config llm set --provider deepseek --api-key "你的 key" --simple-model v4flash --complex-model v4pro
 nexus config llm show
@@ -293,6 +318,7 @@ nexus config embedding show
 - **Phase 5**：RAG 2.0，包括真实 Embedding、Qdrant 持久化、混合检索和 Re-index。已完成。
 - **Phase 6**：受权限控制的只读真实工具集成和实时简报上下文。已完成。
 - **Phase 7**：支持 stdio/Streamable HTTP、工具发现、权限、审计、重试、结果标准化和 Planning 上下文的 MCP Client。已完成。
-- **下一步**：多 Agent 协作，逐步拆分 Memory、Planner、Tool、Reflection 和 Coach 职责。
-- **之后**：多 Agent 协作、高级记忆重要性/压缩、主动触发系统和 Dashboard。
+- **Phase 8**：受预算约束的 Memory、Tool、Planner、Reflection、Coach Agent，以及编排、降级和隐私安全轨迹。已完成。
+- **下一步**：高级记忆重要性、去重、压缩、保留策略和检索重排。
+- **之后**：主动触发、通知、浏览器/本地自动执行和 Dashboard。
 - **长期方向**：在同一个 Nexus 核心上增加语音、视觉、智能家居适配器和可选的机器人集成。

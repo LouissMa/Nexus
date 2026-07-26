@@ -6,16 +6,16 @@ This file explains the role of important files in the Nexus project. Update it w
 
 - `README.md`: English project overview, quick start, current features, LLM setup, RAG usage, development workflow, and roadmap summary.
 - `README_zh.md`: Chinese project overview and usage guide. Keep it synchronized with `README.md` for user-facing changes.
-- `pyproject.toml`: Python package metadata, CLI entry point, and optional `rag`, `tools`, and stable MCP SDK dependency groups.
-- `.gitignore`: Ignores Python build/cache files, local secrets, and the local Qdrant index under `.nexus/qdrant/`.
+- `pyproject.toml`: Python package metadata, CLI entry point, core JSON Schema validation dependency, and optional `rag`, `tools`, and stable MCP SDK groups.
+- `.gitignore`: Ignores Python build/cache files, local secrets, Qdrant data, tool/MCP audits, and agent run traces.
 - `褰撳墠鐩爣`: Local Chinese goal note file from earlier project planning.
 
 ## Source Code
 
 - `src/nexus/__init__.py`: Package marker and short package description.
-- `src/nexus/cli.py`: Command-line interface for memory, goals, planning, reviews, briefings, LLM/RAG configuration, Phase 6 tools, MCP configuration/discovery/calls, approvals, and audit inspection.
+- `src/nexus/cli.py`: Command-line interface for memory, goals, planning, reviews, briefings, LLM/RAG configuration, Phase 6 tools, MCP, opt-in agent workflows, and audit/trace inspection.
 - `src/nexus/store.py`: JSON persistence for memories, goals, and persistent daily tasks in `.nexus/state.json` or `NEXUS_HOME/state.json`.
-- `src/nexus/service.py`: Main application service for memory/RAG, goals, planning, reflection, briefings, live Phase 6 context, and normalized MCP planning context.
+- `src/nexus/service.py`: Main application service for memory/RAG, goals, planning, reflection, briefings, shared Agent memory artifacts, live Phase 6 context, and normalized MCP context.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client. Reads provider settings, selects model tier, calls chat completions, and normalizes LLM errors.
 - `src/nexus/config.py`: Local configuration for LLM, Embedding/Qdrant, and external tools; validates required settings and masks all configured secrets.
 - `src/nexus/embeddings.py`: Embedding provider abstraction plus local FastEmbed and OpenAI-compatible embedding implementations.
@@ -30,8 +30,14 @@ This file explains the role of important files in the Nexus project. Update it w
 - `src/nexus/mcp/config.py`: MCP server validation, local persistence, policy/planning bindings, and secret masking.
 - `src/nexus/mcp/client.py`: Official MCP SDK gateway for stdio and Streamable HTTP lifecycle, discovery, calls, and result normalization.
 - `src/nexus/mcp/audit.py`: Secret-safe JSONL audit records for MCP discovery, permissions, calls, retries, and failures.
-- `src/nexus/mcp/manager.py`: MCP server registry, deny/ask/allow policy enforcement, bounded retries, audit orchestration, and Planning aggregation.
+- `src/nexus/mcp/manager.py`: MCP registry, deny/ask/allow enforcement, retries, audit, Planning aggregation, and allow-only Agent candidate discovery.
 - `src/nexus/mcp/__init__.py`: Public entry point for Nexus MCP client support.
+- `src/nexus/agents/__init__.py`: Public entry point for multi-agent models and trace storage.
+- `src/nexus/agents/models.py`: Typed shared run context, results, four bounded resource counters, and trace records.
+- `src/nexus/agents/specialists.py`: Memory, Planner, Reflection, and Coach Agent implementations with deterministic fallback and optional LLM coaching.
+- `src/nexus/agents/tool_agent.py`: Permission-bounded MCP candidate selection, strict JSON parsing, input validation, calls, and partial failure handling.
+- `src/nexus/agents/orchestrator.py`: Sequences plan/review/briefing workflows, shares artifacts, isolates failures, assembles responses, and records runs.
+- `src/nexus/agents/trace.py`: Recursively sanitized JSONL agent-run persistence plus recent/find inspection.
 - src/nexus/planning.py: Planning domain rules. Defines persistent daily-task construction, valid task statuses, and strict/gentle/academic/startup Coach profiles.
 
 ## Documentation
@@ -43,6 +49,8 @@ This file explains the role of important files in the Nexus project. Update it w
 - `docs/file_inventory.md`: This file. Tracks file responsibilities and documentation ownership.
 - docs/superpowers/specs/2026-07-17-mcp-client-design.md: Approved Phase 7 MCP client scope, safety rules, interfaces, CLI, and completion criteria.
 - docs/superpowers/plans/2026-07-17-mcp-client.md: Test-driven Phase 7 implementation plan and verification sequence.
+- `docs/superpowers/specs/2026-07-26-multi-agent-coordination-design.md`: Phase 8 agent boundaries, workflow, budgets, safety, tracing, and completion criteria.
+- `docs/superpowers/plans/2026-07-26-multi-agent-coordination.md`: Test-driven Phase 8 implementation plan and verification sequence.
 
 ## Tests
 
@@ -53,6 +61,11 @@ This file explains the role of important files in the Nexus project. Update it w
 - `tests/test_mcp_cli.py`: End-to-end MCP configuration, policy, binding, server-list, and JSON-validation CLI tests.
 - `tests/test_mcp_planning.py`: Local and LLM Planning context injection and MCP failure-fallback tests.
 - `tests/test_mcp_stdio.py` and `tests/test_mcp_http.py`: Real protocol tests against repository stdio and Streamable HTTP MCP fixtures.
+- `tests/test_agents_core.py`: Agent budget, model serialization, trace persistence, corrupt-record tolerance, and recursive redaction tests.
+- `tests/test_agent_specialists.py`: Memory, Planner, Reflection, and Coach specialist behavior and optional LLM tests.
+- `tests/test_agent_tool.py`: Allow-only candidate, deterministic binding, strict LLM selection, schema validation, privacy, and tool-budget tests.
+- `tests/test_agent_orchestrator.py`: Workflow order, shared persistence, failure isolation, budget fallback, and trace tests.
+- `tests/test_agent_cli.py`: End-to-end `--agents` and `agent runs/show` CLI tests plus default compatibility.
 
 ## Local Runtime Data
 
@@ -61,6 +74,7 @@ This file explains the role of important files in the Nexus project. Update it w
 - `.nexus/qdrant/`: Local persistent semantic-memory vector index. Ignored by Git.
 - .nexus/tool_audit.jsonl: Secret-safe success/failure audit trail for external tool calls. Ignored by Git.
 - .nexus/mcp_audit.jsonl: Secret-safe MCP discovery, permission, retry, call, and failure audit trail. Ignored by Git.
+- `.nexus/agent_runs.jsonl`: Privacy-safe multi-agent run summaries with step status, budgets, retrieval metadata, and selected tool names. Ignored by Git.
 - `.nexus/models/`: Local FastEmbed model cache. Ignored by Git.
 - `.tmp/`: Local scratch/test space. Ignored by Git.
 

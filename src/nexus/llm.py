@@ -1,7 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -24,12 +23,16 @@ class LLMConfig:
     model_tier: str = "simple"
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None, model_tier: str | None = None) -> "LLMConfig":
+    def from_env(
+        cls, env: Mapping[str, str] | None = None, model_tier: str | None = None
+    ) -> "LLMConfig":
         settings = load_llm_settings(dict(env) if env is not None else None)
         return cls.from_settings(settings, model_tier=model_tier)
 
     @classmethod
-    def from_settings(cls, settings: LLMSettings, model_tier: str | None = None) -> "LLMConfig":
+    def from_settings(
+        cls, settings: LLMSettings, model_tier: str | None = None
+    ) -> "LLMConfig":
         tier = model_tier or settings.default_tier
         return cls(
             api_key=settings.api_key,
@@ -49,7 +52,13 @@ class OpenAICompatibleLLM:
     def __init__(self, config: LLMConfig):
         self.config = config
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
         if not self.config.api_key:
             raise LLMError(
                 "LLM is not configured. Run `nexus config llm set ...` or set NEXUS_LLM_API_KEY/OPENAI_API_KEY."
@@ -75,12 +84,18 @@ class OpenAICompatibleLLM:
             method="POST",
         )
 
+        timeout = self.config.timeout_seconds
+        if timeout_seconds is not None:
+            timeout = max(0.001, min(timeout, timeout_seconds))
+
         try:
-            with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")
-            raise LLMError(f"LLM request failed with HTTP {error.code}: {detail}") from error
+            raise LLMError(
+                f"LLM request failed with HTTP {error.code}: {detail}"
+            ) from error
         except urllib.error.URLError as error:
             raise LLMError(f"LLM request failed: {error.reason}") from error
         except TimeoutError as error:

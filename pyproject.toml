@@ -1,7 +1,7 @@
 [project]
 name = "nexus-lifeagent"
 version = "0.1.0"
-description = "A proactive personal AI assistant with memory, planning, RAG, permissioned real tools, and MCP tool calling."
+description = "A proactive personal AI assistant with long-term memory, multi-agent planning, permissioned tools, and MCP."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -32,3 +32,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+dependencies = [
+  "jsonschema>=4.23,<5",
+]

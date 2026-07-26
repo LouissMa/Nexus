@@ -1,6 +1,6 @@
 # Nexus MVP Architecture
 
-The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, permissioned real tools, and a standards-based MCP client. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; hosted embeddings and MCP servers are optional.
+The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, permissioned real tools, a standards-based MCP client, and bounded multi-agent coordination. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; agent coordination is opt-in through `--agents`.
 
 ## Current Architecture
 
@@ -9,32 +9,23 @@ The current version is a local-first CLI assistant with optional LLM generation,
   |
   v
 [Nexus CLI]
+  |---------------- default ----------------> [NexusService]
   |
-  v
-[NexusService]
-  |-- Memory operations
-  |-- Goal operations
-  |-- Goal check-ins
-  |-- Proactive review
-  |-- Briefing context builder
-  |-- Template briefing renderer
-  |-- LLM prompt builder
-  |
-  +--> [OpenAICompatibleLLM]
-  |       |
-  |       v
-  |     [OpenAI-compatible Chat Completions API]
-  |
-  v
-[JsonStore]
-  |
-  v
-[.nexus/state.json]
+  +-- --agents --> [AgentOrchestrator]
+                    |-- Memory Agent ----> [RAG / Qdrant]
+                    |-- Tool Agent ------> [MCPManager / approved MCP tools]
+                    |-- Planner Agent ---> [NexusService / JsonStore]
+                    |-- Reflection Agent -> [NexusService / JsonStore]
+                    |-- Coach Agent ------> [optional OpenAI-compatible LLM]
+                    |
+                    +--> [.nexus/agent_runs.jsonl]
+
+[NexusService] --> [.nexus/state.json]
 ```
 
 ## Current Modules
 
-- `src/nexus/cli.py`: CLI parsing for `memory`, `goal`, `plan`, `task`, `review`, `briefing`, and `config`.
+- `src/nexus/cli.py`: CLI parsing for domain commands, MCP/tools/configuration, opt-in `--agents`, and agent trace inspection.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, persistent daily planning, structured task updates, reflection, coach-aware prompts, and briefings.
 - `src/nexus/embeddings.py`: FastEmbed and OpenAI-compatible neural embedding providers.
 - `src/nexus/vector_store.py`: local/remote Qdrant persistence and collection operations.
@@ -50,6 +41,11 @@ The current version is a local-first CLI assistant with optional LLM generation,
 - `src/nexus/mcp/client.py`: official SDK lifecycle for stdio and Streamable HTTP, discovery, calls, and normalized results.
 - `src/nexus/mcp/manager.py`: permission enforcement, bounded retries, audit orchestration, and partial-failure Planning aggregation.
 - `src/nexus/mcp/audit.py`: secret-safe MCP JSONL audit trail.
+- `src/nexus/agents/models.py`: shared run context, specialist results, budgets, step traces, and run traces.
+- `src/nexus/agents/specialists.py`: Memory, Planner, Reflection, and Coach Agent implementations.
+- `src/nexus/agents/tool_agent.py`: allow-only MCP candidate selection, strict JSON parsing, argument validation, calls, and partial failure handling.
+- `src/nexus/agents/orchestrator.py`: plan, review, and briefing workflow sequencing, shared artifacts, fallback, and response assembly.
+- `src/nexus/agents/trace.py`: privacy-safe agent JSONL persistence and trace lookup.
 - `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
 
 ## Data Model
@@ -235,14 +231,39 @@ nexus plan day --live-mcp
   -> preserve normal local Planning when no MCP result is available
 ```
 
-Nexus supports standard stdio and Streamable HTTP transports. Phase 7 intentionally makes Nexus an MCP client only.
+Nexus supports standard stdio and Streamable HTTP transports. Nexus remains an MCP client; Phase 8 adds allow-only autonomous selection above the Phase 7 permission layer.
 
+## Multi-Agent Coordination Flow
+
+```text
+nexus plan day --agents
+  -> create bounded AgentRunContext
+  -> Memory Agent retrieves relevant RAG context
+  -> Tool Agent discovers allow-policy MCP candidates
+  -> Tool Agent runs explicit bindings or validates strict-JSON LLM selections
+  -> Planner Agent creates/persists today's tasks
+  -> Coach Agent applies the selected tone and optional LLM generation
+  -> append privacy-safe run trace
+
+nexus review day --agents
+  -> Memory Agent -> Reflection Agent -> Coach Agent
+  -> keep blockers, unresolved items, check-ins, and tomorrow priorities structured
+
+nexus briefing --agents
+  -> Memory Agent -> Tool Agent -> Planner Agent -> Coach Agent
+  -> preserve Phase 6 live context and deterministic briefing fallback
+```
+
+A run is limited to 8 steps, 3 LLM calls, and 3 MCP calls under a shared 60-second deadline. MCP and production LLM request timeouts are clamped to the remaining time; the deadline is checked before and after specialist work. Agents share structured artifacts but never call one another directly; the Orchestrator owns sequencing and trace persistence. Only enabled MCP tools with explicit `allow` policy are eligible for autonomous Tool Agent calls. Agent traces under `.nexus/agent_runs.jsonl` exclude prompts, memory text, raw content, credentials, URLs, and argument values.
+
+Default commands without `--agents` remain unchanged. Any specialist, LLM, RAG, MCP, or budget failure produces a partial trace and falls back to the existing local plan, review, or briefing when possible.
 ## Design Constraints
 
 - Nexus does not fake integrations. Weather, iCalendar, Todoist, GitHub, Notion, IMAP headers, and bounded local files now use real adapters; unavailable providers remain explicit in structured errors.
 - LLM usage must be optional. The local template path remains the stable fallback.
 - The service layer owns product decisions. The CLI only parses arguments and wires dependencies.
-- Prompt construction is inspectable with `--show-prompt`, so RAG, MCP Planning context, and future agent behavior can be debugged clearly.
+- Prompt construction is inspectable on legacy LLM workflows with `--show-prompt`; agent workflows instead expose privacy-safe structured step traces.
+- Multi-agent coordination is bounded orchestration, not an open-ended autonomous loop.
 
 ## Future Architecture
 

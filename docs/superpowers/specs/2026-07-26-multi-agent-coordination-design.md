@@ -79,9 +79,9 @@ Every run has explicit limits:
 - maximum agent steps: 8;
 - maximum LLM calls: 3;
 - maximum MCP tool calls: 3;
-- maximum wall-clock duration: 60 seconds.
+- shared wall-clock deadline: 60 seconds, checked before and after specialist work.
 
-The budget object rejects work before a limit is exceeded. A rejected or failed
+The budget object rejects work before a limit is exceeded. Production MCP and OpenAI-compatible LLM request timeouts are clamped to the remaining deadline; MCP discovery and retries recalculate the remaining time. A rejected or failed
 step is recorded and the workflow continues when a deterministic fallback is
 available. CLI defaults are fixed for Phase 8; public budget flags are deferred
 until real usage data justifies them.
@@ -106,7 +106,7 @@ The Tool Agent operates above the existing Phase 7 MCP layer:
 - only enabled MCP servers are considered;
 - only tools with `allow` policy are eligible for autonomous selection;
 - `ask` and `deny` tools are never called by an unattended agent run;
-- tool arguments are validated against the discovered JSON Schema before call;
+- deterministic and LLM-selected arguments are validated with Draft 2020-12-compatible JSON Schema before call;
 - calls are capped by the shared tool budget;
 - MCPManager remains the final permission and audit enforcement point;
 - a tool failure is isolated and cannot prevent local planning or briefing.

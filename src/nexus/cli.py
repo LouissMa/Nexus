@@ -4,6 +4,8 @@ import argparse
 import json
 from datetime import datetime
 
+from .agents.orchestrator import AgentOrchestrator
+from .agents.trace import AgentTraceStore
 from .config import (
     load_embedding_settings,
     load_llm_settings,
@@ -82,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan_parser.add_argument("--model-tier", choices=["simple", "complex"])
     plan_parser.add_argument("--show-prompt", action="store_true")
     plan_parser.add_argument("--live-mcp", action="store_true", help="Run approved MCP planning tools.")
+    plan_parser.add_argument("--agents", action="store_true", help="Use bounded multi-agent coordination.")
     plan_parser.add_argument("--now", help="Optional ISO timestamp for deterministic planning.")
 
     task_parser = subparsers.add_parser("task", help="Inspect or update planned daily tasks.")
@@ -100,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument("--name", default="User", help="User name for daily review.")
     review_parser.add_argument("--coach-mode", choices=COACH_MODES, default="gentle")
     review_parser.add_argument("--llm", action="store_true", help="Use configured LLM for daily review.")
+    review_parser.add_argument("--agents", action="store_true", help="Use bounded multi-agent coordination.")
     review_parser.add_argument(
         "--model-tier",
         choices=["simple", "complex"],
@@ -115,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     briefing_parser.add_argument("--name", default="User", help="User name for the greeting.")
     briefing_parser.add_argument("--weather", help="Optional weather summary.")
     briefing_parser.add_argument("--llm", action="store_true", help="Use configured LLM for the briefing.")
+    briefing_parser.add_argument("--agents", action="store_true", help="Use bounded multi-agent coordination.")
     briefing_parser.add_argument(
         "--model-tier",
         choices=["simple", "complex"],
@@ -169,6 +174,12 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_call.add_argument("--approve", action="store_true", help="Approve one ask-policy call.")
     mcp_audit = mcp_subparsers.add_parser("audit", help="Show secret-safe MCP audit events.")
     mcp_audit.add_argument("--limit", type=int, default=50)
+    agent_parser = subparsers.add_parser("agent", help="Inspect multi-agent runs.")
+    agent_subparsers = agent_parser.add_subparsers(dest="agent_command", required=True)
+    agent_runs = agent_subparsers.add_parser("runs", help="List recent agent runs.")
+    agent_runs.add_argument("--limit", type=int, default=20)
+    agent_show = agent_subparsers.add_parser("show", help="Show one agent run.")
+    agent_show.add_argument("run_id")
     config_parser = subparsers.add_parser("config", help="Manage local Nexus configuration.")
     config_subparsers = config_parser.add_subparsers(dest="config_command", required=True)
     llm_parser = config_subparsers.add_parser("llm", help="Manage local LLM configuration.")
@@ -282,6 +293,18 @@ def main() -> None:
     tool_manager = build_tool_manager(tool_settings, nexus_home())
     mcp_settings = load_mcp_settings()
     mcp_manager = build_mcp_manager(mcp_settings, nexus_home())
+    agent_traces = AgentTraceStore(nexus_home() / "agent_runs.jsonl")
+
+    if args.command == "agent":
+        if args.agent_command == "runs":
+            print_json({"runs": agent_traces.recent(args.limit)})
+            return
+        run = agent_traces.find(args.run_id)
+        if run is None:
+            print_json({"status": "error", "error": f"Agent run '{args.run_id}' not found."})
+            raise SystemExit(1)
+        print_json({"run": run})
+        return
 
     if args.command == "memory":
         if args.memory_command == "add":
@@ -376,16 +399,25 @@ def main() -> None:
 
     if args.command == "plan":
         now = datetime.fromisoformat(args.now) if args.now else None
-        mcp_context = mcp_manager.planning_context() if args.live_mcp else None
+        mcp_context = mcp_manager.planning_context() if args.live_mcp and not args.agents else None
         if args.llm:
             config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = OpenAICompatibleLLM(config) if config.is_configured else None
             service = NexusService(store, llm=llm, memory_retriever=retriever)
-        print_json(service.daily_plan(
-            user_name=args.name, now=now, coach_mode=args.coach_mode,
-            use_llm=args.llm, include_prompt=args.show_prompt,
-            mcp_context=mcp_context,
-        ))
+        if args.agents:
+            orchestrator = AgentOrchestrator(
+                service, mcp_manager=mcp_manager, trace_store=agent_traces
+            )
+            print_json(orchestrator.run_plan(
+                user_name=args.name, now=now, coach_mode=args.coach_mode,
+                use_llm=args.llm, mcp_context=mcp_context,
+            ))
+        else:
+            print_json(service.daily_plan(
+                user_name=args.name, now=now, coach_mode=args.coach_mode,
+                use_llm=args.llm, include_prompt=args.show_prompt,
+                mcp_context=mcp_context,
+            ))
         return
 
     if args.command == "task":
@@ -407,7 +439,16 @@ def main() -> None:
                 config = LLMConfig.from_env(model_tier=args.model_tier)
                 llm = OpenAICompatibleLLM(config) if config.is_configured else None
                 service = NexusService(store, llm=llm, memory_retriever=retriever)
-            print_json(service.daily_review(user_name=args.name, now=now, use_llm=args.llm, include_prompt=args.show_prompt, coach_mode=args.coach_mode))
+            if args.agents:
+                orchestrator = AgentOrchestrator(
+                    service, mcp_manager=mcp_manager, trace_store=agent_traces
+                )
+                print_json(orchestrator.run_review(
+                    user_name=args.name, now=now, use_llm=args.llm,
+                    coach_mode=args.coach_mode,
+                ))
+            else:
+                print_json(service.daily_review(user_name=args.name, now=now, use_llm=args.llm, include_prompt=args.show_prompt, coach_mode=args.coach_mode))
             return
         print_json(service.proactive_review(now))
         return
@@ -419,10 +460,19 @@ def main() -> None:
             config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = OpenAICompatibleLLM(config) if config.is_configured else None
             service = NexusService(store, llm=llm, memory_retriever=retriever)
-        print_json(service.daily_briefing(
-            args.name, args.weather, now, args.llm, args.show_prompt,
-            external_context=live_context,
-        ))
+        if args.agents:
+            orchestrator = AgentOrchestrator(
+                service, mcp_manager=mcp_manager, trace_store=agent_traces
+            )
+            print_json(orchestrator.run_briefing(
+                user_name=args.name, weather=args.weather, now=now,
+                use_llm=args.llm, external_context=live_context,
+            ))
+        else:
+            print_json(service.daily_briefing(
+                args.name, args.weather, now, args.llm, args.show_prompt,
+                external_context=live_context,
+            ))
         return
 
     if args.command == "config" and args.config_command == "llm":

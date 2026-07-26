@@ -14,7 +14,7 @@ Status legend:
 2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing. Completed.
 3. Real tool integrations. Completed.
 4. MCP tool calling and permissions. Completed.
-5. Multi-Agent coordination.
+5. Multi-Agent coordination. Completed.
 6. Advanced memory importance, compression, and retention.
 7. Proactive triggers and Dashboard.
 8. Long-term multimodal, smart-home, and robotics interfaces after the core is dependable.
@@ -101,18 +101,24 @@ Current status: `[x]` Local Planning / Reflection module completed.
 - [x] Add coach modes: strict, gentle, academic, startup.
 - [x] Add task inspection and updates with `nexus task list` and `nexus task update`.
 
-The local module is complete. Agentic planning, calendar-aware scheduling, automatic replanning, and tool execution remain separate future architecture work.
+The local module is complete. Phase 8 now orchestrates agentic planning and permissioned MCP tool selection; calendar-aware scheduling and automatic replanning remain future work.
 
 ## 5. Multi-Agent Architecture
 
-Current status: `[ ]` Not started.
+Current status: `[x]` Bounded multi-agent coordination completed.
 
-- [ ] Memory Agent: retrieves and summarizes relevant memory.
-- [ ] Planner Agent: decomposes goals into plans.
-- [ ] Tool Agent: selects and calls tools.
-- [ ] Reflection Agent: reviews outcomes and blockers.
-- [ ] Coach Agent: adapts tone and final response.
-- [ ] Add orchestration layer for agent collaboration.
+- [x] Memory Agent: retrieves task-relevant RAG memories and public retrieval metadata.
+- [x] Planner Agent: creates persistent plans and briefing priorities from shared artifacts.
+- [x] Tool Agent: runs deterministic bindings or strict-JSON LLM selection over allow-policy MCP tools only, with complete JSON Schema validation for both paths.
+- [x] Reflection Agent: reviews outcomes, blockers, unresolved items, check-ins, and tomorrow priorities.
+- [x] Coach Agent: applies strict, gentle, academic, or startup tone with optional LLM generation.
+- [x] Add orchestration for plan, review, and briefing workflows.
+- [x] Add shared artifacts and explicit limits for steps, LLM calls, MCP calls, and runtime.
+- [x] Add partial-failure isolation and deterministic local fallback.
+- [x] Add privacy-safe JSONL traces plus `nexus agent runs/show` inspection.
+- [x] Add opt-in `--agents` without changing default command behavior.
+
+Phase 8 does not create open-ended autonomous loops. Human approval remains required for `ask` MCP tools, and browser/local automation remains a later permissioned phase.
 
 ## 6. Proactive Trigger System
 

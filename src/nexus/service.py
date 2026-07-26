@@ -198,6 +198,7 @@ class NexusService:
         use_llm: bool = False,
         include_prompt: bool = False,
         mcp_context: dict[str, Any] | None = None,
+        memory_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
         profile = coach_profile(coach_mode)
@@ -212,12 +213,9 @@ class NexusService:
             self.store.save(state)
 
         query = " ".join([user_name, "daily plan"] + [f"{task['goal_title']} {task['title']}" for task in tasks])
-        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), query, limit=6)
-        memories = retrieval.memories
-        retrieval_metadata = retrieval.metadata
-        if not memories:
-            memories = self._recent_memories(state, limit=6)
-            retrieval_metadata["strategy"] = "recent_memory_fallback"
+        memories, retrieval_metadata = self._resolve_memory_context(
+            state, query, 6, memory_context
+        )
 
         task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
         memory_text = self._format_items(memories, lambda memory: f"- {memory['text']}")
@@ -269,6 +267,28 @@ Keep the tasks concrete and preserve their priority order."""
         if include_prompt:
             response["prompt"] = {"system": system_prompt, "user": user_prompt}
         return response
+
+    def _resolve_memory_context(
+        self,
+        state: dict[str, Any],
+        query: str,
+        limit: int,
+        memory_context: dict[str, Any] | None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        if memory_context is not None:
+            memories = list(memory_context.get("memories", []))[:limit]
+            metadata = dict(memory_context.get("memory_retrieval", {}))
+            metadata.setdefault("query", query)
+        else:
+            retrieval = self.memory_retriever.retrieve_result(
+                state.get("memories", []), query, limit=limit
+            )
+            memories = retrieval.memories
+            metadata = retrieval.metadata
+        if not memories:
+            memories = self._recent_memories(state, limit=limit)
+            metadata["strategy"] = "recent_memory_fallback"
+        return memories, metadata
 
     @staticmethod
     def _format_mcp_context(context: dict[str, Any]) -> str:
@@ -329,9 +349,10 @@ Keep the tasks concrete and preserve their priority order."""
         include_prompt: bool = False,
         mcp_context: dict[str, Any] | None = None,
         coach_mode: str = "gentle",
+        memory_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
-        context = self._build_daily_review_context(user_name, now, coach_mode)
+        context = self._build_daily_review_context(user_name, now, coach_mode, memory_context)
         template_review = self._render_template_daily_review(context)
         system_prompt, user_prompt = self._build_daily_review_prompt(context)
         llm_info = self._empty_llm_info(use_llm)
@@ -385,9 +406,12 @@ Keep the tasks concrete and preserve their priority order."""
         include_prompt: bool = False,
         mcp_context: dict[str, Any] | None = None,
         external_context: dict[str, Any] | None = None,
+        memory_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
-        context = self._build_briefing_context(user_name, weather, now, external_context)
+        context = self._build_briefing_context(
+            user_name, weather, now, external_context, memory_context, mcp_context
+        )
         template_briefing = self._render_template_briefing(context)
         system_prompt, user_prompt = self._build_briefing_prompt(context)
         llm_info = self._empty_llm_info(use_llm)
@@ -416,6 +440,7 @@ Keep the tasks concrete and preserve their priority order."""
             "reminders": context["reminders"],
             "suggestion": context["suggestion"],
             "live_context": context["live_context"],
+            "mcp_context": context["mcp_context"],
             "briefing": briefing,
             "llm": llm_info,
         }
@@ -428,7 +453,13 @@ Keep the tasks concrete and preserve their priority order."""
 
         return response
 
-    def _build_daily_review_context(self, user_name: str, now: datetime, coach_mode: str) -> dict[str, Any]:
+    def _build_daily_review_context(
+        self,
+        user_name: str,
+        now: datetime,
+        coach_mode: str,
+        memory_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         state = self.store.load()
         active_goals = [goal for goal in state.get("goals", []) if goal.get("status") == "active"]
         profile = coach_profile(coach_mode)
@@ -459,12 +490,9 @@ Keep the tasks concrete and preserve their priority order."""
 
         reminders = self.proactive_review(now)["reminders"]
         memory_query = self._build_review_memory_query(user_name, completed_goals, pending_goals, today_check_ins, reminders)
-        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), memory_query, limit=8)
-        relevant_memories = retrieval.memories
-        retrieval_metadata = retrieval.metadata
-        if not relevant_memories:
-            relevant_memories = self._recent_memories(state, limit=8)
-            retrieval_metadata["strategy"] = "recent_memory_fallback"
+        relevant_memories, retrieval_metadata = self._resolve_memory_context(
+            state, memory_query, 8, memory_context
+        )
 
         tomorrow_priorities = self._tomorrow_priorities(pending_goals, completed_goals)
         task_priorities = [f"Resolve blocker for '{task['title']}': {task.get('blocker')}" for task in blocked_tasks]
@@ -540,6 +568,8 @@ Keep the tasks concrete and preserve their priority order."""
         weather: str | None,
         now: datetime,
         external_context: dict[str, Any] | None = None,
+        memory_context: dict[str, Any] | None = None,
+        mcp_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         state = self.store.load()
         active_goals = [
@@ -566,12 +596,10 @@ Keep the tasks concrete and preserve their priority order."""
         weather_text = weather or live_weather.get("summary") or "天气信息暂未接入"
         date_text = f"{now.month}月{now.day}日"
         memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
-        retrieval = self.memory_retriever.retrieve_result(state.get("memories", []), memory_query, limit=8)
-        relevant_memories = retrieval.memories
-        retrieval_metadata = retrieval.metadata
-        if not relevant_memories:
-            relevant_memories = self._recent_memories(state, limit=8)
-            retrieval_metadata["strategy"] = "recent_memory_fallback"
+        relevant_memories, retrieval_metadata = self._resolve_memory_context(
+            state, memory_query, 8, memory_context
+        )
+        mcp_context = mcp_context or {"results": [], "errors": []}
 
         if important_goals:
             suggested_goal = important_goals[0]
@@ -594,6 +622,7 @@ Keep the tasks concrete and preserve their priority order."""
             "reminders": reminders,
             "suggestion": suggestion,
             "live_context": live_context,
+            "mcp_context": mcp_context,
         }
 
     def _render_template_briefing(self, context: dict[str, Any]) -> str:
@@ -637,6 +666,10 @@ Keep the tasks concrete and preserve their priority order."""
             lines.append("另外，我注意到：")
             lines.extend(f"- {reminder}" for reminder in context["reminders"])
 
+        if context["mcp_context"].get("results") or context["mcp_context"].get("errors"):
+            lines.extend(["", "Approved MCP context:"])
+            lines.extend(self._format_mcp_context(context["mcp_context"]).splitlines())
+
         lines.extend(["", "今天不用做完所有事，先把最重要的一步往前推。"])
         return "\n".join(lines)
 
@@ -674,7 +707,7 @@ Date: {context['date_text']}
 
 Memory retrieval:
 - Strategy: {context['memory_retrieval']['strategy']}
-- Query: {context['memory_retrieval']['query']}
+- Query: {context['memory_retrieval'].get('query', 'agent-provided context')}
 
 Relevant long-term memories:
 {memories}
@@ -736,6 +769,7 @@ Output format:
             context["live_context"].get("todos", []),
             lambda item: f"- {item.get('content')} | due: {item.get('due') or 'none'} | priority: {item.get('priority')}",
         )
+        mcp_text = self._format_mcp_context(context["mcp_context"])
         tool_errors = self._format_items(
             context["live_context"].get("errors", []),
             lambda item: f"- {item.get('tool')}: {item.get('error')}",
@@ -749,7 +783,7 @@ Today:
 
 Memory retrieval:
 - Strategy: {context['memory_retrieval']['strategy']}
-- Query: {context['memory_retrieval']['query']}
+- Query: {context['memory_retrieval'].get('query', 'agent-provided context')}
 
 Relevant long-term memories:
 {memories}
@@ -762,6 +796,9 @@ Live calendar events:
 
 Live external todos:
 {todos}
+
+Approved MCP context:
+{mcp_text}
 
 Tool errors (report uncertainty; do not invent missing data):
 {tool_errors}

@@ -2,7 +2,7 @@
 
 > **A proactive personal AI assistant with long-term memory, planning, and reflection.**
 
-Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, builds daily plans, connects approved real-world tools, and helps users reflect and take action.
+Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, coordinates specialist agents, connects approved real-world tools, and helps users reflect and take action.
 
 [English](./README.md) | [Chinese](./README_zh.md)
 
@@ -24,6 +24,7 @@ Over time, this core can become a **Personal AI Operating System** shared by CLI
 - **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
 - **Permissioned Real Tools**: Read live weather, iCalendar events, Todoist tasks, GitHub repositories, Notion pages, IMAP headers, and approved local files.
 - **MCP Tool Calling**: Configure stdio or Streamable HTTP MCP servers, discover schemas, apply deny/ask/allow policies, call tools, audit activity, and enrich daily planning.
+- **Multi-Agent Coordination**: Run bounded Memory, Tool, Planner, Reflection, and Coach agents for planning, review, and briefing workflows with privacy-safe traces.
 - **Goal Tracker**: Add goals with descriptions and check-in cadence.
 - **Goal Check-In**: Record progress notes for goals.
 - **Proactive Review**: Detect stale goals and generate reminders.
@@ -171,12 +172,31 @@ Planning executes only explicit `planning-tool` bindings with an `allow` policy.
 
 
 
+## Multi-Agent Coordination
+
+Phase 8 adds an opt-in agent layer while preserving every existing local command:
+
+```bash
+nexus plan day --agents --coach-mode startup
+nexus review day --agents --coach-mode academic
+nexus briefing --agents --live-tools
+nexus briefing --agents --llm --model-tier complex
+nexus agent runs --limit 10
+nexus agent show <run_id>
+```
+
+Planning and briefing run `Memory -> Tool -> Planner -> Coach`; daily review runs `Memory -> Reflection -> Coach`. Agent mode works without an API key. With `--llm`, the configured model can select from approved MCP candidates and produce the final coached response.
+
+Every run is bounded to 8 agent steps, 3 LLM calls, and 3 MCP calls under a shared 60-second deadline. Production MCP and LLM timeouts are clamped to the remaining deadline, and every specialist is checked again after it returns. The Tool Agent can autonomously call only enabled MCP tools whose policy is explicitly `allow`; `ask` and `deny` tools are never executed unattended. A specialist failure degrades to the existing local plan, review, or briefing instead of ending the workflow.
+
+Privacy-safe traces are stored in ignored `.nexus/agent_runs.jsonl`. They include step order, status, duration, budget usage, retrieval metadata, and selected tool names, but exclude prompts, memory text, raw tool payloads, credentials, and tool argument values.
 ## Daily Planning and Reflection
 
 Create today's plan from active long-term goals:
 
 ```bash
 nexus plan day --name Louis --coach-mode academic
+nexus plan day --agents --coach-mode startup
 nexus plan day --llm --model-tier complex --show-prompt
 ```
 
@@ -250,14 +270,19 @@ nexus goal list
 nexus goal check-in <goal_id> "Finished today's session."
 
 nexus plan day --name Louis --coach-mode academic
+nexus plan day --agents --coach-mode startup
 nexus task list
 nexus task update <task_id> --status completed
 
 nexus review
 nexus review day --name Louis
 nexus review day --llm --show-prompt --name Louis
+nexus review day --agents --name Louis
 nexus briefing --name Louis --weather "weather is sunny, high 25 C"
 nexus briefing --llm --show-prompt --name Louis
+nexus briefing --agents --llm --name Louis
+nexus agent runs --limit 10
+nexus agent show <run_id>
 
 nexus config llm set --provider deepseek --api-key "your-key" --simple-model v4flash --complex-model v4pro
 nexus config llm show
@@ -293,6 +318,7 @@ When implementing new features:
 - **Phase 5**: RAG 2.0 with real embeddings, Qdrant persistence, hybrid retrieval, and re-indexing. Done.
 - **Phase 6**: Permissioned read-only real tool integrations and live briefing context. Done.
 - **Phase 7**: Permissioned MCP client with stdio/Streamable HTTP, discovery, policies, audit, retries, normalized results, and Planning context. Done.
-- **Next**: Multi-agent coordination with Memory, Planner, Tool, Reflection, and Coach responsibilities.
-- **Later**: Multi-agent coordination, advanced memory importance/compression, proactive triggers, and the dashboard.
+- **Phase 8**: Bounded Memory, Tool, Planner, Reflection, and Coach agents with orchestration, budgets, fallback, and privacy-safe traces. Done.
+- **Next**: Advanced memory importance, deduplication, compression, retention, and retrieval re-ranking.
+- **Later**: Proactive triggers, notifications, browser/local automation, and the dashboard.
 - **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.

@@ -86,18 +86,20 @@ Objective: give Nexus a standard, permissioned way to discover and call tools.
 - [x] Secret-safe call logs, errors, bounded retries, and result normalization.
 - [x] Let planning flows invoke explicitly approved tools with partial-failure fallback.
 
-Nexus is an MCP client in this phase. Autonomous LLM tool selection belongs to the Multi-Agent Tool Agent phase; exposing Nexus itself as an MCP server remains separate future work.
+Nexus is an MCP client in this phase. Phase 8 now adds allow-only autonomous selection through the Tool Agent; exposing Nexus itself as an MCP server remains separate future work.
 
 ## Phase 8: Multi-Agent Coordination
 
 Objective: separate complex responsibilities without fragmenting the user experience.
 
-- [ ] Memory Agent.
-- [ ] Planner Agent.
-- [ ] Tool Agent.
-- [ ] Reflection Agent.
-- [ ] Coach Agent.
-- [ ] Orchestration, shared state, budgets, and traceability.
+- [x] Memory Agent.
+- [x] Planner Agent.
+- [x] Tool Agent.
+- [x] Reflection Agent.
+- [x] Coach Agent.
+- [x] Orchestration, shared state, budgets, and traceability.
+
+Agent mode is opt-in on planning, review, and briefing commands. Runs are bounded, permission-aware, privacy-safe to inspect, and fall back to the existing local workflows when a specialist fails.
 
 ## Phase 9: Advanced Long-Term Memory
 

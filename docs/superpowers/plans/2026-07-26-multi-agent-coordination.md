@@ -1,6 +1,6 @@
 # Phase 8 Multi-Agent Coordination Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build five bounded specialist agents and an orchestrator that power opt-in planning, review, and briefing workflows with inspectable privacy-safe traces.
 
@@ -30,10 +30,10 @@
 **Interfaces:**
 - Produces: `AgentBudget`, `AgentRunContext`, `AgentResult`, `AgentStepTrace`, `AgentRunTrace`, and `AgentTraceStore`.
 
-- [ ] Write failing tests for budget consumption/exhaustion, result serialization, JSONL persistence, missing/corrupt files, and recursive secret/value redaction.
-- [ ] Run `python -m pytest -q tests/test_agents_core.py` and verify failures are caused by missing agent APIs.
-- [ ] Implement typed models, budget counters/deadline checks, public serialization, and best-effort JSONL trace persistence.
-- [ ] Run focused tests and confirm they pass.
+- [x] Write failing tests for budget consumption/exhaustion, result serialization, JSONL persistence, missing/corrupt files, and recursive secret/value redaction.
+- [x] Run `python -m pytest -q tests/test_agents_core.py` and verify failures are caused by missing agent APIs.
+- [x] Implement typed models, budget counters/deadline checks, public serialization, and best-effort JSONL trace persistence.
+- [x] Run focused tests and confirm they pass.
 
 ### Task 2: Memory, Planner, Reflection, And Coach Agents
 
@@ -46,11 +46,11 @@
 - Produces: `MemoryAgent.run(context)`, `PlannerAgent.run(context)`, `ReflectionAgent.run(context)`, and `CoachAgent.run(context)`.
 - Consumes: existing memory retriever, planning rules, review context, coach profiles, and optional `BriefingLLM`.
 
-- [ ] Add failing tests for relevant-memory artifacts, persistent plan tasks, structured reflection, four coach modes, optional LLM use, malformed model output, and local fallback.
-- [ ] Run focused tests and verify the specialist classes are missing.
-- [ ] Expose focused service context helpers without changing default responses.
-- [ ] Implement specialists with one typed result per run and budgeted optional LLM calls.
-- [ ] Run focused tests and confirm they pass.
+- [x] Add failing tests for relevant-memory artifacts, persistent plan tasks, structured reflection, four coach modes, optional LLM use, malformed model output, and local fallback.
+- [x] Run focused tests and verify the specialist classes are missing.
+- [x] Expose focused service context helpers without changing default responses.
+- [x] Implement specialists with one typed result per run and budgeted optional LLM calls.
+- [x] Run focused tests and confirm they pass.
 
 ### Task 3: Permission-Bounded Tool Agent
 
@@ -63,11 +63,11 @@
 - Produces: `ToolAgent.run(context)` and `MCPManager.agent_candidates()`.
 - Consumes: discovered MCP schemas, tool policies, configured planning bindings, optional LLM, and shared budget.
 
-- [ ] Add failing tests for allow-only candidates, deterministic bindings, strict model JSON selection, schema validation, invented-tool rejection, call caps, partial failures, and trace-safe argument metadata.
-- [ ] Run focused tests and verify expected missing behavior.
-- [ ] Add public allow-policy candidate discovery to MCPManager.
-- [ ] Implement deterministic and optional model-assisted selection, validation, calls, and normalized artifacts.
-- [ ] Run focused tests and confirm they pass.
+- [x] Add failing tests for allow-only candidates, deterministic bindings, strict model JSON selection, schema validation, invented-tool rejection, call caps, partial failures, and trace-safe argument metadata.
+- [x] Run focused tests and verify expected missing behavior.
+- [x] Add public allow-policy candidate discovery to MCPManager.
+- [x] Implement deterministic and optional model-assisted selection, validation, calls, and normalized artifacts.
+- [x] Run focused tests and confirm they pass.
 
 ### Task 4: Orchestrator And Workflow Integration
 
@@ -80,10 +80,10 @@
 - Produces: `AgentOrchestrator.run_plan()`, `run_review()`, and `run_briefing()`.
 - Consumes: all specialist agents, shared budget/context, `NexusService`, optional MCP manager, and trace store.
 
-- [ ] Add failing tests for workflow order, artifact sharing, error isolation, budget exhaustion, trace completion, daily-task persistence, and offline fallback.
-- [ ] Run focused tests and verify orchestrator APIs are missing.
-- [ ] Implement bounded step execution, sanitized traces, final response assembly, and workflow-specific fallback.
-- [ ] Run focused tests and confirm they pass.
+- [x] Add failing tests for workflow order, artifact sharing, error isolation, budget exhaustion, trace completion, daily-task persistence, and offline fallback.
+- [x] Run focused tests and verify orchestrator APIs are missing.
+- [x] Implement bounded step execution, sanitized traces, final response assembly, and workflow-specific fallback.
+- [x] Run focused tests and confirm they pass.
 
 ### Task 5: CLI Agent Mode And Trace Inspection
 
@@ -95,10 +95,10 @@
 - Produces: `--agents` on plan/review/briefing and `nexus agent runs/show`.
 - Consumes: `AgentOrchestrator` and `AgentTraceStore`.
 
-- [ ] Add failing CLI tests for all agent workflows, offline behavior, run listing, run lookup, unknown run IDs, and compatibility without `--agents`.
-- [ ] Run focused tests and verify parsing/dispatch failures.
-- [ ] Add CLI options, orchestrator construction, structured output, and trace commands.
-- [ ] Run focused tests and confirm they pass.
+- [x] Add failing CLI tests for all agent workflows, offline behavior, run listing, run lookup, unknown run IDs, and compatibility without `--agents`.
+- [x] Run focused tests and verify parsing/dispatch failures.
+- [x] Add CLI options, orchestrator construction, structured output, and trace commands.
+- [x] Run focused tests and confirm they pass.
 
 ### Task 6: Documentation, Tracking, And Release Verification
 
@@ -114,7 +114,7 @@
 **Interfaces:**
 - Produces: accurate bilingual Phase 8 usage, architecture, limitations, file ownership, and completion status.
 
-- [ ] Document agent workflows, safety, budgets, tracing, commands, examples, and limitations in both README files.
-- [ ] Update architecture diagrams, roadmap, checklist, inventory, and ignore rules.
-- [ ] Run focused agent tests, the complete test suite, Ruff, compile/AST compatibility checks, real MCP smoke tests, CLI help smoke checks, `git diff --check`, and secret scans.
-- [ ] Review every design requirement against implementation and mark only verified checklist items complete.
+- [x] Document agent workflows, safety, budgets, tracing, commands, examples, and limitations in both README files.
+- [x] Update architecture diagrams, roadmap, checklist, inventory, and ignore rules.
+- [x] Run focused agent tests, the complete test suite, Ruff, compile/AST compatibility checks, real MCP smoke tests, CLI help smoke checks, `git diff --check`, and secret scans.
+- [x] Review every design requirement against implementation and mark only verified checklist items complete.

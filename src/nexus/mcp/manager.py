@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, Callable
 
 from .audit import MCPAuditLogger
 from .client import MCPGateway
@@ -41,8 +41,12 @@ class MCPManager:
             for name, server in sorted(self.settings.items())
         ]
 
-    def discover(self, server_name: str) -> list[MCPToolSchema]:
-        server = self._enabled_server(server_name)
+    def discover(
+        self, server_name: str, *, timeout_seconds: float | None = None
+    ) -> list[MCPToolSchema]:
+        server = self._bounded_server(
+            self._enabled_server(server_name), timeout_seconds
+        )
         started = monotonic()
         try:
             tools = self.gateway.list_tools(server)
@@ -61,6 +65,7 @@ class MCPManager:
         arguments: dict[str, Any],
         *,
         approved: bool = False,
+        timeout_seconds: float | None = None,
     ) -> MCPCallResult:
         server = self._enabled_server(server_name)
         policy = server.get("tool_policies", {}).get(tool, "ask")
@@ -76,8 +81,25 @@ class MCPManager:
         started = monotonic()
         max_attempts = int(server.get("max_retries", 1)) + 1
         for attempt in range(1, max_attempts + 1):
+            attempt_timeout = timeout_seconds
+            if timeout_seconds is not None:
+                attempt_timeout = timeout_seconds - (monotonic() - started)
+                if attempt_timeout <= 0:
+                    error = MCPTransportError("MCP call deadline exhausted.")
+                    self._audit(
+                        "call",
+                        server_name,
+                        "error",
+                        tool,
+                        arguments,
+                        str(error),
+                        started,
+                        attempt,
+                    )
+                    raise error
+            attempt_server = self._bounded_server(server, attempt_timeout)
             try:
-                result = self.gateway.call_tool(server, tool, arguments)
+                result = self.gateway.call_tool(attempt_server, tool, arguments)
                 completed = replace(
                     result,
                     attempt_count=attempt,
@@ -155,8 +177,65 @@ class MCPManager:
                     )
         return context
 
+    def agent_candidates(
+        self,
+        *,
+        timeout_seconds: float | None = None,
+        timeout_provider: Callable[[], float] | None = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        candidates: dict[str, list[dict[str, Any]]] = {"tools": [], "errors": []}
+        for server_name, server in sorted(self.settings.items()):
+            if not server.get("enabled", False):
+                continue
+
+            current_timeout = (
+                timeout_provider() if timeout_provider is not None else timeout_seconds
+            )
+            if current_timeout is not None and current_timeout <= 0:
+                candidates["errors"].append(
+                    {"server": server_name, "error": "Agent deadline exhausted."}
+                )
+                break
+            try:
+                schemas = self.discover(server_name, timeout_seconds=current_timeout)
+            except MCPError as exc:
+                candidates["errors"].append({"server": server_name, "error": str(exc)})
+                continue
+            for schema in schemas:
+                if server.get("tool_policies", {}).get(schema.name, "ask") != "allow":
+                    continue
+                bindings = [
+                    binding.get("arguments", {})
+                    for binding in server.get("planning_tools", [])
+                    if binding["tool"] == schema.name
+                ]
+                for bound_arguments in bindings or [None]:
+                    candidates["tools"].append(
+                        {
+                            "server": server_name,
+                            "tool": schema.name,
+                            "title": schema.title,
+                            "description": schema.description,
+                            "input_schema": schema.input_schema,
+                            "bound_arguments": bound_arguments,
+                        }
+                    )
+        return candidates
+
     def audit_events(self, limit: int = 50) -> list[dict[str, Any]]:
         return self.audit_logger.recent(limit)
+
+    @staticmethod
+    def _bounded_server(
+        server: dict[str, Any], timeout_seconds: float | None
+    ) -> dict[str, Any]:
+        if timeout_seconds is None:
+            return server
+        bounded = dict(server)
+        bounded["timeout_seconds"] = max(
+            0.001, min(float(server.get("timeout_seconds", 30)), timeout_seconds)
+        )
+        return bounded
 
     def _enabled_server(self, name: str) -> dict[str, Any]:
         server = self.settings.get(name)
