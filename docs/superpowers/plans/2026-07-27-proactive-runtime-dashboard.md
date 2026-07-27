@@ -1,4 +1,4 @@
-# Proactive Runtime and Dashboard Implementation Plan
+﻿# Proactive Runtime and Dashboard Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -36,11 +36,11 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Produces: `ProfileSettings`, `RuntimeSettings`, `load_runtime_settings`,
   `update_profile_settings`, `update_runtime_settings`, and masked serializers.
 
-- [ ] Write failing tests for defaults, IANA zones, `HH:MM` validation,
+- [x] Write failing tests for defaults, IANA zones, `HH:MM` validation,
   overnight quiet hours, job configuration, and secret masking.
-- [ ] Run `pytest tests/test_runtime_config.py -q` and confirm feature failures.
-- [ ] Implement immutable validated settings and local-config persistence.
-- [ ] Run `pytest tests/test_runtime_config.py -q` and confirm it passes.
+- [x] Run `pytest tests/test_runtime_config.py -q` and confirm feature failures.
+- [x] Implement immutable validated settings and local-config persistence.
+- [x] Run `pytest tests/test_runtime_config.py -q` and confirm it passes.
 
 ### Task 2: Durable Notification Center
 
@@ -53,11 +53,11 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Produces: `NotificationCenter.publish`, `flush_deferred`, `recent`, and
   `is_quiet_time`.
 
-- [ ] Write failing tests for inbox-first persistence, quiet-hour deferral,
+- [x] Write failing tests for inbox-first persistence, quiet-hour deferral,
   overnight ranges, webhook/console delivery, failure isolation, and flush.
-- [ ] Run `pytest tests/test_notifications.py -q` and confirm feature failures.
-- [ ] Implement bounded channels and durable JSONL records.
-- [ ] Run `pytest tests/test_notifications.py -q` and confirm it passes.
+- [x] Run `pytest tests/test_notifications.py -q` and confirm feature failures.
+- [x] Implement bounded channels and durable JSONL records.
+- [x] Run `pytest tests/test_notifications.py -q` and confirm it passes.
 
 ### Task 3: Proactive Scheduler
 
@@ -164,3 +164,5 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - [ ] Request independent code review, fix findings with regression tests, and
   repeat verification.
 - [ ] Commit all completed work and push `main` to GitHub.
+
+
