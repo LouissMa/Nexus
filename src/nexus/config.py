@@ -2,9 +2,17 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
+from .runtime_config import (
+    ProfileSettings,
+    RuntimeSettings,
+    profile_settings_from_mapping,
+    runtime_settings_from_mapping,
+)
 
 
 PROVIDER_PRESETS = {
@@ -344,3 +352,67 @@ def masked_tool_settings(settings: dict[str, dict[str, Any]]) -> dict[str, dict[
                 public[key] = "***configured***" if key == "calendar_url" else mask_secret(str(public[key]))
         masked[name] = public
     return masked
+
+
+def load_runtime_settings(path: Path | None = None) -> tuple[ProfileSettings, RuntimeSettings]:
+    config = load_local_config(path)
+    profile = profile_settings_from_mapping(dict(config.get("profile", {})))
+    runtime = runtime_settings_from_mapping(dict(config.get("runtime", {})))
+    return profile, runtime
+
+
+def update_profile_settings(
+    display_name: str = "User",
+    timezone: str | None = None,
+    path: Path | None = None,
+) -> tuple[ProfileSettings, Path]:
+    values: dict[str, Any] = {"display_name": display_name}
+    if timezone is not None:
+        values["timezone"] = timezone
+    settings = profile_settings_from_mapping(values)
+    config = load_local_config(path)
+    config["profile"] = asdict(settings)
+    saved_path = save_local_config(config, path)
+    return settings, saved_path
+
+
+def update_runtime_settings(
+    enabled_jobs: Sequence[str] = (),
+    morning_time: str = "08:00",
+    evening_time: str = "20:00",
+    reminder_time: str = "12:00",
+    grace_minutes: int = 30,
+    poll_interval_seconds: int = 60,
+    quiet_hours_start: str | None = None,
+    quiet_hours_end: str | None = None,
+    inbox_enabled: bool = True,
+    console_enabled: bool = False,
+    webhook_url: str | None = None,
+    path: Path | None = None,
+    *,
+    use_llm: bool = False,
+    live_tools: bool = False,
+    agents: bool = False,
+    coach_mode: str = "gentle",
+) -> tuple[RuntimeSettings, Path]:
+    settings = RuntimeSettings(
+        enabled_jobs=enabled_jobs,
+        morning_time=morning_time,
+        evening_time=evening_time,
+        reminder_time=reminder_time,
+        grace_minutes=grace_minutes,
+        poll_interval_seconds=poll_interval_seconds,
+        quiet_hours_start=quiet_hours_start,
+        quiet_hours_end=quiet_hours_end,
+        inbox_enabled=inbox_enabled,
+        console_enabled=console_enabled,
+        webhook_url=webhook_url,
+        use_llm=use_llm,
+        live_tools=live_tools,
+        agents=agents,
+        coach_mode=coach_mode,
+    )
+    config = load_local_config(path)
+    config["runtime"] = asdict(settings)
+    saved_path = save_local_config(config, path)
+    return settings, saved_path

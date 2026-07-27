@@ -220,3 +220,6 @@ __marimo__/
 # Alternate pytest output when .tmp ACLs are unavailable
 test-output-*/
 .test-tmp/
+
+# Superpowers implementation-session ledger
+.superpowers/
