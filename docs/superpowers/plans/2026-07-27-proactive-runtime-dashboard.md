@@ -71,11 +71,11 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Produces: `ProactiveScheduler.tick`, `run_job`, `run_forever`, and
   `scheduler_status`.
 
-- [ ] Write failing tests for due windows, local dates, occurrence claims,
+- [x] Write failing tests for due windows, local dates, occurrence claims,
   morning/evening/reminder dispatch, explicit retries, and partial failures.
-- [ ] Run `pytest tests/test_scheduler.py -q` and confirm feature failures.
-- [ ] Implement deterministic scheduler state and bounded foreground loop.
-- [ ] Run `pytest tests/test_scheduler.py -q` and confirm it passes.
+- [x] Run `pytest tests/test_scheduler.py -q` and confirm feature failures.
+- [x] Implement deterministic scheduler state and bounded foreground loop.
+- [x] Run `pytest tests/test_scheduler.py -q` and confirm it passes.
 
 ### Task 4: Permissioned Automation
 
@@ -164,5 +164,6 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - [ ] Request independent code review, fix findings with regression tests, and
   repeat verification.
 - [ ] Commit all completed work and push `main` to GitHub.
+
 
 
