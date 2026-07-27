@@ -7,6 +7,8 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from .llm import LLMError
+from .memory_lifecycle import is_memory_eligible, normalize_memory
+from .memory_service import UNSET, MemoryManager, ManagedMemory
 from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .rag import MemoryRetriever
 from .store import JsonStore
@@ -68,60 +70,166 @@ class NexusService:
         self.llm = llm
         self.memory_retriever = memory_retriever or MemoryRetriever()
 
-    def add_memory(self, text: str, tags: list[str]) -> Memory:
-        state = self.store.load()
-        memory = Memory(id=str(uuid4())[:8], text=text.strip(), tags=tags)
-        enriched = self.memory_retriever.enrich_memory(asdict(memory))
-        state["memories"].append(enriched)
-        report = self.memory_retriever.index_memories([enriched])
-        if report is not None:
-            report["updated_at"] = isoformat(utc_now())
-            report["memory_count"] = len(state["memories"])
-            state["rag_index"] = report
-        self.store.save(state)
-        return memory
+    def _memory_manager(self) -> MemoryManager:
+        return MemoryManager(self.store, self.memory_retriever)
 
-    def list_memories(self) -> list[dict[str, Any]]:
-        state = self.store.load()
-        memories = sorted(state["memories"], key=lambda item: item["created_at"], reverse=True)
-        return [self._public_memory(memory) for memory in memories]
+    def add_memory(
+        self,
+        text: str,
+        tags: list[str],
+        *,
+        importance: float | None = None,
+        privacy: str = "private",
+        expires_at: str | None = None,
+        pinned: bool = False,
+        now: datetime | None = None,
+    ) -> ManagedMemory:
+        return self._memory_manager().add(
+            text,
+            tags,
+            importance=importance,
+            privacy=privacy,
+            expires_at=expires_at,
+            pinned=pinned,
+            now=now,
+        )
 
-    def search_memories(self, query: str) -> list[dict[str, Any]]:
-        terms = {part.lower() for part in query.split() if part.strip()}
-        results = []
-        for memory in self.list_memories():
-            haystack = f"{memory['text']} {' '.join(memory.get('tags', []))}".lower()
-            score = sum(1 for term in terms if term in haystack)
-            if score > 0:
-                results.append((score, memory))
-        results.sort(key=lambda item: (-item[0], item[1]["created_at"]), reverse=False)
-        return [memory for _, memory in results]
+    def list_memories(
+        self,
+        *,
+        include_archived: bool = False,
+        include_forgotten: bool = False,
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._memory_manager().list(
+            include_archived=include_archived,
+            include_forgotten=include_forgotten,
+            now=now,
+        )
 
-    def retrieve_memories(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        return self.retrieve_memories_result(query, limit)["results"]
+    def show_memory(self, memory_id: str) -> dict[str, Any]:
+        return self._memory_manager().show(memory_id)
 
-    def retrieve_memories_result(self, query: str, limit: int = 5) -> dict[str, Any]:
-        state = self.store.load()
-        result = self.memory_retriever.retrieve_result(state.get("memories", []), query, limit)
-        return {"query": query, "results": result.memories, "memory_retrieval": result.metadata}
+    def search_memories(
+        self, query: str, *, now: datetime | None = None
+    ) -> list[dict[str, Any]]:
+        return self._memory_manager().search(query, now=now)
+
+    def retrieve_memories(
+        self,
+        query: str,
+        limit: int = 5,
+        *,
+        privacy: str = "private",
+        include_archived: bool = False,
+        task_context: str | None = None,
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        return self.retrieve_memories_result(
+            query,
+            limit,
+            privacy=privacy,
+            include_archived=include_archived,
+            task_context=task_context,
+            now=now,
+        )["results"]
+
+    def retrieve_memories_result(
+        self,
+        query: str,
+        limit: int = 5,
+        *,
+        privacy: str = "private",
+        include_archived: bool = False,
+        task_context: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._memory_manager().retrieve(
+            query,
+            limit,
+            privacy=privacy,
+            include_archived=include_archived,
+            task_context=task_context,
+            now=now,
+        )
+
+    def update_memory(
+        self,
+        memory_id: str,
+        *,
+        importance: float | None = None,
+        privacy: str | None = None,
+        expires_at: str | None | object = UNSET,
+        pinned: bool | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._memory_manager().update(
+            memory_id,
+            importance=importance,
+            privacy=privacy,
+            expires_at=expires_at,
+            pinned=pinned,
+            now=now,
+        )
+
+    def relate_memory(
+        self,
+        memory_id: str,
+        relation: str,
+        target_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._memory_manager().relate(
+            memory_id, relation, target_id, now=now
+        )
+
+    def archive_memory(
+        self, memory_id: str, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        return self._memory_manager().transition(memory_id, "archive", now=now)
+
+    def restore_memory(
+        self, memory_id: str, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        return self._memory_manager().transition(memory_id, "restore", now=now)
+
+    def forget_memory(
+        self, memory_id: str, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        return self._memory_manager().transition(memory_id, "forget", now=now)
+
+    def purge_memory(self, memory_id: str, *, confirm: bool) -> dict[str, Any]:
+        return self._memory_manager().purge(memory_id, confirm=confirm)
+
+    def compress_memories(
+        self,
+        *,
+        older_than_days: int = 90,
+        max_importance: float = 0.4,
+        dry_run: bool = False,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._memory_manager().compress(
+            older_than_days=older_than_days,
+            max_importance=max_importance,
+            dry_run=dry_run,
+            now=now,
+        )
+
+    def maintain_memories(
+        self,
+        *,
+        now: datetime | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        return self._memory_manager().maintain(now=now, dry_run=dry_run)
 
     def reindex_memories(self) -> dict[str, Any]:
-        state = self.store.load()
-        report = self.memory_retriever.reindex(state.get("memories", []))
-        report["updated_at"] = isoformat(utc_now())
-        report["memory_count"] = len(state.get("memories", []))
-        state["rag_index"] = report
-        self.store.save(state)
-        return report
+        return self._memory_manager().reindex()
 
     def rag_status(self) -> dict[str, Any]:
-        state = self.store.load()
-        return {
-            "runtime": self.memory_retriever.status(),
-            "last_index": state.get("rag_index"),
-            "memory_count": len(state.get("memories", [])),
-        }
-
+        return self._memory_manager().status()
     def add_goal(self, title: str, description: str, cadence_days: int) -> Goal:
         state = self.store.load()
         goal = Goal(
@@ -214,7 +322,7 @@ class NexusService:
 
         query = " ".join([user_name, "daily plan"] + [f"{task['goal_title']} {task['title']}" for task in tasks])
         memories, retrieval_metadata = self._resolve_memory_context(
-            state, query, 6, memory_context
+            state, query, 6, memory_context, now
         )
 
         task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
@@ -274,6 +382,7 @@ Keep the tasks concrete and preserve their priority order."""
         query: str,
         limit: int,
         memory_context: dict[str, Any] | None,
+        now: datetime | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if memory_context is not None:
             memories = list(memory_context.get("memories", []))[:limit]
@@ -281,12 +390,12 @@ Keep the tasks concrete and preserve their priority order."""
             metadata.setdefault("query", query)
         else:
             retrieval = self.memory_retriever.retrieve_result(
-                state.get("memories", []), query, limit=limit
+                state.get("memories", []), query, limit=limit, task_context=query, now=now
             )
             memories = retrieval.memories
             metadata = retrieval.metadata
         if not memories:
-            memories = self._recent_memories(state, limit=limit)
+            memories = self._recent_memories(state, limit=limit, now=now)
             metadata["strategy"] = "recent_memory_fallback"
         return memories, metadata
 
@@ -491,7 +600,7 @@ Keep the tasks concrete and preserve their priority order."""
         reminders = self.proactive_review(now)["reminders"]
         memory_query = self._build_review_memory_query(user_name, completed_goals, pending_goals, today_check_ins, reminders)
         relevant_memories, retrieval_metadata = self._resolve_memory_context(
-            state, memory_query, 8, memory_context
+            state, memory_query, 8, memory_context, now
         )
 
         tomorrow_priorities = self._tomorrow_priorities(pending_goals, completed_goals)
@@ -597,7 +706,7 @@ Keep the tasks concrete and preserve their priority order."""
         date_text = f"{now.month}月{now.day}日"
         memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
         relevant_memories, retrieval_metadata = self._resolve_memory_context(
-            state, memory_query, 8, memory_context
+            state, memory_query, 8, memory_context, now
         )
         mcp_context = mcp_context or {"results": [], "errors": []}
 
@@ -901,10 +1010,21 @@ Output format:
         return max(memories, key=lambda item: item["created_at"])
 
     @staticmethod
-    def _recent_memories(state: dict[str, Any], limit: int) -> list[dict[str, Any]]:
-        memories = state.get("memories", [])
-        public_memories = [NexusService._public_memory(memory) for memory in memories]
-        return sorted(public_memories, key=lambda item: item["created_at"], reverse=True)[:limit]
+    def _recent_memories(
+        state: dict[str, Any],
+        limit: int,
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        public_memories = [
+            NexusService._public_memory(normalize_memory(memory, now=now))
+            for memory in state.get("memories", [])
+            if is_memory_eligible(memory, privacy="private", now=now)
+        ]
+        return sorted(
+            public_memories,
+            key=lambda item: item["created_at"],
+            reverse=True,
+        )[:limit]
 
     @staticmethod
     def _goal_to_dict(goal: Goal) -> dict[str, Any]:

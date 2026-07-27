@@ -20,8 +20,9 @@ Over time, this core can become a **Personal AI Operating System** shared by CLI
 
 ## Current Features
 
-- **Memory**: Add, list, keyword-search, and RAG-retrieve long-term memories.
+- **Memory**: Add, inspect, update, relate, search, and RAG-retrieve long-term memories.
 - **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
+- **Advanced Memory Lifecycle**: Score importance, merge duplicates, track conflicts/supersession, compress and archive history, enforce privacy/expiry, and explain context-aware re-ranking.
 - **Permissioned Real Tools**: Read live weather, iCalendar events, Todoist tasks, GitHub repositories, Notion pages, IMAP headers, and approved local files.
 - **MCP Tool Calling**: Configure stdio or Streamable HTTP MCP servers, discover schemas, apply deny/ask/allow policies, call tools, audit activity, and enrich daily planning.
 - **Multi-Agent Coordination**: Run bounded Memory, Tool, Planner, Reflection, and Coach agents for planning, review, and briefing workflows with privacy-safe traces.
@@ -61,6 +62,10 @@ python -m pip install -e ".[rag]"
 nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 nexus memory reindex
 nexus memory index-status
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --pin
+nexus memory compress --dry-run
+nexus memory maintain --dry-run
 nexus memory retrieve "language exam preparation" --limit 3
 ```
 
@@ -75,7 +80,28 @@ nexus config embedding set --provider custom --base-url "https://provider.exampl
 
 The retrieval pipeline combines dense semantic scores with local sparse scores. If the embedding model, API, or vector store is unavailable, Nexus reports the error in retrieval metadata and automatically continues with local sparse retrieval. New memories are indexed incrementally; run `nexus memory reindex` after changing the provider/model or migrating existing memories.
 
-RAG 2.0 covers neural embeddings, vector persistence, re-indexing, hybrid retrieval, status metadata, and fallback behavior. Memory importance scoring, deduplication, compression, summarization, and retention policies remain Phase 9 work.
+RAG 2.0 covers neural embeddings, vector persistence, re-indexing, hybrid retrieval, status metadata, and fallback behavior. Phase 9 adds a complete local memory lifecycle on top of it.
+
+## Advanced Long-Term Memory
+
+New memories receive deterministic importance scores and exact/near-duplicate checks without calling an LLM. Users can override importance, pin memories, choose `private`, `personal`, or `shared` scope, set expiry, and explicitly record `supersedes` or `conflicts_with` relationships.
+
+```bash
+nexus memory add "IELTS exam is in October" --tags exam --importance 0.9 --privacy personal --pin
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --expires-at 2027-01-01T00:00:00+00:00
+nexus memory relate <new_id> --supersedes <old_id>
+nexus memory archive <memory_id>
+nexus memory restore <memory_id>
+nexus memory forget <memory_id>
+nexus memory purge <memory_id> --confirm
+nexus memory compress --older-than-days 90 --max-importance 0.4 --dry-run
+nexus memory maintain --dry-run
+```
+
+Exact duplicates update the existing record's observation count instead of creating another copy. Near duplicates remain inspectable through `duplicate_of`. Compression creates a bounded deterministic summary and archives its source records; dry-run previews every affected ID. Summaries never mix privacy scopes, inherit the earliest source expiry, and are forgotten when any source is explicitly forgotten. Later source privacy/expiry changes propagate to summaries, and derived privacy/expiry/pin controls cannot be overridden directly; purging a source recursively removes its derived summaries. Archive and forget are reversible. Permanent purge accepts only an already-forgotten memory and requires `--confirm`.
+
+Retrieval excludes forgotten and expired memories, excludes archived memories unless requested, rejects stale vector-store IDs, and re-ranks with relevance (70%), effective importance (15%), recency (10%), and task/tag context (5%). Every result exposes its component scores. These lifecycle operations are local and require no API key. If adding or mutating JSON state succeeds but semantic index refresh fails, mutation output uses `status: partial` and returns safe `index_sync` error metadata; JSON eligibility still prevents stale vectors from being retrieved.
 
 ## Real Tool Integrations
 
@@ -264,6 +290,10 @@ nexus memory search IELTS
 nexus memory retrieve "IELTS listening practice" --limit 5
 nexus memory reindex
 nexus memory index-status
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --pin
+nexus memory compress --dry-run
+nexus memory maintain --dry-run
 
 nexus goal add "Develop Nexus" --description "Ship MVP features" --cadence-days 2
 nexus goal list
@@ -319,6 +349,7 @@ When implementing new features:
 - **Phase 6**: Permissioned read-only real tool integrations and live briefing context. Done.
 - **Phase 7**: Permissioned MCP client with stdio/Streamable HTTP, discovery, policies, audit, retries, normalized results, and Planning context. Done.
 - **Phase 8**: Bounded Memory, Tool, Planner, Reflection, and Coach agents with orchestration, budgets, fallback, and privacy-safe traces. Done.
-- **Next**: Advanced memory importance, deduplication, compression, retention, and retrieval re-ranking.
-- **Later**: Proactive triggers, notifications, browser/local automation, and the dashboard.
+- **Phase 9**: Advanced memory importance, duplicate/conflict handling, compression, retention/privacy controls, and retrieval re-ranking. Done.
+- **Next**: Proactive scheduler, notifications, quiet hours, and the web dashboard.
+- **Later**: Permissioned browser/local automation and multimodal interfaces.
 - **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.

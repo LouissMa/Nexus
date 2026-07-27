@@ -30,6 +30,7 @@ from .mcp.config import (
 from .mcp.manager import build_mcp_manager
 from .mcp.models import MCPError
 from .llm import LLMConfig, OpenAICompatibleLLM
+from .memory_lifecycle import MemoryLifecycleError, PRIVACY_SCOPES
 from .planning import COACH_MODES, TASK_STATUSES
 from .rag import build_memory_retriever
 from .service import NexusService
@@ -49,8 +50,17 @@ def build_parser() -> argparse.ArgumentParser:
     memory_add = memory_subparsers.add_parser("add", help="Store a memory.")
     memory_add.add_argument("text", help="Memory text to store.")
     memory_add.add_argument("--tags", nargs="*", default=[], help="Optional tags.")
+    memory_add.add_argument("--importance", type=float)
+    memory_add.add_argument("--privacy", choices=PRIVACY_SCOPES, default="private")
+    memory_add.add_argument("--expires-at", help="Optional ISO expiry timestamp.")
+    memory_add.add_argument("--pin", action="store_true")
 
-    memory_subparsers.add_parser("list", help="List memories.")
+    memory_list = memory_subparsers.add_parser("list", help="List memories.")
+    memory_list.add_argument("--include-archived", action="store_true")
+    memory_list.add_argument("--include-forgotten", action="store_true")
+
+    memory_show = memory_subparsers.add_parser("show", help="Show one memory.")
+    memory_show.add_argument("memory_id")
 
     memory_search = memory_subparsers.add_parser("search", help="Search memories by keyword.")
     memory_search.add_argument("query", help="Keyword query.")
@@ -58,10 +68,46 @@ def build_parser() -> argparse.ArgumentParser:
     memory_retrieve = memory_subparsers.add_parser("retrieve", help="Retrieve relevant memories with local RAG.")
     memory_retrieve.add_argument("query", help="Semantic retrieval query.")
     memory_retrieve.add_argument("--limit", type=int, default=5, help="Maximum number of memories to return.")
+    memory_retrieve.add_argument("--privacy", choices=PRIVACY_SCOPES, default="private")
+    memory_retrieve.add_argument("--include-archived", action="store_true")
+    memory_retrieve.add_argument("--task-context")
+    memory_retrieve.add_argument("--now", help="Optional ISO timestamp for deterministic retrieval.")
+
+    memory_update = memory_subparsers.add_parser("update", help="Update memory controls.")
+    memory_update.add_argument("memory_id")
+    memory_update.add_argument("--importance", type=float)
+    memory_update.add_argument("--privacy", choices=PRIVACY_SCOPES)
+    memory_update.add_argument("--expires-at", help="ISO timestamp or 'none' to clear.")
+    pin_group = memory_update.add_mutually_exclusive_group()
+    pin_group.add_argument("--pin", action="store_true")
+    pin_group.add_argument("--unpin", action="store_true")
+
+    memory_relate = memory_subparsers.add_parser("relate", help="Link memory history.")
+    memory_relate.add_argument("memory_id")
+    relation_group = memory_relate.add_mutually_exclusive_group(required=True)
+    relation_group.add_argument("--supersedes", metavar="MEMORY_ID")
+    relation_group.add_argument("--conflicts-with", metavar="MEMORY_ID")
+
+    for command_name in ("archive", "restore", "forget"):
+        lifecycle_parser = memory_subparsers.add_parser(command_name)
+        lifecycle_parser.add_argument("memory_id")
+
+    memory_purge = memory_subparsers.add_parser("purge", help="Permanently remove a forgotten memory.")
+    memory_purge.add_argument("memory_id")
+    memory_purge.add_argument("--confirm", action="store_true")
+
+    memory_compress = memory_subparsers.add_parser("compress", help="Summarize and archive old low-importance memories.")
+    memory_compress.add_argument("--older-than-days", type=int, default=90)
+    memory_compress.add_argument("--max-importance", type=float, default=0.4)
+    memory_compress.add_argument("--dry-run", action="store_true")
+    memory_compress.add_argument("--now", help="Optional ISO timestamp.")
+
+    memory_maintain = memory_subparsers.add_parser("maintain", help="Apply expiry retention rules.")
+    memory_maintain.add_argument("--dry-run", action="store_true")
+    memory_maintain.add_argument("--now", help="Optional ISO timestamp.")
 
     memory_subparsers.add_parser("reindex", help="Rebuild the semantic memory index.")
     memory_subparsers.add_parser("index-status", help="Show semantic memory index status.")
-
     goal_parser = subparsers.add_parser("goal", help="Manage tracked goals.")
     goal_subparsers = goal_parser.add_subparsers(dest="goal_command", required=True)
 
@@ -282,6 +328,13 @@ def print_json(data: object) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
+def memory_mutation_status(result: dict[str, object]) -> str:
+    sync = result.get("index_sync")
+    if isinstance(sync, dict) and sync.get("error"):
+        return "partial"
+    return "ok"
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -307,27 +360,121 @@ def main() -> None:
         return
 
     if args.command == "memory":
-        if args.memory_command == "add":
-            memory = service.add_memory(args.text, args.tags)
-            print_json({"status": "ok", "memory": memory.__dict__})
-            return
-        if args.memory_command == "list":
-            print_json({"memories": service.list_memories()})
-            return
-        if args.memory_command == "search":
-            print_json({"results": service.search_memories(args.query)})
-            return
-        if args.memory_command == "retrieve":
-            print_json(service.retrieve_memories_result(args.query, args.limit))
-            return
-        if args.memory_command == "reindex":
-            report = service.reindex_memories()
-            print_json({"status": "error" if report.get("error") else "ok", "index": report})
-            return
-        if args.memory_command == "index-status":
-            print_json({"index": service.rag_status()})
-            return
-
+        try:
+            if args.memory_command == "add":
+                memory = service.add_memory(
+                    args.text,
+                    args.tags,
+                    importance=args.importance,
+                    privacy=args.privacy,
+                    expires_at=args.expires_at,
+                    pinned=args.pin,
+                )
+                print_json({
+                    "status": memory_mutation_status(memory.__dict__),
+                    "memory": memory.__dict__,
+                })
+                return
+            if args.memory_command == "list":
+                print_json({
+                    "memories": service.list_memories(
+                        include_archived=args.include_archived,
+                        include_forgotten=args.include_forgotten,
+                    )
+                })
+                return
+            if args.memory_command == "show":
+                print_json({"memory": service.show_memory(args.memory_id)})
+                return
+            if args.memory_command == "search":
+                print_json({"results": service.search_memories(args.query)})
+                return
+            if args.memory_command == "retrieve":
+                now = datetime.fromisoformat(args.now) if args.now else None
+                print_json(service.retrieve_memories_result(
+                    args.query,
+                    args.limit,
+                    privacy=args.privacy,
+                    include_archived=args.include_archived,
+                    task_context=args.task_context,
+                    now=now,
+                ))
+                return
+            if args.memory_command == "update":
+                values: dict[str, object] = {}
+                if args.importance is not None:
+                    values["importance"] = args.importance
+                if args.privacy is not None:
+                    values["privacy"] = args.privacy
+                if args.expires_at is not None:
+                    values["expires_at"] = (
+                        None if args.expires_at.lower() == "none" else args.expires_at
+                    )
+                if args.pin:
+                    values["pinned"] = True
+                elif args.unpin:
+                    values["pinned"] = False
+                result = service.update_memory(args.memory_id, **values)
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "memory": result,
+                })
+                return
+            if args.memory_command == "relate":
+                relation = "supersedes" if args.supersedes else "conflicts_with"
+                target_id = args.supersedes or args.conflicts_with
+                result = service.relate_memory(args.memory_id, relation, target_id)
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "relation": result,
+                })
+                return
+            if args.memory_command in {"archive", "restore", "forget"}:
+                operation = getattr(service, f"{args.memory_command}_memory")
+                result = operation(args.memory_id)
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "memory": result,
+                })
+                return
+            if args.memory_command == "purge":
+                result = service.purge_memory(args.memory_id, confirm=args.confirm)
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "result": result,
+                })
+                return
+            if args.memory_command == "compress":
+                now = datetime.fromisoformat(args.now) if args.now else None
+                result = service.compress_memories(
+                    older_than_days=args.older_than_days,
+                    max_importance=args.max_importance,
+                    dry_run=args.dry_run,
+                    now=now,
+                )
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "compression": result,
+                })
+                return
+            if args.memory_command == "maintain":
+                now = datetime.fromisoformat(args.now) if args.now else None
+                result = service.maintain_memories(now=now, dry_run=args.dry_run)
+                print_json({
+                    "status": memory_mutation_status(result),
+                    "maintenance": result,
+                })
+                return
+            if args.memory_command == "reindex":
+                report = service.reindex_memories()
+                print_json({"status": "error" if report.get("error") else "ok", "index": report})
+                return
+            if args.memory_command == "index-status":
+                print_json({"index": service.rag_status()})
+                return
+        except (MemoryLifecycleError, ValueError) as exc:
+            print_json({"status": "error", "error": str(exc)})
+            raise SystemExit(2) from exc
     if args.command == "tool":
         if args.tool_command == "audit":
             print_json({"events": tool_manager.audit_events(args.limit)})

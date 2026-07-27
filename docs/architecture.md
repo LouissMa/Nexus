@@ -1,6 +1,6 @@
 # Nexus MVP Architecture
 
-The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, permissioned real tools, a standards-based MCP client, and bounded multi-agent coordination. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; agent coordination is opt-in through `--agents`.
+The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, advanced memory lifecycle controls, permissioned real tools, a standards-based MCP client, and bounded multi-agent coordination. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; agent coordination is opt-in through `--agents`.
 
 ## Current Architecture
 
@@ -27,6 +27,8 @@ The current version is a local-first CLI assistant with optional LLM generation,
 
 - `src/nexus/cli.py`: CLI parsing for domain commands, MCP/tools/configuration, opt-in `--agents`, and agent trace inspection.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, persistent daily planning, structured task updates, reflection, coach-aware prompts, and briefings.
+- `src/nexus/memory_lifecycle.py`: Legacy normalization, importance scoring, duplicate detection, eligibility, transitions, compression planning, and retention rules.
+- `src/nexus/memory_service.py`: Persistent memory lifecycle operations, relation handling, index refresh, compression, maintenance, and safe purge enforcement.
 - `src/nexus/embeddings.py`: FastEmbed and OpenAI-compatible neural embedding providers.
 - `src/nexus/vector_store.py`: local/remote Qdrant persistence and collection operations.
 - `src/nexus/rag.py`: sparse retrieval, semantic indexing, hybrid score fusion, metadata, re-indexing, and fallback.
@@ -56,6 +58,10 @@ Memory
 - text
 - tags
 - created_at
+- updated_at, importance, importance_source, pinned
+- privacy, status, expires_at
+- duplicate_of, supersedes, conflicts_with
+- summary_of, archived_at, forgotten_at
 
 Goal
 - id
@@ -127,8 +133,11 @@ Retrieve memory
   -> generate dense query embedding
   -> query Qdrant semantic candidates
   -> score local sparse candidates
+  -> reject candidates absent from the eligible JSON source set
   -> fuse dense and sparse scores
-  -> return memories plus provider/model/strategy/score/error metadata
+  -> filter by lifecycle, expiry, archived opt-in, and privacy scope
+  -> re-rank by relevance, importance, recency, and task/tag context
+  -> return memories plus provider/model/strategy/component-score/error metadata
   -> automatically use sparse-only results if semantic retrieval fails
 
 Re-index
@@ -145,6 +154,38 @@ Briefing / Planning / Review
 
 Local FastEmbed requires no API key but downloads its model on first use. Hosted embedding providers require their own API key. The local Qdrant index lives under `.nexus/qdrant/` and is not committed.
 
+## Advanced Memory Lifecycle Flow
+
+```text
+Add
+  -> normalize legacy-compatible lifecycle fields
+  -> calculate deterministic importance unless user supplied it
+  -> merge exact duplicates or link near duplicates
+  -> incrementally index a new active record
+
+Relate / Update
+  -> apply user importance, pin, privacy, and expiry controls
+  -> explicitly link conflicts or supersession
+  -> archive superseded history and rebuild the active vector index
+
+Compress / Maintain
+  -> preview old low-importance unpinned groups with --dry-run
+  -> create bounded summaries separated by privacy scope
+  -> inherit the earliest source expiry and retain source-ID lineage
+  -> archive source records without deleting them
+  -> forget derived summaries when a source is forgotten
+  -> propagate source privacy/expiry changes and reject direct derived-policy overrides
+  -> recompute privacy, expiry, and pin policy before summary restore
+  -> recursively remove derived summaries when a source is purged
+  -> archive expired unpinned records
+
+Forget / Purge
+  -> reversible forgotten state removes a record from retrieval
+  -> permanent purge requires forgotten state and --confirm
+  -> stale vector payloads remain ineligible even if index refresh fails
+```
+
+All lifecycle operations work offline. Existing state records are normalized on read, so no destructive migration is required. The JSON store is authoritative; Qdrant candidates are accepted only when their IDs remain eligible in JSON state. Adds and mutations return safe `index_sync` metadata when semantic indexing is enabled; a backend refresh error is reported as a partial CLI outcome rather than a false success.
 ## LLM Briefing Flow
 
 ```text
@@ -261,7 +302,8 @@ Default commands without `--agents` remain unchanged. Any specialist, LLM, RAG, 
 
 - Nexus does not fake integrations. Weather, iCalendar, Todoist, GitHub, Notion, IMAP headers, and bounded local files now use real adapters; unavailable providers remain explicit in structured errors.
 - LLM usage must be optional. The local template path remains the stable fallback.
-- The service layer owns product decisions. The CLI only parses arguments and wires dependencies.
+- The service and memory lifecycle layers own product decisions. The CLI only parses arguments and wires dependencies.
+- Archive and forget are reversible; permanent memory purge requires explicit confirmation.
 - Prompt construction is inspectable on legacy LLM workflows with `--show-prompt`; agent workflows instead expose privacy-safe structured step traces.
 - Multi-agent coordination is bounded orchestration, not an open-ended autonomous loop.
 

@@ -24,13 +24,15 @@ class MemoryAgent:
         query = str(context.inputs.get("query") or self._default_query(context))
         limit = int(context.inputs.get("memory_limit", 8))
         try:
-            retrieved = self.service.retrieve_memories_result(query, limit)
+            retrieved = self.service.retrieve_memories_result(
+                query, limit, now=context.inputs.get("now")
+            )
             memories = retrieved.get("results", [])
             retrieval = retrieved.get("memory_retrieval", {})
             status = "completed"
             error = None
         except (EmbeddingError, VectorStoreError):
-            memories = self.service.list_memories()[:limit]
+            memories = self.service.list_memories(now=context.inputs.get("now"))[:limit]
             retrieval = {
                 "strategy": "recent_memory_fallback",
                 "error_category": "retrieval_failed",

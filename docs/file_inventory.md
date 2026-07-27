@@ -15,11 +15,13 @@ This file explains the role of important files in the Nexus project. Update it w
 - `src/nexus/__init__.py`: Package marker and short package description.
 - `src/nexus/cli.py`: Command-line interface for memory, goals, planning, reviews, briefings, LLM/RAG configuration, Phase 6 tools, MCP, opt-in agent workflows, and audit/trace inspection.
 - `src/nexus/store.py`: JSON persistence for memories, goals, and persistent daily tasks in `.nexus/state.json` or `NEXUS_HOME/state.json`.
-- `src/nexus/service.py`: Main application service for memory/RAG, goals, planning, reflection, briefings, shared Agent memory artifacts, live Phase 6 context, and normalized MCP context.
+- `src/nexus/service.py`: Main application service for memory/RAG delegation, goals, planning, reflection, briefings, shared Agent memory artifacts, live Phase 6 context, and normalized MCP context.
+- `src/nexus/memory_lifecycle.py`: Pure Phase 9 rules for legacy normalization, importance scoring, duplicate matching, eligibility, transitions, expiry parsing, and compression planning.
+- `src/nexus/memory_service.py`: Persistent Phase 9 memory operations for add/merge, update, relations, archive/restore/forget/purge, compression, retention maintenance, and index refresh.
 - `src/nexus/llm.py`: OpenAI-compatible LLM client. Reads provider settings, selects model tier, calls chat completions, and normalizes LLM errors.
 - `src/nexus/config.py`: Local configuration for LLM, Embedding/Qdrant, and external tools; validates required settings and masks all configured secrets.
 - `src/nexus/embeddings.py`: Embedding provider abstraction plus local FastEmbed and OpenAI-compatible embedding implementations.
-- `src/nexus/rag.py`: RAG orchestration for sparse retrieval, semantic indexing, dense+sparse fusion, metadata, re-indexing, and automatic fallback.
+- `src/nexus/rag.py`: RAG orchestration for sparse retrieval, semantic indexing, dense+sparse fusion, lifecycle/privacy filtering, stale-vector rejection, explainable context re-ranking, metadata, re-indexing, and fallback.
 - `src/nexus/vector_store.py`: Qdrant adapter supporting local persistence, remote Qdrant, collection lifecycle, upsert, search, clear, and status.
 - `src/nexus/integrations/__init__.py`: Public entry point for the permissioned integration package.
 - `src/nexus/integrations/core.py`: Shared tool contracts, HTTP client, permission checks, structured results, and secret-safe JSONL auditing.
@@ -49,6 +51,8 @@ This file explains the role of important files in the Nexus project. Update it w
 - `docs/file_inventory.md`: This file. Tracks file responsibilities and documentation ownership.
 - docs/superpowers/specs/2026-07-17-mcp-client-design.md: Approved Phase 7 MCP client scope, safety rules, interfaces, CLI, and completion criteria.
 - docs/superpowers/plans/2026-07-17-mcp-client.md: Test-driven Phase 7 implementation plan and verification sequence.
+- `docs/superpowers/specs/2026-07-27-advanced-long-term-memory-design.md`: Phase 9 data model, lifecycle semantics, retrieval weights, CLI, compatibility, and safety requirements.
+- `docs/superpowers/plans/2026-07-27-advanced-long-term-memory.md`: Test-driven Phase 9 implementation and release-verification plan.
 - `docs/superpowers/specs/2026-07-26-multi-agent-coordination-design.md`: Phase 8 agent boundaries, workflow, budgets, safety, tracing, and completion criteria.
 - `docs/superpowers/plans/2026-07-26-multi-agent-coordination.md`: Test-driven Phase 8 implementation plan and verification sequence.
 
@@ -61,6 +65,16 @@ This file explains the role of important files in the Nexus project. Update it w
 - `tests/test_mcp_cli.py`: End-to-end MCP configuration, policy, binding, server-list, and JSON-validation CLI tests.
 - `tests/test_mcp_planning.py`: Local and LLM Planning context injection and MCP failure-fallback tests.
 - `tests/test_mcp_stdio.py` and `tests/test_mcp_http.py`: Real protocol tests against repository stdio and Streamable HTTP MCP fixtures.
+- `tests/test_memory_lifecycle.py`: Pure lifecycle scoring, normalization, duplicate, eligibility, transition, and compression-plan tests.
+- `tests/test_memory_service.py`: Persistence, duplicate merge, relation, reversible lifecycle, compression, maintenance, purge, and legacy compatibility tests.
+- `tests/test_memory_safety.py`: Regression tests proving recent-memory fallback and manual re-index cannot restore ineligible records.
+- `tests/test_memory_quality.py`: Chinese importance-signal and bounded deterministic summary quality tests.
+- `tests/test_memory_review_regressions.py`: Review-driven regressions for summary forgetting, privacy/expiry inheritance, forgotten resurrection, pre-limit re-ranking, expiry filtering, and index-sync failures.
+- `tests/test_memory_review_followup.py`: Follow-up regressions for recursive derived-summary purge, restore guards, post-compression policy propagation, and add-time index failures.
+- `tests/test_memory_summary_policy.py`: Derived-summary direct-override rejection and restore-time policy recomputation tests.
+- `tests/test_memory_cli_errors.py`: Invalid score, timestamp, self-relation, and forgotten-transition CLI error tests.
+- `tests/test_memory_reranking.py`: Privacy/status filtering, stale dense candidate rejection, and explainable importance/recency/context re-ranking tests.
+- `tests/test_memory_cli.py`: End-to-end Phase 9 metadata, relation, lifecycle, compression, maintenance, privacy retrieval, and safe error tests.
 - `tests/test_agents_core.py`: Agent budget, model serialization, trace persistence, corrupt-record tolerance, and recursive redaction tests.
 - `tests/test_agent_specialists.py`: Memory, Planner, Reflection, and Coach specialist behavior and optional LLM tests.
 - `tests/test_agent_tool.py`: Allow-only candidate, deterministic binding, strict LLM selection, schema validation, privacy, and tool-budget tests.

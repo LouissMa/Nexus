@@ -4,6 +4,7 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,12 @@ from .embeddings import (
     EmbeddingProvider,
     FastEmbedProvider,
     OpenAICompatibleEmbeddingProvider,
+)
+from .memory_lifecycle import (
+    effective_importance,
+    is_memory_eligible,
+    normalize_memory,
+    parse_memory_time,
 )
 from .vector_store import QdrantVectorStore, VectorStoreError
 
@@ -164,53 +171,153 @@ class MemoryRetriever:
         except VectorStoreError as exc:
             return self._error_report(str(exc))
 
-    def retrieve(self, memories: list[dict[str, Any]], query: str, limit: int = 5) -> list[dict[str, Any]]:
-        return self.retrieve_result(memories, query, limit).memories
+    def retrieve(
+        self,
+        memories: list[dict[str, Any]],
+        query: str,
+        limit: int = 5,
+        **policy: Any,
+    ) -> list[dict[str, Any]]:
+        return self.retrieve_result(memories, query, limit, **policy).memories
 
     def retrieve_result(
         self,
         memories: list[dict[str, Any]],
         query: str,
         limit: int = 5,
+        *,
+        privacy: str = "private",
+        include_archived: bool = False,
+        task_context: str | None = None,
+        now: datetime | None = None,
     ) -> RetrievalResult:
+        current = now or datetime.now(UTC)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=UTC)
+        eligible = [
+            normalize_memory(memory, now=current)
+            for memory in memories
+            if is_memory_eligible(
+                memory,
+                privacy=privacy,
+                include_archived=include_archived,
+                now=current,
+            )
+        ]
+        eligible_by_id = {str(memory["id"]): memory for memory in eligible}
         candidate_limit = max(limit * 4, limit)
-        sparse = self._sparse_retrieve(memories, query, candidate_limit)
+        sparse = self._sparse_retrieve(eligible, query, candidate_limit)
         dense: list[dict[str, Any]] = []
         dense_error: str | None = self.configuration_error
 
         if self.semantic_index is not None:
             try:
-                dense = self.semantic_index.search(query, candidate_limit)
+                raw_dense = self.semantic_index.search(query, candidate_limit)
+                for hit in raw_dense:
+                    memory_id = str(hit.get("memory_id") or hit.get("id"))
+                    canonical = eligible_by_id.get(memory_id)
+                    if canonical is None:
+                        continue
+                    merged = self._public_memory(canonical)
+                    merged["id"] = memory_id
+                    merged["memory_id"] = memory_id
+                    merged["dense_score"] = max(
+                        0.0, float(hit.get("dense_score", 0.0))
+                    )
+                    dense.append(merged)
                 dense_error = None
             except (EmbeddingError, VectorStoreError) as exc:
                 dense_error = str(exc)
 
         if dense:
-            results = self._fuse(dense, sparse, limit)
+            results = self._fuse(dense, sparse, candidate_limit)
             strategy = "hybrid_dense_sparse"
         else:
             results = []
-            for memory in sparse[:limit]:
+            for memory in sparse:
                 result = dict(memory)
                 result["retrieval_score"] = result.pop("sparse_score")
                 result["dense_score"] = None
                 results.append(result)
             strategy = "local_sparse_embedding"
 
+        results = self._rerank(
+            results,
+            task_context=task_context,
+            now=current,
+            limit=limit,
+        )
         metadata = {
             "query": query,
             "strategy": strategy,
             "limit": limit,
+            "total_memories": len(memories),
+            "eligible_memories": len(eligible),
             "dense_candidates": len(dense),
             "sparse_candidates": len(sparse),
             "provider": (
                 self.semantic_index.provider.provider_name if self.semantic_index else None
             ),
             "model": self.semantic_index.provider.model_name if self.semantic_index else None,
+            "privacy": privacy,
+            "include_archived": include_archived,
+            "reranking": (
+                "relevance_0.70+importance_0.15+recency_0.10+context_0.05"
+            ),
             "error": dense_error,
         }
         return RetrievalResult(results, metadata)
 
+    def _rerank(
+        self,
+        memories: list[dict[str, Any]],
+        *,
+        task_context: str | None,
+        now: datetime,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        context_tokens = set(self.embedder._tokens(task_context or ""))
+        ranked: list[dict[str, Any]] = []
+        for raw in memories:
+            memory = normalize_memory(raw, now=now)
+            relevance = max(0.0, min(float(raw.get("retrieval_score", 0.0)), 1.0))
+            importance = effective_importance(memory)
+            created = parse_memory_time(memory.get("created_at"), "created_at") or now
+            age_days = max(0.0, (now - created).total_seconds() / 86400.0)
+            recency = max(0.0, 1.0 - age_days / 3650.0)
+            tag_tokens = set(
+                self.embedder._tokens(" ".join(str(tag) for tag in memory.get("tags", [])))
+            )
+            context = (
+                len(context_tokens & tag_tokens) / len(tag_tokens)
+                if context_tokens and tag_tokens
+                else 0.0
+            )
+            score = (
+                0.70 * relevance
+                + 0.15 * importance
+                + 0.10 * recency
+                + 0.05 * context
+            )
+            result = self._public_memory(memory)
+            for key in ("dense_score", "sparse_score"):
+                result[key] = raw.get(key)
+            result["retrieval_score"] = round(relevance, 6)
+            result["relevance_score"] = round(relevance, 6)
+            result["importance_score"] = round(importance, 6)
+            result["recency_score"] = round(recency, 6)
+            result["context_score"] = round(context, 6)
+            result["rerank_score"] = round(score, 6)
+            ranked.append(result)
+        ranked.sort(
+            key=lambda item: (
+                -item["rerank_score"],
+                -item["retrieval_score"],
+                item.get("created_at", ""),
+                item.get("id", ""),
+            )
+        )
+        return ranked[:limit]
     def _sparse_retrieve(
         self,
         memories: list[dict[str, Any]],

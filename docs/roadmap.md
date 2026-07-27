@@ -105,11 +105,13 @@ Agent mode is opt-in on planning, review, and briefing commands. Runs are bounde
 
 Objective: make memory useful and maintainable at personal scale.
 
-- [ ] Memory importance scoring.
-- [ ] Deduplication and conflict handling.
-- [ ] Compression, summarization, and archival.
-- [ ] Forgetting, retention, privacy, and user controls.
-- [ ] Retrieval re-ranking using task and time context.
+- [x] Memory importance scoring.
+- [x] Deduplication and conflict handling.
+- [x] Compression, summarization, and archival.
+- [x] Forgetting, retention, privacy, and user controls.
+- [x] Retrieval re-ranking using task and time context.
+
+Phase 9 remains local-first and LLM-independent. Archive and forget are reversible, purge requires confirmation, and legacy records are normalized without a destructive migration.
 
 ## Phase 10: Proactive Runtime and Dashboard
 

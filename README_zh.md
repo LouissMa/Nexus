@@ -20,8 +20,9 @@ Nexus 不同：它的目标是记忆、规划、提醒、复盘，并在获得�
 
 ## 当前功能
 
-- **记忆系统**：添加、列出、关键词搜索、RAG 检索长期记忆。
+- **记忆系统**：添加、查看、更新、关联、关键词搜索和 RAG 检索长期记忆。
 - **RAG 2.0 长期记忆**：支持真实神经网络 Embedding、Qdrant 持久化、稠密+稀疏混合检索、重新索引与离线降级。
+- **高级记忆生命周期**：支持重要性评分、重复合并、冲突/替代关系、压缩归档、隐私与过期规则，以及可解释的上下文重排。
 - **受权限控制的真实工具**：读取实时天气、iCalendar 日程、Todoist、GitHub、Notion、IMAP 邮件头和授权目录中的本地文件。
 - **MCP 工具调用**：配置 stdio 或 Streamable HTTP MCP Server，发现工具 Schema，应用 deny/ask/allow 权限，调用与审计工具，并为每日规划补充上下文。
 - **多 Agent 协作**：通过有预算约束的 Memory、Tool、Planner、Reflection 和 Coach Agent 完成规划、复盘和简报，并保留隐私安全的运行轨迹。
@@ -61,6 +62,10 @@ python -m pip install -e ".[rag]"
 nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 nexus memory reindex
 nexus memory index-status
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --pin
+nexus memory compress --dry-run
+nexus memory maintain --dry-run
 nexus memory retrieve "语言考试准备" --limit 3
 ```
 
@@ -75,7 +80,28 @@ nexus config embedding set --provider custom --base-url "https://provider.exampl
 
 检索流程会融合稠密语义分数与本地稀疏分数。Embedding 模型、API 或向量库不可用时，Nexus 会在检索元数据中报告错误，并自动退回本地 sparse retrieval。新增记忆会增量写入索引；更换 Provider/模型或迁移旧记忆后，应运行 `nexus memory reindex`。
 
-RAG 2.0 已完成神经网络 Embedding、向量持久化、Re-index、混合检索、状态元数据与降级机制。记忆重要性评分、去重、压缩、摘要和保留策略仍属于 Phase 9。
+RAG 2.0 已完成神经网络 Embedding、向量持久化、Re-index、混合检索、状态元数据与降级机制。Phase 9 在此基础上增加了完整的本地记忆生命周期。
+
+## 高级长期记忆
+
+新增记忆会在不调用 LLM 的情况下获得确定性重要性评分，并进行精确/近似重复检测。用户可以覆盖重要性、固定记忆、选择 `private`、`personal` 或 `shared` 隐私范围、设置过期时间，并显式记录 `supersedes` 或 `conflicts_with` 关系。
+
+```bash
+nexus memory add "IELTS 考试改到十月" --tags 考试 --importance 0.9 --privacy personal --pin
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --expires-at 2027-01-01T00:00:00+00:00
+nexus memory relate <new_id> --supersedes <old_id>
+nexus memory archive <memory_id>
+nexus memory restore <memory_id>
+nexus memory forget <memory_id>
+nexus memory purge <memory_id> --confirm
+nexus memory compress --older-than-days 90 --max-importance 0.4 --dry-run
+nexus memory maintain --dry-run
+```
+
+精确重复会增加原记录的观察次数，不再创建新记录；近似重复通过 `duplicate_of` 保留可检查关系。压缩会生成长度受限的确定性摘要并归档来源，`--dry-run` 会先列出所有受影响 ID。摘要不会混合不同隐私范围，会继承来源中最早的过期时间；任一来源被显式遗忘时，其派生摘要也会被遗忘；之后修改来源隐私/过期时间会同步到摘要，派生摘要的隐私/过期/pin 不能被直接覆盖，永久清除来源会递归移除派生摘要。归档与遗忘均可恢复；永久清除只接受已遗忘记忆，而且必须显式传入 `--confirm`。
+
+检索会排除已遗忘和已过期记忆，默认排除归档记忆，拒绝向量库中的陈旧 ID，并按相关性 70%、有效重要性 15%、时间新近度 10%、任务/标签上下文 5% 进行重排。每条结果都会返回各项分数。以上生命周期功能完全在本地运行，不需要 API key。 如果新增或修改 JSON 状态成功但语义索引刷新失败，命令会返回 `status: partial` 和安全的 `index_sync` 错误元数据；JSON 权威过滤仍会阻止陈旧向量被召回。
 
 ## 真实工具集成
 
@@ -264,6 +290,10 @@ nexus memory search IELTS
 nexus memory retrieve "IELTS listening practice" --limit 5
 nexus memory reindex
 nexus memory index-status
+nexus memory show <memory_id>
+nexus memory update <memory_id> --importance 0.8 --pin
+nexus memory compress --dry-run
+nexus memory maintain --dry-run
 
 nexus goal add "开发 Nexus" --description "完成 MVP 功能" --cadence-days 2
 nexus goal list
@@ -319,6 +349,7 @@ nexus config embedding show
 - **Phase 6**：受权限控制的只读真实工具集成和实时简报上下文。已完成。
 - **Phase 7**：支持 stdio/Streamable HTTP、工具发现、权限、审计、重试、结果标准化和 Planning 上下文的 MCP Client。已完成。
 - **Phase 8**：受预算约束的 Memory、Tool、Planner、Reflection、Coach Agent，以及编排、降级和隐私安全轨迹。已完成。
-- **下一步**：高级记忆重要性、去重、压缩、保留策略和检索重排。
-- **之后**：主动触发、通知、浏览器/本地自动执行和 Dashboard。
+- **Phase 9**：高级记忆重要性、重复/冲突处理、压缩、保留/隐私控制和检索重排。已完成。
+- **下一步**：主动调度、通知、免打扰时段和 Web Dashboard。
+- **之后**：受权限控制的浏览器/本地自动执行与多模态接口。
 - **长期方向**：在同一个 Nexus 核心上增加语音、视觉、智能家居适配器和可选的机器人集成。

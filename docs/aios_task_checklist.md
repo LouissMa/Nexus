@@ -31,7 +31,7 @@ Status legend:
 
 ## 1. RAG Long-Term Memory
 
-Current status: `[x]` RAG 2.0 foundation completed. Advanced memory lifecycle work is tracked separately in Phase 9.
+Current status: `[x]` RAG 2.0 and the Phase 9 advanced memory lifecycle are completed.
 
 - [x] Generate deterministic local sparse embeddings when memories are added.
 - [x] Add `nexus memory retrieve` for relevant memory retrieval.
@@ -46,12 +46,12 @@ Current status: `[x]` RAG 2.0 foundation completed. Advanced memory lifecycle wo
 - [x] Add dense+sparse hybrid retrieval with local sparse fallback.
 - [x] Add deterministic retrieval, re-index, empty-index, and secret-masking tests.
 
-Deferred to Advanced Long-Term Memory (Phase 9):
+Completed in Advanced Long-Term Memory (Phase 9):
 
-- [ ] Add memory importance scoring.
-- [ ] Add deduplication and conflict handling.
-- [ ] Add memory compression/summarization for long-term scale.
-- [ ] Add retention, forgetting, privacy, and user controls.
+- [x] Add memory importance scoring.
+- [x] Add deduplication and conflict handling.
+- [x] Add memory compression/summarization for long-term scale.
+- [x] Add retention, forgetting, privacy, and user controls.
 
 ## 2. Real Tool Integrations
 
@@ -120,7 +120,28 @@ Current status: `[x]` Bounded multi-agent coordination completed.
 
 Phase 8 does not create open-ended autonomous loops. Human approval remains required for `ask` MCP tools, and browser/local automation remains a later permissioned phase.
 
-## 6. Proactive Trigger System
+## 6. Advanced Long-Term Memory
+
+Current status: `[x]` Local-first memory lifecycle completed.
+
+- [x] Add deterministic importance scoring plus user override and pinning.
+- [x] Merge normalized exact duplicates and link near duplicates.
+- [x] Add explicit supersedes and bidirectional conflict relations.
+- [x] Add deterministic summary records and reversible source archival.
+- [x] Separate compressed summaries by privacy, inherit expiry, and retain source lineage.
+- [x] Cascade source forgetting to derived summaries so copied content cannot leak.
+- [x] Propagate source privacy/expiry changes, reject direct derived-policy overrides, and recompute policy on restore.
+- [x] Recursively remove derived summaries when a source is permanently purged.
+- [x] Add expiry maintenance with dry-run previews.
+- [x] Add private, personal, and shared retrieval scopes.
+- [x] Add reversible archive, restore, and forget controls.
+- [x] Require forgotten state plus explicit confirmation for permanent purge.
+- [x] Reject stale vector IDs using authoritative JSON eligibility.
+- [x] Report partial index-sync outcomes when add or mutation vector refresh fails.
+- [x] Re-rank by relevance, importance, recency, and task/tag context.
+- [x] Expose component scores and lifecycle filter metadata.
+- [x] Preserve legacy state compatibility without destructive migration.
+## 7. Proactive Trigger System
 
 Current status: `[ ]` Not started.
 
@@ -131,7 +152,7 @@ Current status: `[ ]` Not started.
 - [ ] Add notification channels.
 - [ ] Add user-configurable quiet hours.
 
-## 7. Frontend Dashboard
+## 8. Frontend Dashboard
 
 Current status: `[ ]` Not started.
 
@@ -143,7 +164,7 @@ Current status: `[ ]` Not started.
 - [ ] Project progress panel.
 - [ ] AI suggestions panel.
 
-## 8. Browser And Local Automation
+## 9. Browser And Local Automation
 
 Current status: `[ ]` Not started.
 
@@ -153,7 +174,7 @@ Current status: `[ ]` Not started.
 - [ ] Local command execution with explicit permission checks.
 - [ ] Audit log for automated actions.
 
-## 9. Long-Term Multimodal And Embodied Interfaces
+## 10. Long-Term Multimodal And Embodied Interfaces
 
 Current status: `[ ]` Research direction, not started.
 
