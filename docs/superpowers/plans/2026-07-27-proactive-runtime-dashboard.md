@@ -88,12 +88,12 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Produces: automation validation/configuration, `AutomationManager.run`,
   built-in GitHub inspection/status report workflows, and audit inspection.
 
-- [ ] Write failing tests for policy gates, URL/host validation, `shell=False`,
+- [x] Write failing tests for policy gates, URL/host validation, `shell=False`,
   timeout/output limits, root-safe report writes, workflows, and audit
   redaction.
-- [ ] Run `pytest tests/test_automation.py -q` and confirm feature failures.
-- [ ] Implement named adapters and policy-bounded execution.
-- [ ] Run `pytest tests/test_automation.py -q` and confirm it passes.
+- [x] Run `pytest tests/test_automation.py -q` and confirm feature failures.
+- [x] Implement named adapters and policy-bounded execution.
+- [x] Run `pytest tests/test_automation.py -q` and confirm it passes.
 
 ### Task 5: Dashboard Snapshot and HTTP Server
 
