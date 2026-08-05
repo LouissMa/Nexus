@@ -234,3 +234,74 @@ def test_mcp_audit_redacts_sensitive_arguments_and_errors(tmp_path: Path) -> Non
     assert "hidden" not in encoded
     assert "secret.example" not in encoded
     assert "bearer-secret" not in encoded
+
+
+def _hold_runtime_transaction_for_mcp(
+    path: str,
+    entered: object,
+    release: object,
+) -> None:
+    from nexus.config import mutate_local_config
+
+    def mutation(config: dict[str, object]) -> None:
+        entered.set()
+        assert release.wait(timeout=20)
+        config["runtime"] = {"morning_time": "06:30"}
+
+    mutate_local_config(mutation, path=Path(path))
+
+
+def _mcp_update_with_save_probe(
+    path: str,
+    reached_save: object,
+    release: object,
+) -> None:
+    import nexus.mcp.config as mcp_config
+
+    original_save = getattr(mcp_config, "save_local_config", None)
+
+    if original_save is not None:
+
+        def probed_save(config: dict[str, object], path: Path | None = None) -> Path:
+            reached_save.set()
+            assert release.wait(timeout=20)
+            return original_save(config, path)
+
+        mcp_config.save_local_config = probed_save
+    mcp_config.upsert_mcp_server(
+        "research",
+        {"transport": "stdio", "command": "research-server"},
+        path=Path(path),
+    )
+
+
+def test_concurrent_mcp_writer_preserves_runtime_section(tmp_path: Path) -> None:
+    from multiprocessing import get_context
+
+    path = tmp_path / "config.local.json"
+    context = get_context("spawn")
+    entered = context.Event()
+    release = context.Event()
+    reached_save = context.Event()
+    holder = context.Process(
+        target=_hold_runtime_transaction_for_mcp,
+        args=(str(path), entered, release),
+    )
+    writer = context.Process(
+        target=_mcp_update_with_save_probe,
+        args=(str(path), reached_save, release),
+    )
+
+    holder.start()
+    assert entered.wait(timeout=10)
+    writer.start()
+    reached_save.wait(timeout=1.5)
+    release.set()
+    holder.join(timeout=30)
+    writer.join(timeout=30)
+    assert holder.exitcode == 0
+    assert writer.exitcode == 0
+
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    assert stored["runtime"]["morning_time"] == "06:30"
+    assert stored["mcp"]["servers"]["research"]["command"] == "research-server"

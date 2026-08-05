@@ -1390,3 +1390,73 @@ def test_config_replace_failure_is_typed_and_cleans_temp(
 
     assert config_path.read_bytes() == original
     assert list(tmp_path.glob(f".{config_path.name}.*.tmp")) == []
+
+
+def _hold_profile_config_transaction_for_automation(
+    path: str,
+    entered: object,
+    release: object,
+) -> None:
+    from nexus.config import mutate_local_config
+
+    def mutation(config: dict[str, object]) -> None:
+        entered.set()
+        assert release.wait(timeout=20)
+        config["profile"] = {"display_name": "Locked", "timezone": "UTC"}
+
+    mutate_local_config(mutation, path=Path(path))
+
+
+def _concurrent_automation_upsert(
+    path: str,
+    root: str,
+    started: object,
+    completed: object,
+) -> None:
+    started.set()
+    upsert_automation(
+        "status",
+        {
+            "type": "status_report",
+            "output_path": str(Path(root) / "status.md"),
+            "allowed_roots": [root],
+        },
+        path=Path(path),
+    )
+    completed.set()
+
+
+def test_automation_coordinates_with_shared_local_config_transaction(
+    tmp_path: Path,
+) -> None:
+    from multiprocessing import get_context
+
+    path = tmp_path / "config.local.json"
+    context = get_context("spawn")
+    entered = context.Event()
+    release = context.Event()
+    started = context.Event()
+    completed = context.Event()
+    holder = context.Process(
+        target=_hold_profile_config_transaction_for_automation,
+        args=(str(path), entered, release),
+    )
+    writer = context.Process(
+        target=_concurrent_automation_upsert,
+        args=(str(path), str(tmp_path.resolve()), started, completed),
+    )
+
+    holder.start()
+    assert entered.wait(timeout=10)
+    writer.start()
+    assert started.wait(timeout=10)
+    assert not completed.wait(timeout=1)
+    release.set()
+    holder.join(timeout=30)
+    writer.join(timeout=30)
+    assert holder.exitcode == 0
+    assert writer.exitcode == 0
+
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    assert stored["profile"]["display_name"] == "Locked"
+    assert "status" in stored["automations"]

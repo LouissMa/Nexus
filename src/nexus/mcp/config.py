@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from ..config import load_local_config, save_local_config
+from ..config import load_local_config, mutate_local_config
 
 
 MCP_TRANSPORTS = {"stdio", "streamable_http"}
@@ -14,11 +14,23 @@ MCP_POLICIES = {"deny", "ask", "allow"}
 SERVER_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 
-def load_mcp_settings(path: Path | None = None) -> dict[str, dict[str, Any]]:
-    stored = load_local_config(path).get("mcp", {}).get("servers", {})
-    if not isinstance(stored, dict):
+def _server_map(config: dict[str, Any]) -> dict[str, Any]:
+    mcp = config.setdefault("mcp", {})
+    if not isinstance(mcp, dict):
+        raise ValueError("MCP configuration must be an object.")
+    servers = mcp.setdefault("servers", {})
+    if not isinstance(servers, dict):
         raise ValueError("MCP server configuration must be an object.")
-    return {name: _validate_server(name, server) for name, server in stored.items()}
+    return servers
+
+
+def _validated_settings(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    servers = _server_map(config)
+    return {name: _validate_server(name, server) for name, server in servers.items()}
+
+
+def load_mcp_settings(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    return _validated_settings(load_local_config(path))
 
 
 def upsert_mcp_server(
@@ -27,36 +39,36 @@ def upsert_mcp_server(
     *,
     path: Path | None = None,
 ) -> tuple[dict[str, dict[str, Any]], Path]:
-    validated = _validate_server(name, server)
-    config = load_local_config(path)
-    servers = config.setdefault("mcp", {}).setdefault("servers", {})
-    servers[name] = validated
-    saved_path = save_local_config(config, path)
-    return load_mcp_settings(path=saved_path), saved_path
+    def mutation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        servers = _server_map(config)
+        servers[name] = _validate_server(name, server)
+        return _validated_settings(config)
+
+    return mutate_local_config(mutation, path)
 
 
 def disable_mcp_server(
     name: str, *, path: Path | None = None
 ) -> tuple[dict[str, dict[str, Any]], Path]:
-    config = load_local_config(path)
-    servers = config.setdefault("mcp", {}).setdefault("servers", {})
-    if name not in servers:
-        raise ValueError(f"Unknown MCP server '{name}'.")
-    servers[name]["enabled"] = False
-    saved_path = save_local_config(config, path)
-    return load_mcp_settings(path=saved_path), saved_path
+    def mutation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        servers, server = _editable_server(config, name)
+        updated = dict(server)
+        updated["enabled"] = False
+        servers[name] = _validate_server(name, updated)
+        return _validated_settings(config)
+
+    return mutate_local_config(mutation, path)
 
 
 def remove_mcp_server(
     name: str, *, path: Path | None = None
 ) -> tuple[dict[str, dict[str, Any]], Path]:
-    config = load_local_config(path)
-    servers = config.setdefault("mcp", {}).setdefault("servers", {})
-    if name not in servers:
-        raise ValueError(f"Unknown MCP server '{name}'.")
-    del servers[name]
-    saved_path = save_local_config(config, path)
-    return load_mcp_settings(path=saved_path), saved_path
+    def mutation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        servers, _server = _editable_server(config, name)
+        del servers[name]
+        return _validated_settings(config)
+
+    return mutate_local_config(mutation, path)
 
 
 def set_mcp_tool_policy(
@@ -66,12 +78,16 @@ def set_mcp_tool_policy(
     *,
     path: Path | None = None,
 ) -> tuple[dict[str, dict[str, Any]], Path]:
-    if policy not in MCP_POLICIES:
-        raise ValueError(f"Unknown MCP policy '{policy}'.")
-    config, server = _editable_server(server_name, path)
-    server.setdefault("tool_policies", {})[tool] = policy
-    saved_path = save_local_config(config, path)
-    return load_mcp_settings(path=saved_path), saved_path
+    def mutation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        if policy not in MCP_POLICIES:
+            raise ValueError(f"Unknown MCP policy '{policy}'.")
+        servers, server = _editable_server(config, server_name)
+        updated = deepcopy(server)
+        updated.setdefault("tool_policies", {})[tool] = policy
+        servers[server_name] = _validate_server(server_name, updated)
+        return _validated_settings(config)
+
+    return mutate_local_config(mutation, path)
 
 
 def set_mcp_planning_tool(
@@ -81,17 +97,21 @@ def set_mcp_planning_tool(
     *,
     path: Path | None = None,
 ) -> tuple[dict[str, dict[str, Any]], Path]:
-    config, server = _editable_server(server_name, path)
-    bindings = server.setdefault("planning_tools", [])
-    binding = {"tool": tool, "arguments": deepcopy(arguments)}
-    for index, current in enumerate(bindings):
-        if current.get("tool") == tool:
-            bindings[index] = binding
-            break
-    else:
-        bindings.append(binding)
-    saved_path = save_local_config(config, path)
-    return load_mcp_settings(path=saved_path), saved_path
+    def mutation(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        servers, server = _editable_server(config, server_name)
+        updated = deepcopy(server)
+        bindings = updated.setdefault("planning_tools", [])
+        binding = {"tool": tool, "arguments": deepcopy(arguments)}
+        for index, current in enumerate(bindings):
+            if current.get("tool") == tool:
+                bindings[index] = binding
+                break
+        else:
+            bindings.append(binding)
+        servers[server_name] = _validate_server(server_name, updated)
+        return _validated_settings(config)
+
+    return mutate_local_config(mutation, path)
 
 
 def masked_mcp_settings(
@@ -109,13 +129,16 @@ def masked_mcp_settings(
 
 
 def _editable_server(
-    name: str, path: Path | None
+    config: dict[str, Any],
+    name: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    config = load_local_config(path)
-    servers = config.setdefault("mcp", {}).setdefault("servers", {})
+    servers = _server_map(config)
     if name not in servers:
         raise ValueError(f"Unknown MCP server '{name}'.")
-    return config, servers[name]
+    server = servers[name]
+    if not isinstance(server, dict):
+        raise ValueError(f"MCP server '{name}' must be an object.")
+    return servers, server
 
 
 def _validate_server(name: str, value: Any) -> dict[str, Any]:

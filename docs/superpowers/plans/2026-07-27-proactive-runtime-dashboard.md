@@ -131,12 +131,12 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Produces: `nexus config profile`, `nexus config runtime`, `nexus runtime`,
   `nexus notifications`, `nexus dashboard`, and `nexus automation` commands.
 
-- [ ] Write failing CLI tests for configuration, masked output, ticks/manual
+- [x] Write failing CLI tests for configuration, masked output, ticks/manual
   runs, inbox inspection, dashboard serving options, automation approval, and
   error exit codes.
-- [ ] Run the three Phase 10 CLI test files and confirm feature failures.
-- [ ] Wire parser and dispatch paths without changing existing command output.
-- [ ] Run the three Phase 10 CLI test files and confirm they pass.
+- [x] Run the three Phase 10 CLI test files and confirm feature failures.
+- [x] Wire parser and dispatch paths without changing existing command output.
+- [x] Run the three Phase 10 CLI test files and confirm they pass.
 
 ### Task 7: Documentation and Release Verification
 
