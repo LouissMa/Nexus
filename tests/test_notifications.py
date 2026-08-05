@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,6 +15,27 @@ import pytest
 import nexus.notifications as notification_module
 from nexus.notifications import NotificationCenter
 from nexus.runtime_config import ProfileSettings, RuntimeSettings
+
+
+def _flush_notification_process(
+    notification_path: str,
+    calls_path: str,
+    barrier: Any,
+) -> None:
+    def sender(url: str, payload: dict[str, Any], timeout: float) -> None:
+        with Path(calls_path).open("a", encoding="utf-8") as handle:
+            handle.write(payload["id"] + "\n")
+            handle.flush()
+        time.sleep(0.05)
+
+    center = NotificationCenter(
+        Path(notification_path),
+        RuntimeSettings(webhook_url="https://hooks.example.test/a"),
+        ProfileSettings(timezone="Asia/Shanghai"),
+        webhook_sender=sender,
+    )
+    barrier.wait()
+    center.flush_deferred()
 
 
 def _center(
@@ -38,7 +60,9 @@ def _local_time(hour: int, minute: int = 0) -> datetime:
     return datetime(2026, 7, 27, hour, minute, tzinfo=ZoneInfo("Asia/Shanghai"))
 
 
-def _stored_record(notification_id: str, *, webhook_state: str = "delivered") -> dict[str, Any]:
+def _stored_record(
+    notification_id: str, *, webhook_state: str = "delivered"
+) -> dict[str, Any]:
     status = "deferred" if webhook_state == "deferred" else "delivered"
     return {
         "id": notification_id,
@@ -70,13 +94,19 @@ def test_publish_persists_inbox_record_before_external_delivery_when_inbox_is_di
     delivered: list[dict[str, object]] = []
     center = _center(
         tmp_path,
-        runtime=RuntimeSettings(inbox_enabled=False, webhook_url="https://hooks.example.test/a"),
+        runtime=RuntimeSettings(
+            inbox_enabled=False, webhook_url="https://hooks.example.test/a"
+        ),
         webhook_sender=lambda url, payload, timeout: delivered.append(payload),
     )
 
-    record = center.publish("reminder", "Review plan", "The daily plan needs attention.")
+    record = center.publish(
+        "reminder", "Review plan", "The daily plan needs attention."
+    )
 
-    persisted = json.loads((tmp_path / "notifications.jsonl").read_text(encoding="utf-8"))
+    persisted = json.loads(
+        (tmp_path / "notifications.jsonl").read_text(encoding="utf-8")
+    )
     assert persisted["id"] == record["id"]
     assert persisted["delivery"]["inbox"]["state"] == "disabled"
     assert record["status"] == "delivered"
@@ -146,7 +176,9 @@ def test_urgent_notifications_bypass_quiet_hours(tmp_path: Path) -> None:
     assert console == ["[urgent] Urgent\nAct now."]
 
 
-def test_webhook_and_console_failures_are_isolated_and_sanitized(tmp_path: Path) -> None:
+def test_webhook_and_console_failures_are_isolated_and_sanitized(
+    tmp_path: Path,
+) -> None:
     def fail_webhook(url: str, payload: dict[str, object], timeout: float) -> None:
         raise RuntimeError(f"delivery to {url} with Bearer top-secret failed")
 
@@ -228,7 +260,11 @@ def test_recent_skips_corrupt_jsonl_lines_and_safe_metadata_and_content_are_boun
 
     assert len(record["title"]) <= NotificationCenter.MAX_TITLE_LENGTH
     assert len(record["body"]) <= NotificationCenter.MAX_BODY_LENGTH
-    assert record["metadata"] == {"project": "Nexus", "webhook_url": "***", "api_key": "***"}
+    assert record["metadata"] == {
+        "project": "Nexus",
+        "webhook_url": "***",
+        "api_key": "***",
+    }
     assert center.recent() == [record]
     assert path.read_text(encoding="utf-8").startswith("{this is corrupt}\n")
 
@@ -261,7 +297,9 @@ def test_publish_persists_pending_then_delivering_before_webhook_side_effect(
     assert record["delivery"]["webhook"]["state"] == "delivered"
 
 
-def test_quiet_publish_persists_deferred_intent_before_returning(tmp_path: Path) -> None:
+def test_quiet_publish_persists_deferred_intent_before_returning(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "notifications.jsonl"
     observed_states: list[str] = []
     sender_calls: list[str] = []
@@ -328,7 +366,9 @@ def test_interrupted_delivery_remains_delivering_and_is_not_automatically_retrie
     assert recovered.recent()[0]["delivery"]["webhook"]["state"] == "delivering"
 
 
-def test_concurrent_flushes_deliver_a_deferred_channel_exactly_once(tmp_path: Path) -> None:
+def test_concurrent_flushes_deliver_a_deferred_channel_exactly_once(
+    tmp_path: Path,
+) -> None:
     now = [_local_time(23)]
     sender_calls: list[str] = []
     sender_lock = threading.Lock()
@@ -399,10 +439,72 @@ def test_two_centers_sharing_a_path_flush_deferred_exactly_once(tmp_path: Path) 
     now[0] = _local_time(8)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        results = list(executor.map(lambda center: center.flush_deferred(), (first, second)))
+        results = list(
+            executor.map(lambda center: center.flush_deferred(), (first, second))
+        )
 
     assert calls == [record["id"]]
     assert sorted(len(result) for result in results) == [0, 1]
+
+
+def test_two_processes_flush_deferred_exactly_once(tmp_path: Path) -> None:
+    path = tmp_path / "notifications.jsonl"
+    calls_path = tmp_path / "calls.txt"
+    _write_jsonl(path, [_stored_record("cross-process", webhook_state="deferred")])
+    context = multiprocessing.get_context("spawn")
+    barrier = context.Barrier(2)
+    processes = [
+        context.Process(
+            target=_flush_notification_process,
+            args=(str(path), str(calls_path), barrier),
+        )
+        for _ in range(2)
+    ]
+
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(10)
+
+    assert [process.exitcode for process in processes] == [0, 0]
+    assert calls_path.read_text(encoding="utf-8").splitlines() == ["cross-process"]
+
+
+def test_recent_skips_an_oversized_unterminated_tail(tmp_path: Path) -> None:
+    path = tmp_path / "notifications.jsonl"
+    _write_jsonl(path, [_stored_record("valid")])
+    with path.open("ab") as handle:
+        handle.write(b"x" * (NotificationCenter.MAX_RECORD_BYTES * 4))
+    center = NotificationCenter(
+        path,
+        RuntimeSettings(),
+        ProfileSettings(timezone="Asia/Shanghai"),
+    )
+
+    assert [record["id"] for record in center.recent(1)] == ["valid"]
+
+
+def test_flush_drops_oversized_corrupt_lines_during_rewrite(tmp_path: Path) -> None:
+    path = tmp_path / "notifications.jsonl"
+    with path.open("wb") as handle:
+        handle.write(b"x" * (NotificationCenter.MAX_RECORD_BYTES * 4) + b"\n")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(_stored_record("deferred", webhook_state="deferred")) + "\n"
+        )
+    sender_calls: list[str] = []
+    center = NotificationCenter(
+        path,
+        RuntimeSettings(webhook_url="https://hooks.example.test/a"),
+        ProfileSettings(timezone="Asia/Shanghai"),
+        webhook_sender=lambda url, payload, timeout: sender_calls.append(payload["id"]),
+    )
+
+    center.flush_deferred()
+
+    assert sender_calls == ["deferred"]
+    assert path.stat().st_size <= NotificationCenter.MAX_RECORD_BYTES
+    assert center.recent()[0]["delivery"]["webhook"]["state"] == "delivered"
 
 
 def test_recent_reads_past_many_malformed_tail_lines(tmp_path: Path) -> None:
@@ -417,6 +519,7 @@ def test_recent_reads_past_many_malformed_tail_lines(tmp_path: Path) -> None:
     )
 
     assert [record["id"] for record in center.recent(1)] == ["valid-before-corruption"]
+
 
 def test_rewrite_preserves_more_than_10000_records(tmp_path: Path) -> None:
     path = tmp_path / "notifications.jsonl"
@@ -483,7 +586,9 @@ def test_recent_uses_bounded_tail_reads_and_skips_malformed_tail_lines(
     assert [record["id"] for record in center.recent(2)] == ["item-198", "item-199"]
 
 
-def test_webhook_payload_is_byte_bounded_and_timeout_is_propagated(tmp_path: Path) -> None:
+def test_webhook_payload_is_byte_bounded_and_timeout_is_propagated(
+    tmp_path: Path,
+) -> None:
     calls: list[tuple[dict[str, Any], float]] = []
     center = _center(
         tmp_path,
@@ -494,7 +599,9 @@ def test_webhook_payload_is_byte_bounded_and_timeout_is_propagated(tmp_path: Pat
     record = center.publish("reminder", "Review", "?" * 10_000)
 
     payload, timeout = calls[0]
-    encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode(
+        "utf-8"
+    )
     assert len(encoded) <= NotificationCenter.MAX_WEBHOOK_PAYLOAD_BYTES
     assert timeout == NotificationCenter.WEBHOOK_TIMEOUT_SECONDS
     assert payload["id"] == record["id"]

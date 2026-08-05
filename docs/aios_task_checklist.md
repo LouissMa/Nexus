@@ -1,196 +1,185 @@
 # AIOS Task Checklist
 
-This checklist tracks the remaining work required to evolve Nexus into a J.A.R.V.I.S.-like Personal AI Operating System. Update this file whenever a feature is completed, changed, deferred, or split into smaller work.
+This checklist tracks the work required to evolve Nexus toward a J.A.R.V.I.S.-like Personal AI Operating System. Update it whenever a feature is completed, changed, deferred, or split.
 
 Status legend:
 
 - `[x]` Completed
-- `[~]` In progress / MVP exists but needs deeper implementation
+- `[~]` MVP exists but deeper work remains
 - `[ ]` Not started
 
 ## Agreed Implementation Order
 
 1. Planning / Reflection. Completed.
-2. RAG 2.0 foundation: real embeddings, vector database, and re-indexing. Completed.
+2. RAG 2.0: real embeddings, vector database, and re-indexing. Completed.
 3. Real tool integrations. Completed.
 4. MCP tool calling and permissions. Completed.
 5. Multi-Agent coordination. Completed.
-6. Advanced memory importance, compression, and retention.
-7. Proactive triggers and Dashboard.
-8. Long-term multimodal, smart-home, and robotics interfaces after the core is dependable.
+6. Advanced memory importance, compression, privacy, and retention. Completed.
+7. Proactive runtime, local Dashboard, and permissioned named automation. Completed.
+8. Dashboard expansion and long-term multimodal/embodied interfaces. Future.
 
 ## Completed Foundation
 
-- [x] CLI MVP for memory, goals, check-ins, proactive review, and morning briefing.
-- [x] LLM briefing mode with OpenAI-compatible API support.
-- [x] Local LLM provider configuration with provider/model tiers and masked API key display.
-- [x] Local RAG memory MVP using deterministic sparse embeddings.
-- [x] Planning / Reflection module with persistent daily tasks, blockers, unresolved items, and coach modes.
-- [x] Local JSON storage under `.nexus/state.json`.
-- [x] Secret local config path ignored by Git: `.nexus/config.local.json`.
+- [x] CLI for memories, goals, check-ins, planning, task updates, review, and briefing.
+- [x] Optional OpenAI-compatible LLM generation with local masked provider/model configuration.
+- [x] Local-first JSON state and ignored personal runtime/configuration directory.
+- [x] Structured local fallback for optional LLM, RAG, tool, MCP, and Agent failures.
 
 ## 1. RAG Long-Term Memory
 
-Current status: `[x]` RAG 2.0 and the Phase 9 advanced memory lifecycle are completed.
+Current status: `[x]` RAG 2.0 and advanced lifecycle completed.
 
-- [x] Generate deterministic local sparse embeddings when memories are added.
-- [x] Add `nexus memory retrieve` for relevant memory retrieval.
-- [x] Inject retrieved memories into briefing, planning, and review contexts and LLM prompts.
-- [x] Include query, strategy, provider, model, candidate counts, component scores, and errors in retrieval metadata.
-- [x] Add a real embedding provider interface.
-- [x] Add local FastEmbed support without an API key.
-- [x] Add OpenAI-compatible hosted embedding support.
-- [x] Add persistent local or remote Qdrant vector storage.
-- [x] Add `nexus memory reindex` and `nexus memory index-status`.
-- [x] Incrementally index newly added memories.
-- [x] Add dense+sparse hybrid retrieval with local sparse fallback.
-- [x] Add deterministic retrieval, re-index, empty-index, and secret-masking tests.
-
-Completed in Advanced Long-Term Memory (Phase 9):
-
-- [x] Add memory importance scoring.
-- [x] Add deduplication and conflict handling.
-- [x] Add memory compression/summarization for long-term scale.
-- [x] Add retention, forgetting, privacy, and user controls.
+- [x] Deterministic local sparse embeddings and `nexus memory retrieve`.
+- [x] FastEmbed and OpenAI-compatible embedding providers.
+- [x] Local or remote Qdrant persistence.
+- [x] Incremental indexing, `memory reindex`, and `memory index-status`.
+- [x] Dense+sparse hybrid retrieval with sparse fallback.
+- [x] Briefing, planning, and review context injection.
+- [x] Importance scoring, pinning, privacy, and expiry.
+- [x] Duplicate, supersession, and conflict handling.
+- [x] Compression, summaries, archive, restore, forget, and confirmed purge.
+- [x] Stale-vector rejection and explainable task/time-aware re-ranking.
 
 ## 2. Real Tool Integrations
 
 Current status: `[x]` Permissioned read-only integration phase completed.
 
-- [x] Weather integration through Open-Meteo geocoding and forecast APIs.
-- [x] Calendar integration through private/public iCalendar feed URLs.
-- [x] Expand recurring iCalendar events for courses and meetings.
-- [x] Todo integration through the current Todoist API.
-- [x] GitHub repository metadata and open-issue integration.
-- [x] Notion page-title search integration.
-- [x] Read-only IMAP email-header integration.
-- [x] Local filesystem list/read/search with configured-root boundaries.
-- [x] Store credentials only in ignored local config or environment variables.
-- [x] Require explicit tool enablement and operation-level permissions.
-- [x] Add secret-safe success/failure audit logging.
-- [x] Add `nexus briefing --live-tools` for weather, calendar, and todo context.
-- [x] Add deterministic tests plus a real Open-Meteo smoke test.
-
-All Phase 6 adapters remain intentionally read-only. Phase 7 adds separately configured MCP tools with explicit policies, one-shot approvals, bounded transport retries, and normalized results.
+- [x] Open-Meteo weather and recurring iCalendar events.
+- [x] Todoist, GitHub, Notion, and read-only IMAP headers.
+- [x] Permission-bounded local filesystem list/read/search.
+- [x] Explicit configuration and operation-level permissions.
+- [x] Credentials stored only in ignored local configuration or environment variables.
+- [x] Secret-safe success/failure audit.
+- [x] Live weather/calendar/todo briefing context with partial failure.
 
 ## 3. MCP Tool Calling
 
-Current status: `[x]` Permissioned MCP client phase completed.
+Current status: `[x]` Permissioned MCP client completed.
 
-- [x] Define MCP gateway, tool-schema, and normalized result interfaces.
-- [x] Add stdio and Streamable HTTP server configuration and tool discovery.
-- [x] Add deny, ask, and allow per-tool permission policies.
-- [x] Add explicit one-shot approval for ask-policy calls.
-- [x] Add secret-safe discovery/call logging, bounded transport retries, and error normalization.
-- [x] Let `nexus plan day --live-mcp` call explicitly configured allow-policy planning tools.
-- [x] Preserve local Planning when an MCP server or tool fails.
-- [x] Add fake-gateway tests plus real stdio and Streamable HTTP protocol tests.
+- [x] stdio and Streamable HTTP configuration and discovery.
+- [x] Official-SDK gateway, schemas, and normalized results.
+- [x] Per-tool deny, ask, and allow policies.
+- [x] One-shot approval for ask-policy calls.
+- [x] Bounded transport retry and secret-safe audit.
+- [x] Explicit allow-policy Planning bindings.
+- [x] Local Planning fallback when MCP is unavailable.
 
-Deferred to later phases: autonomous LLM tool selection, a dedicated Tool Agent, and exposing Nexus itself as an MCP server.
+Exposing Nexus as an MCP server remains future work.
 
 ## 4. Planning / Reflection
 
-Current status: `[x]` Local Planning / Reflection module completed.
+Current status: `[x]` Local Planning / Reflection completed.
 
-- [x] Add daily planning command: `nexus plan day`.
-- [x] Break active long-term goals into persistent daily tasks.
-- [x] Add evening review command: `nexus review day`.
-- [x] Generate today summary and tomorrow priorities.
-- [x] Include progressed goals, quiet goals, check-ins, reminders, and RAG memories.
-- [x] Track task blockers and unresolved items as structured fields.
-- [x] Add coach modes: strict, gentle, academic, startup.
-- [x] Add task inspection and updates with `nexus task list` and `nexus task update`.
+- [x] `nexus plan day` and persistent task decomposition.
+- [x] Task status, blockers, unresolved items, and notes.
+- [x] `nexus review day` with today summary and tomorrow priorities.
+- [x] Goals, check-ins, reminders, and RAG memory context.
+- [x] Strict, gentle, academic, and startup Coach modes.
 
-The local module is complete. Phase 8 now orchestrates agentic planning and permissioned MCP tool selection; calendar-aware scheduling and automatic replanning remain future work.
+Calendar-aware automatic replanning remains future work.
 
 ## 5. Multi-Agent Architecture
 
 Current status: `[x]` Bounded multi-agent coordination completed.
 
-- [x] Memory Agent: retrieves task-relevant RAG memories and public retrieval metadata.
-- [x] Planner Agent: creates persistent plans and briefing priorities from shared artifacts.
-- [x] Tool Agent: runs deterministic bindings or strict-JSON LLM selection over allow-policy MCP tools only, with complete JSON Schema validation for both paths.
-- [x] Reflection Agent: reviews outcomes, blockers, unresolved items, check-ins, and tomorrow priorities.
-- [x] Coach Agent: applies strict, gentle, academic, or startup tone with optional LLM generation.
-- [x] Add orchestration for plan, review, and briefing workflows.
-- [x] Add shared artifacts and explicit limits for steps, LLM calls, MCP calls, and runtime.
-- [x] Add partial-failure isolation and deterministic local fallback.
-- [x] Add privacy-safe JSONL traces plus `nexus agent runs/show` inspection.
-- [x] Add opt-in `--agents` without changing default command behavior.
+- [x] Memory Agent.
+- [x] Tool Agent with allow-only autonomous MCP candidates.
+- [x] Planner Agent.
+- [x] Reflection Agent.
+- [x] Coach Agent.
+- [x] Shared artifacts and step/LLM/MCP/time budgets.
+- [x] Partial-failure isolation and deterministic local fallback.
+- [x] Privacy-safe traces and `nexus agent runs/show`.
+- [x] Opt-in `--agents` behavior.
 
-Phase 8 does not create open-ended autonomous loops. Human approval remains required for `ask` MCP tools, and browser/local automation remains a later permissioned phase.
+This is bounded orchestration, not an open-ended autonomous loop.
 
 ## 6. Advanced Long-Term Memory
 
-Current status: `[x]` Local-first memory lifecycle completed.
+Current status: `[x]` Local-first lifecycle completed.
 
-- [x] Add deterministic importance scoring plus user override and pinning.
-- [x] Merge normalized exact duplicates and link near duplicates.
-- [x] Add explicit supersedes and bidirectional conflict relations.
-- [x] Add deterministic summary records and reversible source archival.
-- [x] Separate compressed summaries by privacy, inherit expiry, and retain source lineage.
-- [x] Cascade source forgetting to derived summaries so copied content cannot leak.
-- [x] Propagate source privacy/expiry changes, reject direct derived-policy overrides, and recompute policy on restore.
-- [x] Recursively remove derived summaries when a source is permanently purged.
-- [x] Add expiry maintenance with dry-run previews.
-- [x] Add private, personal, and shared retrieval scopes.
-- [x] Add reversible archive, restore, and forget controls.
-- [x] Require forgotten state plus explicit confirmation for permanent purge.
-- [x] Reject stale vector IDs using authoritative JSON eligibility.
-- [x] Report partial index-sync outcomes when add or mutation vector refresh fails.
-- [x] Re-rank by relevance, importance, recency, and task/tag context.
-- [x] Expose component scores and lifecycle filter metadata.
-- [x] Preserve legacy state compatibility without destructive migration.
+- [x] Deterministic importance plus user override and pinning.
+- [x] Exact duplicate merge and near-duplicate links.
+- [x] Explicit supersession and bidirectional conflicts.
+- [x] Privacy-separated summaries with source lineage and inherited expiry.
+- [x] Reversible archive/forget and confirmed forgotten-only purge.
+- [x] Derived-summary privacy/expiry propagation and recursive purge.
+- [x] Retention maintenance and dry-run previews.
+- [x] Private, personal, and shared retrieval scopes.
+- [x] Legacy-state normalization without destructive migration.
+
 ## 7. Proactive Trigger System
 
-Current status: `[ ]` Not started.
+Current status: `[x]` Proactive local runtime completed.
 
-- [ ] Add scheduler abstraction.
-- [ ] Generate morning briefing automatically.
-- [ ] Generate evening review automatically.
-- [ ] Add reminder rules for stale goals.
-- [ ] Add notification channels.
-- [ ] Add user-configurable quiet hours.
+- [x] Local profile with display name and IANA time zone.
+- [x] Scheduler abstraction with deterministic `tick`, explicit `run`, status, and bounded foreground `start`.
+- [x] Automatic morning briefing job.
+- [x] Automatic evening review job.
+- [x] Stale-goal reminder job.
+- [x] Restart-safe `job + local date` occurrence claims and due/grace windows.
+- [x] Cross-process-safe state revisions, scheduler claims, and atomic replacement.
+- [x] Durable inbox-first notifications.
+- [x] Cross-process-safe notification claims plus bounded corrupt/oversized-line recovery.
+- [x] Optional console and bounded webhook delivery.
+- [x] Normal and overnight quiet hours with deferred delivery and flush.
+- [x] Partial-failure status when optional generation or delivery degrades.
+- [x] Runtime jobs disabled until explicitly configured.
 
 ## 8. Frontend Dashboard
 
-Current status: `[ ]` Not started.
+Current status: `[~]` Read-only responsive Dashboard completed; deeper life-management panels remain future.
 
-- [ ] Build web dashboard shell.
-- [ ] Today tasks view.
-- [ ] Long-term goals view.
-- [ ] Memory timeline.
+- [x] Packaged web Dashboard shell.
+- [x] Responsive desktop/mobile navigation and stable controls.
+- [x] Today view with tasks, schedules, reminders, and latest briefing/review.
+- [x] Long-term goals view.
+- [x] Eligible memory timeline.
+- [x] Activity view for notifications, tools, MCP, Agents, and automations.
+- [x] Masked Settings view.
+- [x] Empty/error states and per-section failure isolation.
+- [x] Loopback-only HTTP, exact routes, Host/Origin validation, bounded snapshots, and read-only API.
 - [ ] Habit tracking panel.
-- [ ] Project progress panel.
-- [ ] AI suggestions panel.
+- [ ] Dedicated project-progress panel.
+- [ ] AI-suggestion panel.
 
-## 9. Browser And Local Automation
+Browser-authored state mutation and remote Dashboard hosting are intentionally outside the current version.
 
-Current status: `[ ]` Not started.
+## 9. Browser and Local Automation
 
-- [ ] Browser automation adapter.
-- [ ] GitHub project inspection workflow.
-- [ ] README/report generation workflow.
-- [ ] Local command execution with explicit permission checks.
-- [ ] Audit log for automated actions.
+Current status: `[x]` Named permissioned automation completed.
 
-## 10. Long-Term Multimodal And Embodied Interfaces
+- [x] Fixed-URL browser adapter with mandatory matching host allowlist.
+- [x] Read-only GitHub project inspection workflow.
+- [x] Deterministic Markdown status-report workflow.
+- [x] Fixed command argument-vector execution with `shell=False`.
+- [x] Existing allowed-root boundaries for command working directories and report paths.
+- [x] Bounded timeout, process-tree termination, and captured output.
+- [x] deny/ask/allow policies with one-shot `--approve`.
+- [x] No caller-supplied argument suffix or environment.
+- [x] Bounded secret-safe durable audit with corrupt-tail tolerance.
+- [x] CLI set/list/run/remove/audit operations with masked definitions.
+
+Arbitrary LLM-authored commands and unattended ask-policy actions are intentionally unsupported.
+
+## 10. Long-Term Multimodal and Embodied Interfaces
 
 Current status: `[ ]` Research direction, not started.
 
-- [ ] Voice input and speech output.
+- [ ] Voice input, wake-word flow, and speech output.
 - [ ] Permissioned visual context.
 - [ ] Smart-home adapters and family profiles.
 - [ ] Robotics adapter with simulation-first safety controls.
-- [ ] Research companion workflows for literature, code, and experiments.
+- [ ] Deeper research-companion workflows for literature, code, and experiments.
 
-These interfaces should reuse the same Nexus memory, planning, permission, and tool layers. They are not current capabilities and should not be presented as AGI.
+These interfaces should reuse the existing memory, planning, runtime, permission, configuration-transaction, and audit layers. They are not current AGI capabilities.
 
 ## Maintenance Rules
 
-- [ ] After every important feature, update this checklist.
-- [ ] After every new important file, update `docs/file_inventory.md`.
-- [ ] After every user-facing feature, update both `README.md` and `README_zh.md`.
-- [ ] Run tests before committing when possible.
-- [ ] Ask the user whether to push, unless the user explicitly asked to push in the current request.
-- [ ] Never commit API keys or local secret config files.
+- [ ] Update this checklist after every important feature.
+- [ ] Update `docs/file_inventory.md` after every important file change.
+- [ ] Keep `README.md` and `README_zh.md` synchronized for user-facing changes.
+- [ ] Run relevant tests and release checks before committing.
+- [ ] Ask whether to push unless the user already requested a push.
+- [ ] Never commit API keys or any file under `.nexus/`.

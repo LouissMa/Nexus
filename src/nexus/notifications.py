@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterator, Mapping
 from urllib import request
 from zoneinfo import ZoneInfo
 
+from .file_lock import path_transaction
 from .runtime_config import ProfileSettings, RuntimeSettings
 
 
@@ -33,8 +34,16 @@ class NotificationCenter:
     MAX_WEBHOOK_PAYLOAD_BYTES = 8_192
     WEBHOOK_TIMEOUT_SECONDS = 5.0
     TAIL_READ_BYTES = 64 * 1024
+    MAX_RECORD_BYTES = 16 * 1024
 
-    _SECRET_KEY_PARTS = ("api_key", "authorization", "password", "secret", "token", "url")
+    _SECRET_KEY_PARTS = (
+        "api_key",
+        "authorization",
+        "password",
+        "secret",
+        "token",
+        "url",
+    )
     _URL_PATTERN = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
     _BEARER_PATTERN = re.compile(r"(Bearer\s+)\S+", re.IGNORECASE)
     _ASSIGNMENT_PATTERN = re.compile(
@@ -72,7 +81,7 @@ class NotificationCenter:
         urgency: str = "normal",
         metadata: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        with self._lock:
+        with self._lock, path_transaction(self.path):
             return self._publish_locked(
                 kind, title, body, urgency=urgency, metadata=metadata
             )
@@ -103,7 +112,9 @@ class NotificationCenter:
                     "state": "delivered" if self.runtime.inbox_enabled else "disabled"
                 },
                 "console": {
-                    "state": external_state if self.runtime.console_enabled else "disabled"
+                    "state": external_state
+                    if self.runtime.console_enabled
+                    else "disabled"
                 },
                 "webhook": {
                     "state": external_state if self.runtime.webhook_url else "disabled"
@@ -122,7 +133,7 @@ class NotificationCenter:
         return record
 
     def flush_deferred(self) -> list[dict[str, Any]]:
-        with self._lock:
+        with self._lock, path_transaction(self.path):
             return self._flush_deferred_locked()
 
     def _flush_deferred_locked(self) -> list[dict[str, Any]]:
@@ -130,8 +141,7 @@ class NotificationCenter:
             return []
 
         records = [
-            record for record in self._iter_records()
-            if self._deferred_channels(record)
+            record for record in self._iter_records() if self._deferred_channels(record)
         ]
         flushed: list[dict[str, Any]] = []
         for record in records:
@@ -141,7 +151,7 @@ class NotificationCenter:
         return flushed
 
     def recent(self, limit: int = 50) -> list[dict[str, Any]]:
-        with self._lock:
+        with self._lock, path_transaction(self.path):
             return self._recent_locked(limit)
 
     def _recent_locked(self, limit: int) -> list[dict[str, Any]]:
@@ -153,20 +163,36 @@ class NotificationCenter:
                 handle.seek(0, os.SEEK_END)
                 position = handle.tell()
                 partial = b""
+                discarding_oversized = False
                 while position > 0 and len(newest) < limit:
                     size = min(self.TAIL_READ_BYTES, position)
                     position -= size
                     handle.seek(position)
-                    partial = handle.read(size) + partial
-                    lines = partial.split(b"\n")
+                    chunk = handle.read(size)
+                    if discarding_oversized:
+                        boundary = chunk.rfind(b"\n")
+                        if boundary < 0:
+                            continue
+                        chunk = chunk[:boundary]
+                        discarding_oversized = False
+                    combined = chunk + partial
+                    lines = combined.split(b"\n")
                     partial = lines[0]
+                    if len(partial) > self.MAX_RECORD_BYTES:
+                        partial = b""
+                        discarding_oversized = True
                     for raw_line in reversed(lines[1:]):
                         record = self._decode_record(raw_line)
                         if record is not None:
                             newest.append(record)
                             if len(newest) >= limit:
                                 break
-                if position == 0 and len(newest) < limit and partial:
+                if (
+                    position == 0
+                    and len(newest) < limit
+                    and partial
+                    and not discarding_oversized
+                ):
                     record = self._decode_record(partial)
                     if record is not None:
                         newest.append(record)
@@ -174,8 +200,10 @@ class NotificationCenter:
             return []
         return list(reversed(newest[:limit]))
 
-    @staticmethod
-    def _decode_record(raw_line: bytes) -> dict[str, Any] | None:
+    @classmethod
+    def _decode_record(cls, raw_line: bytes) -> dict[str, Any] | None:
+        if len(raw_line) > cls.MAX_RECORD_BYTES:
+            return None
         try:
             record = json.loads(raw_line.decode("utf-8"))
         except (UnicodeDecodeError, TypeError, json.JSONDecodeError):
@@ -183,6 +211,7 @@ class NotificationCenter:
         if isinstance(record, dict) and isinstance(record.get("id"), str):
             return record
         return None
+
     def is_quiet_time(self, now: datetime | None = None) -> bool:
         start = self.runtime.quiet_hours_start
         end = self.runtime.quiet_hours_end
@@ -199,7 +228,9 @@ class NotificationCenter:
             return start_minute <= minute < end_minute
         return minute >= start_minute or minute < end_minute
 
-    def _deliver_initial_channels(self, record: dict[str, Any], *, defer_external: bool) -> None:
+    def _deliver_initial_channels(
+        self, record: dict[str, Any], *, defer_external: bool
+    ) -> None:
         if self.runtime.console_enabled:
             if defer_external:
                 record["delivery"]["console"] = {"state": "deferred"}
@@ -238,6 +269,7 @@ class NotificationCenter:
             record["delivery"][channel] = {"state": "delivered"}
         record["status"] = self._status_for(record)
         self._replace_record(record)
+
     def _append(self, record: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         encoded = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
@@ -250,46 +282,60 @@ class NotificationCenter:
         if not self.path.exists():
             return
         temporary = self.path.with_name(f"{self.path.name}.{uuid.uuid4().hex}.tmp")
+        encoded_update = json.dumps(
+            updated, ensure_ascii=False, separators=(",", ":")
+        ).encode("utf-8")
+        if len(encoded_update) > self.MAX_RECORD_BYTES:
+            raise ValueError("Notification record exceeds the persistence limit.")
         changed = False
-        with self.path.open("r", encoding="utf-8") as source, temporary.open(
-            "w", encoding="utf-8"
-        ) as handle:
-            for line in source:
-                replacement = line
-                try:
-                    record = json.loads(line)
-                except (TypeError, json.JSONDecodeError):
-                    record = None
-                if isinstance(record, dict) and record.get("id") == updated.get("id"):
-                    replacement = (
-                        json.dumps(updated, ensure_ascii=False, separators=(",", ":"))
-                        + "\n"
-                    )
-                    changed = True
-                handle.write(replacement)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if changed:
-            os.replace(temporary, self.path)
-        else:
+        try:
+            with temporary.open("xb") as handle:
+                for raw_line in self._iter_bounded_lines():
+                    record = self._decode_record(raw_line)
+                    replacement = raw_line
+                    if record is not None and record.get("id") == updated.get("id"):
+                        replacement = encoded_update
+                        changed = True
+                    handle.write(replacement + b"\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            if changed:
+                os.replace(temporary, self.path)
+        finally:
             temporary.unlink(missing_ok=True)
+
     def _webhook_payload(self, record: dict[str, Any]) -> dict[str, Any]:
         payload = {
             key: record[key]
-            for key in ("id", "kind", "title", "body", "created_at", "urgency", "metadata")
+            for key in (
+                "id",
+                "kind",
+                "title",
+                "body",
+                "created_at",
+                "urgency",
+                "metadata",
+            )
         }
         payload["idempotency_key"] = record["id"]
-        encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
         if len(encoded) <= self.MAX_WEBHOOK_PAYLOAD_BYTES:
             return payload
         body = str(payload["body"])
         while body and len(encoded) > self.MAX_WEBHOOK_PAYLOAD_BYTES:
             body = body[: max(0, len(body) - 128)]
             payload["body"] = body
-            encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            encoded = json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":")
+            ).encode("utf-8")
         return payload
+
     def _post_webhook(self, url: str, payload: dict[str, Any], timeout: float) -> None:
-        encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
         http_request = request.Request(
             url,
             data=encoded,
@@ -302,11 +348,14 @@ class NotificationCenter:
         )
         with request.urlopen(http_request, timeout=timeout) as response:
             response.read(1)
+
     def _safe_metadata(self, metadata: Mapping[str, Any] | None) -> dict[str, Any]:
         if metadata is None:
             return {}
         sanitized = self._sanitize_value(dict(metadata))
-        encoded = json.dumps(sanitized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        encoded = json.dumps(
+            sanitized, ensure_ascii=False, separators=(",", ":")
+        ).encode("utf-8")
         if len(encoded) > self.MAX_METADATA_BYTES:
             return {"truncated": True}
         return sanitized
@@ -317,7 +366,9 @@ class NotificationCenter:
             return "***"
         if isinstance(value, Mapping):
             return {
-                self._bounded_text(str(item_key), 100): self._sanitize_value(item, str(item_key))
+                self._bounded_text(str(item_key), 100): self._sanitize_value(
+                    item, str(item_key)
+                )
                 for item_key, item in value.items()
             }
         if isinstance(value, (list, tuple)):
@@ -330,7 +381,9 @@ class NotificationCenter:
 
     def _status_for(self, record: Mapping[str, Any]) -> str:
         delivery = record["delivery"]
-        states = [item.get("state") for item in delivery.values() if isinstance(item, dict)]
+        states = [
+            item.get("state") for item in delivery.values() if isinstance(item, dict)
+        ]
         if "failed" in states:
             return "partial"
         if "delivering" in states or "pending" in states:
@@ -342,17 +395,46 @@ class NotificationCenter:
         return "stored"
 
     def _iter_records(self) -> Iterator[dict[str, Any]]:
+        for raw_line in self._iter_bounded_lines():
+            record = self._decode_record(raw_line)
+            if record is not None:
+                yield record
+
+    def _iter_bounded_lines(self) -> Iterator[bytes]:
         if not self.path.exists():
             return
+        pending = b""
+        discarding_oversized = False
         try:
-            with self.path.open("r", encoding="utf-8") as handle:
-                for line in handle:
-                    try:
-                        record = json.loads(line)
-                    except (TypeError, json.JSONDecodeError):
+            with self.path.open("rb") as handle:
+                while chunk := handle.read(self.TAIL_READ_BYTES):
+                    parts = chunk.split(b"\n")
+                    if len(parts) == 1:
+                        if not discarding_oversized:
+                            pending += chunk
+                            if len(pending) > self.MAX_RECORD_BYTES:
+                                pending = b""
+                                discarding_oversized = True
                         continue
-                    if isinstance(record, dict) and isinstance(record.get("id"), str):
-                        yield record
+
+                    if not discarding_oversized:
+                        first = pending + parts[0]
+                        if len(first) <= self.MAX_RECORD_BYTES:
+                            yield first
+                    pending = b""
+                    discarding_oversized = False
+
+                    for raw_line in parts[1:-1]:
+                        if len(raw_line) <= self.MAX_RECORD_BYTES:
+                            yield raw_line
+
+                    tail = parts[-1]
+                    if len(tail) > self.MAX_RECORD_BYTES:
+                        discarding_oversized = True
+                    else:
+                        pending = tail
+                if pending and not discarding_oversized:
+                    yield pending
         except OSError:
             return
 

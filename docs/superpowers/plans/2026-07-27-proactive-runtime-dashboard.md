@@ -1,4 +1,4 @@
-﻿# Proactive Runtime and Dashboard Implementation Plan
+# Proactive Runtime and Dashboard Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -152,18 +152,18 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 **Interfaces:**
 - Produces: complete Phase 10 user and maintainer documentation.
 
-- [ ] Document setup, runtime lifecycle, quiet hours, Dashboard URL, automation
+- [x] Document setup, runtime lifecycle, quiet hours, Dashboard URL, automation
   policies, security boundaries, and current feature list in both languages.
-- [ ] Mark Phase 10 checklist items accurately and register every important
+- [x] Mark Phase 10 checklist items accurately and register every important
   new file.
-- [ ] Run Phase 10 tests, the full test suite, Ruff, AST parsing, and
+- [x] Run Phase 10 tests, the full test suite, Ruff, AST parsing, and
   `git diff --check`.
-- [ ] Start the dashboard and verify desktop/mobile screenshots and layout
+- [x] Start the dashboard and verify desktop/mobile screenshots and layout
   behavior with Playwright.
-- [ ] Scan tracked release files for API-key-shaped secrets.
-- [ ] Request independent code review, fix findings with regression tests, and
+- [x] Scan tracked release files for API-key-shaped secrets.
+- [x] Request independent code review, fix findings with regression tests, and
   repeat verification.
-- [ ] Commit all completed work and push `main` to GitHub.
+- [x] Commit all completed work and push `main` to GitHub.
 
 
 

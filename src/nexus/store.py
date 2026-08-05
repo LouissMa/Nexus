@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
+from .file_lock import path_transaction
+
 
 DEFAULT_STATE = {
     "memories": [],
@@ -64,7 +66,7 @@ class JsonStore:
         return cls(root / "state.json")
 
     def load(self) -> StoreState:
-        with _shared_path_lock(self.path):
+        with _shared_path_lock(self.path), path_transaction(self.path):
             payload = self._read_payload()
         if payload is None:
             state = self._default_state()
@@ -75,7 +77,7 @@ class JsonStore:
 
     def save(self, state: dict[str, Any]) -> None:
         expected_revision = getattr(state, "revision", _MISSING_REVISION)
-        with _shared_path_lock(self.path):
+        with _shared_path_lock(self.path), path_transaction(self.path):
             current_payload = self._read_payload()
             current_revision = (
                 self._revision(current_payload) if current_payload is not None else None

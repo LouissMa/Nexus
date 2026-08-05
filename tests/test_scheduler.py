@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
@@ -12,6 +14,18 @@ import pytest
 from nexus.runtime_config import ProfileSettings, RuntimeSettings
 from nexus.scheduler import ProactiveScheduler
 from nexus.store import JsonStore, StateConflictError
+
+
+def _mutate_store_process(path: str, marker: str, barrier: Any) -> None:
+    store = JsonStore(Path(path))
+    barrier.wait()
+
+    def mutation(state: dict[str, Any]) -> None:
+        time.sleep(0.05)
+        if not any(goal.get("id") == marker for goal in state["goals"]):
+            state["goals"].append({"id": marker})
+
+    store.mutate(mutation, retries=5)
 
 
 class RecordingNotifications:
@@ -650,6 +664,27 @@ def test_store_rejects_stale_snapshot_when_same_top_level_key_changed(
 
     persisted = store.load()
     assert persisted["goals"] == [{"id": "concurrent-goal"}]
+
+
+def test_store_mutations_are_atomic_across_processes(tmp_path: Path) -> None:
+    path = tmp_path / "state.json"
+    context = multiprocessing.get_context("spawn")
+    barrier = context.Barrier(2)
+    processes = [
+        context.Process(target=_mutate_store_process, args=(str(path), marker, barrier))
+        for marker in ("process-a", "process-b")
+    ]
+
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(10)
+
+    assert [process.exitcode for process in processes] == [0, 0]
+    assert {goal["id"] for goal in JsonStore(path).load()["goals"]} == {
+        "process-a",
+        "process-b",
+    }
 
 
 def test_store_merges_stale_goal_save_with_concurrent_runtime_change(

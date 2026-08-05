@@ -1,8 +1,8 @@
 # Nexus / LifeAgent：你的个人 AI 管家
 
-> **一个具备长期记忆、规划和复盘能力的主动型个人 AI 助手。**
+> **一个具备长期记忆、规划、复盘和受控执行能力的主动型、本地优先个人 AI 助手。**
 
-Nexus 是一个开源、本地优先的个人 AI 助手。它会记住目标、检索相关上下文、协调专职 Agent、连接获得授权的真实工具，并帮助用户复盘和采取行动。
+Nexus 会记住目标和生活上下文，生成每日计划，按时运行简报与复盘，协调有明确边界的专职 Agent，并且只连接你显式授权的工具。
 
 [English](./README.md) | [中文](./README_zh.md)
 
@@ -10,346 +10,239 @@ Nexus 是一个开源、本地优先的个人 AI 助手。它会记住目标、�
 
 ## 项目定位
 
-大多数 AI 助手都是被动的：用户提问，它才回答。
+大多数助手会等待用户提问。Nexus 的目标是成为一个可靠的个人 AI 核心，在合适的时间记忆、规划、提醒、复盘，并执行已经命名和授权的动作。
 
-Nexus 不同：它的目标是记忆、规划、提醒、复盘，并在获得授权后通过工具执行任务。
-
-当前项目首先专注于构建可靠的个人助手核心：记忆、目标、规划、复盘和可选的 LLM 生成。
-
-长期来看，这个核心可以发展成由 CLI、网页、语音和视觉界面共享的 **Personal AI Operating System**。在明确授权和安全边界下，未来可以连接数字工具、家庭设备和机器人系统。这些是长期方向，不是当前已经实现的能力。
+长期方向是构建由 CLI、网页、语音和未来具身接口共享的 Personal AI Operating System。当前版本不是 AGI，而是一个本地运行、权限边界明确的个人助手。
 
 ## 当前功能
 
-- **记忆系统**：添加、查看、更新、关联、关键词搜索和 RAG 检索长期记忆。
-- **RAG 2.0 长期记忆**：支持真实神经网络 Embedding、Qdrant 持久化、稠密+稀疏混合检索、重新索引与离线降级。
-- **高级记忆生命周期**：支持重要性评分、重复合并、冲突/替代关系、压缩归档、隐私与过期规则，以及可解释的上下文重排。
-- **受权限控制的真实工具**：读取实时天气、iCalendar 日程、Todoist、GitHub、Notion、IMAP 邮件头和授权目录中的本地文件。
-- **MCP 工具调用**：配置 stdio 或 Streamable HTTP MCP Server，发现工具 Schema，应用 deny/ask/allow 权限，调用与审计工具，并为每日规划补充上下文。
-- **多 Agent 协作**：通过有预算约束的 Memory、Tool、Planner、Reflection 和 Coach Agent 完成规划、复盘和简报，并保留隐私安全的运行轨迹。
-- **目标追踪**：添加目标，设置描述和检查周期。
-- **目标打卡**：记录目标进展。
-- **主动复盘**：发现长期未推进的目标并生成提醒。
-- **每日规划**：把活跃的长期目标拆解为今天可执行、可持久化的优先任务。
-- **结构化任务追踪**：更新任务状态、阻碍、未解决事项和进展备注。
-- **晚间复盘 / Reflection**：汇总今日推进、任务结果、阻碍、RAG 记忆和明日优先事项。
-- **Coach 模式**：规划和复盘支持严格、温柔、学术、创业四种模式。
-- **早晨简报**：根据目标、提醒、天气文本和记忆生成模板简报。
-- **LLM 智能简报**：可选调用 OpenAI-compatible LLM 生成更自然的简报。
-- **LLM Provider 配置**：本地保存 provider、模型和 simple/complex 模型层级。
-- **Prompt 查看**：使用 `--show-prompt` 查看 LLM 上下文。
-- **本地存储**：默认保存到 `.nexus/state.json`。
+- 长期记忆：搜索、语义 RAG、Qdrant 持久化、Re-index、生命周期、隐私、过期、压缩和可解释重排。
+- 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。
+- 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
+- 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头和受目录约束的文件系统集成。
+- 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
+- 有预算与降级机制的 Memory、Tool、Planner、Reflection、Coach Agent 协作，以及隐私安全轨迹。
+- 按用户 IANA 时区主动运行早晨简报、晚间复盘和静默目标提醒。
+- 持久化通知收件箱、可选控制台/Webhook 投递，以及普通或跨夜免打扰时段。
+- 响应式只读 Dashboard：Today、Goals、Memory、Activity 和脱敏 Settings。
+- 受策略控制的命名自动化：固定网页、固定命令、GitHub 检查和 Markdown 状态报告。
 
 ## 快速开始
 
+安装核心包并创建本地用户配置：
+
 ```bash
 python -m pip install -e .
-
-nexus memory add "Louis 正在准备 IELTS，并计划申请海外 CS/AI 硕士。" --tags 身份 学习
-nexus memory add "Louis 正在开发 Nexus，希望把它做成个人 AI 管家。" --tags 项目 Nexus
-nexus goal add "IELTS 听力训练" --description "完成一次专注听力训练" --cadence-days 1
-nexus goal add "开发 Nexus" --description "完成早晨简报模块" --cadence-days 2
-nexus briefing --name Louis --weather "天气晴，最高 25 C"
+nexus config profile set --name Alex --timezone Asia/Shanghai
+nexus config profile show
 ```
 
-## RAG 2.0 长期记忆
-
-Nexus 现在已经支持面向生产演进的语义检索，同时保留无需额外依赖的离线降级能力。
-
-安装本地 RAG 可选依赖：
+添加上下文并创建今日计划：
 
 ```bash
-python -m pip install -e ".[rag]"
+nexus memory add "Alex 正在准备 IELTS。" --tags 学习 考试
+nexus goal add "IELTS 听力" --description "完成一次专注训练" --cadence-days 1
+nexus plan day --name Alex --coach-mode academic
+nexus task list
+nexus briefing --name Alex --weather "天气晴，最高 25 C"
+nexus review day --name Alex
+```
+
+这些本地流程不需要 API key。
+
+## 记忆、工具、MCP 与 Agent
+
+按需安装本地语义检索和工具依赖：
+
+```bash
+python -m pip install -e ".[rag,tools,mcp]"
 nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 nexus memory reindex
-nexus memory index-status
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --pin
-nexus memory compress --dry-run
-nexus memory maintain --dry-run
-nexus memory retrieve "语言考试准备" --limit 3
+nexus memory retrieve "考试准备" --limit 5
 ```
 
-FastEmbed 在本地运行，不需要 API key；首次使用时会下载模型。向量由 Qdrant 持久化到 `.nexus/qdrant/`，该目录已被 Git 忽略。
+FastEmbed 和本地 Qdrant 不需要 API key。托管 Embedding 和远程服务需要各自的凭据。
 
-也可以使用 OpenAI 或其他 OpenAI-compatible Embedding 服务：
-
-```bash
-nexus config embedding set --provider openai --api-key "你的 key"
-nexus config embedding set --provider custom --base-url "https://provider.example/v1" --model "embedding-model" --api-key "你的 key"
-```
-
-检索流程会融合稠密语义分数与本地稀疏分数。Embedding 模型、API 或向量库不可用时，Nexus 会在检索元数据中报告错误，并自动退回本地 sparse retrieval。新增记忆会增量写入索引；更换 Provider/模型或迁移旧记忆后，应运行 `nexus memory reindex`。
-
-RAG 2.0 已完成神经网络 Embedding、向量持久化、Re-index、混合检索、状态元数据与降级机制。Phase 9 在此基础上增加了完整的本地记忆生命周期。
-
-## 高级长期记忆
-
-新增记忆会在不调用 LLM 的情况下获得确定性重要性评分，并进行精确/近似重复检测。用户可以覆盖重要性、固定记忆、选择 `private`、`personal` 或 `shared` 隐私范围、设置过期时间，并显式记录 `supersedes` 或 `conflicts_with` 关系。
-
-```bash
-nexus memory add "IELTS 考试改到十月" --tags 考试 --importance 0.9 --privacy personal --pin
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --expires-at 2027-01-01T00:00:00+00:00
-nexus memory relate <new_id> --supersedes <old_id>
-nexus memory archive <memory_id>
-nexus memory restore <memory_id>
-nexus memory forget <memory_id>
-nexus memory purge <memory_id> --confirm
-nexus memory compress --older-than-days 90 --max-importance 0.4 --dry-run
-nexus memory maintain --dry-run
-```
-
-精确重复会增加原记录的观察次数，不再创建新记录；近似重复通过 `duplicate_of` 保留可检查关系。压缩会生成长度受限的确定性摘要并归档来源，`--dry-run` 会先列出所有受影响 ID。摘要不会混合不同隐私范围，会继承来源中最早的过期时间；任一来源被显式遗忘时，其派生摘要也会被遗忘；之后修改来源隐私/过期时间会同步到摘要，派生摘要的隐私/过期/pin 不能被直接覆盖，永久清除来源会递归移除派生摘要。归档与遗忘均可恢复；永久清除只接受已遗忘记忆，而且必须显式传入 `--confirm`。
-
-检索会排除已遗忘和已过期记忆，默认排除归档记忆，拒绝向量库中的陈旧 ID，并按相关性 70%、有效重要性 15%、时间新近度 10%、任务/标签上下文 5% 进行重排。每条结果都会返回各项分数。以上生命周期功能完全在本地运行，不需要 API key。 如果新增或修改 JSON 状态成功但语义索引刷新失败，命令会返回 `status: partial` 和安全的 `index_sync` 错误元数据；JSON 权威过滤仍会阻止陈旧向量被召回。
-
-## 真实工具集成
-
-安装日历所需的可选依赖：
-
-```bash
-python -m pip install -e ".[tools]"
-```
-
-只配置并启用你希望 Nexus 使用的工具：
+只配置你希望使用的只读集成：
 
 ```bash
 nexus config tool set weather --location "Shanghai"
-nexus config tool set calendar --calendar-url "https://calendar.example/private.ics"
-nexus config tool set todo --token "你的 Todoist token"
-nexus config tool set github --repo "LouissMa/Nexus"
-nexus config tool set notion --token "你的 Notion token"
-nexus config tool set email --host "imap.example.com" --username "you@example.com" --password "应用专用密码" --mailbox INBOX
-nexus config tool set filesystem --root "D:/AI_Projects/Nexus"
+nexus config tool set github --repo "example/project"
+nexus config tool set filesystem --root "/path/to/project"
 nexus config tool show
-```
-
-私有仓库或需要更高 API 限额时，再使用 `--token "你的 GitHub token"` 重新配置 GitHub。
-
-显式调用工具：
-
-```bash
-nexus tool weather
-nexus tool calendar --days 2
-nexus tool todo --limit 20
-nexus tool github --limit 10
-nexus tool notion --query "科研"
-nexus tool email --limit 10
-nexus tool files list .
-nexus tool files read README_zh.md
-nexus tool files search . --query "RAG"
+nexus briefing --name Alex --live-tools
 nexus tool audit --limit 20
 ```
 
-让早晨简报自动聚合已经配置的天气、日历和 Todoist 数据：
+配置 MCP Server，并显式批准工具：
 
 ```bash
-nexus briefing --name Louis --live-tools
-nexus briefing --name Louis --live-tools --llm
-```
-
-安全边界：
-
-- 每个工具都必须由用户显式配置和启用。
-- Phase 6 的集成仍然保持只读。MCP Server 可能暴露写操作，因此 Nexus 会使用 deny/ask/allow 策略控制每个 MCP 工具。
-- IMAP 邮箱以只读模式打开，只返回邮件头信息。
-- 文件系统只能访问已配置的根目录，并拒绝目录穿越和根目录之外的路径。
-- 日历订阅地址、Token 和密码只保存在被 Git 忽略的本地配置中，CLI 输出会自动脱敏。
-- 每次成功或失败调用都会写入被 Git 忽略的 `.nexus/tool_audit.jsonl`。
-- 使用 `nexus config tool disable <tool>` 可以撤销工具权限，同时保留本地配置。
-
-## MCP 工具调用
-
-安装官方稳定版 MCP Python SDK：
-
-```bash
-python -m pip install -e ".[mcp]"
-```
-
-配置本地 stdio Server 或远程 Streamable HTTP Server：
-
-```bash
-nexus config mcp add research --transport stdio --command python --arg path/to/mcp_server.py
-nexus config mcp add remote --transport streamable_http --url "https://mcp.example/mcp" --header "Authorization=Bearer your-token"
-nexus config mcp show
-```
-
-发现工具 Schema，并配置每个工具的权限：
-
-```bash
-nexus mcp servers
+nexus config mcp add research --transport stdio --command python --arg path/to/server.py
 nexus mcp tools research
 nexus config mcp policy research search ask
-nexus mcp call research search --arguments '{"query":"MCP 科研资料"}' --approve
+nexus mcp call research search --arguments '{"query":"科研笔记"}' --approve
 nexus mcp audit --limit 20
 ```
 
-权限策略包括 `deny`、`ask` 和 `allow`。未配置策略的工具默认使用 `ask`，每次调用都需要显式传入一次性的 `--approve`。连接或传输故障支持有限重试；MCP Server 明确返回的工具错误不会重试，因为工具可能包含副作用。
-
-如需让每日规划使用 MCP 上下文，必须显式绑定工具并将其策略设置为 `allow`：
-
-```bash
-nexus config mcp policy research search allow
-nexus config mcp planning-tool research search --arguments '{"query":"今天的科研重点"}'
-nexus plan day --name Louis --live-mcp
-```
-
-Planning 只执行显式配置的 `planning-tool`，并且其权限必须为 `allow`。成功结果和失败信息都会写入返回值中的 `mcp_context`；某个 Server 失败不会阻止本地计划生成。Server 配置保存在被 Git 忽略的 `.nexus/config.local.json`，CLI 会隐藏 URL、Header 和环境变量中的秘密，MCP 审计记录保存在被忽略的 `.nexus/mcp_audit.jsonl`。
-
-
-
-## 多 Agent 协作
-
-Phase 8 在保留全部原有本地命令的前提下，增加可选的 Agent 执行层：
+Agent 模式保持可选且有明确预算：
 
 ```bash
 nexus plan day --agents --coach-mode startup
 nexus review day --agents --coach-mode academic
 nexus briefing --agents --live-tools
-nexus briefing --agents --llm --model-tier complex
 nexus agent runs --limit 10
-nexus agent show <run_id>
 ```
 
-规划和简报执行 `Memory -> Tool -> Planner -> Coach`，每日复盘执行 `Memory -> Reflection -> Coach`。不配置 API key 也可以运行 Agent 模式；加上 `--llm` 后，已配置的模型可以从获准的 MCP 候选工具中选择，并生成最终的 Coach 回复。
+Tool Agent 只能自主选择已经启用且策略明确为 `allow` 的 MCP 工具。专职 Agent 失败时会降级到本地流程。
 
-每次运行最多执行 8 个 Agent 步骤、3 次 LLM 调用和 3 次 MCP 调用，并共享 60 秒截止时间。生产环境中的 MCP 与 LLM timeout 会压缩到剩余时间，每个专职 Agent 返回后还会再次检查截止时间。Tool Agent 只能自主调用已启用且策略明确为 `allow` 的 MCP 工具，绝不会在无人确认时执行 `ask` 或 `deny` 工具。任一专职 Agent 失败时，系统会退回原有本地规划、复盘或简报，而不是让整个工作流失败。
+## 主动运行时、Dashboard 与自动化
 
-隐私安全的轨迹保存在被 Git 忽略的 `.nexus/agent_runs.jsonl`。轨迹包含步骤顺序、状态、耗时、预算使用、检索元数据和工具名称，但不保存 Prompt、记忆正文、原始工具结果、凭据或工具参数值。
-## 每日规划与复盘
-
-根据活跃的长期目标生成今日计划：
+Runtime Job 默认关闭，只有显式配置后才会运行。配置三个任务、本地时间和免打扰时段：
 
 ```bash
-nexus plan day --name Louis --coach-mode academic
-nexus plan day --agents --coach-mode startup
-nexus plan day --llm --model-tier complex --show-prompt
+nexus config runtime set \
+  --job morning_briefing \
+  --job evening_review \
+  --job stale_goal_reminders \
+  --morning-time 08:00 \
+  --evening-time 21:30 \
+  --reminder-time 12:00 \
+  --quiet-hours 23:00 07:00 \
+  --console
+nexus config runtime show
 ```
 
-当天第一次运行会生成最多三个优先任务，并保存到 `.nexus/state.json`。同一天重复运行会返回原有任务，不会重复创建。
+可选的 `--use-llm`、`--live-tools` 和 `--agents` 开关会让定时任务复用已经配置好的 Provider、工具权限和 Agent 流程。
 
-追踪执行状态和复盘信息：
+查看或运行调度器：
 
 ```bash
-nexus task list
-nexus task update <task_id> --status in_progress --note "开始第一组练习"
-nexus task update <task_id> --blocker "需要日历权限" --unresolved "明天重新安排此任务"
-nexus task update <task_id> --status completed
-nexus review day --name Louis --coach-mode strict
+nexus runtime status
+nexus runtime tick
+nexus runtime run morning_briefing
+nexus runtime run evening_review
+nexus runtime run stale_goal_reminders
+nexus runtime start
 ```
 
-填写 `--blocker` 后，任务会自动变为 `blocked`。晚间复盘会把阻塞任务和未解决事项放入明日优先级。Coach 模式包括 `strict`、`gentle`、`academic` 和 `startup`。
+普通定时任务会在执行前按 `job + 本地日期` 占用当日执行权，重启后不会重复发送。`runtime run` 是显式手动执行和重试入口。
 
-## LLM 使用说明
-
-普通本地功能不需要 API key：记忆、目标、每日规划、任务更新、打卡、主动/晚间复盘、模板简报和本地 RAG 检索都可以直接运行。
-
-只有使用 LLM 功能时才需要 API key，例如：
+每条消息都会先写入本地收件箱，再尝试控制台或 Webhook 投递。免打扰时段只延后非紧急外部投递，不会丢失收件箱记录。
 
 ```bash
-nexus briefing --llm
+nexus notifications list --limit 20
+nexus notifications flush
 ```
 
-不要把 API key 提交到 GitHub。
-
-## 本地 LLM 配置
-
-为了方便测试项目，可以把 provider 和模型设置保存到本地：
+查看隐私过滤后的 Snapshot，或启动 Dashboard：
 
 ```bash
-nexus config llm set --provider deepseek --api-key "你的 key" --simple-model v4flash --complex-model v4pro --default-tier simple
+nexus dashboard snapshot
+nexus dashboard serve
+# 打开 http://127.0.0.1:8765
+```
+
+第一版 Dashboard 是只读的。Today 展示定时任务、今日任务、提醒和最近的简报/复盘；其他视图展示活跃目标、可检索记忆、受限活动摘要和脱敏配置。
+
+自动化以命名 JSON Definition 保存。新 Definition 默认使用 `ask`，运行时必须传入一次性的 `--approve`。
+
+```bash
+nexus automation set project-home --definition '{"type":"browser","url":"https://github.com/example/project","allowed_hosts":["github.com"],"policy":"ask"}'
+nexus automation set repo-check --definition '{"type":"github_inspect","repo":"example/project","limit":20,"policy":"ask"}'
+nexus automation set git-status --definition '{"type":"command","argv":["git","status","--short"],"cwd":".","allowed_roots":["."],"timeout_seconds":30,"max_output_bytes":65536,"policy":"ask"}'
+nexus automation set status-report --definition '{"type":"status_report","output_path":"./nexus-status.md","allowed_roots":["."],"policy":"ask"}'
+nexus automation list
+nexus automation run project-home --approve
+nexus automation run status-report --approve
+nexus automation audit --limit 20
+nexus automation remove project-home
+```
+
+支持的类型是 `browser`、`command`、`github_inspect` 和 `status_report`。Definition 在配置时固定，调用者不能在运行时追加任意参数或替换目标。
+
+## API Key 与本地配置
+
+本地记忆、目标、规划、任务更新、打卡、确定性简报/复盘、主动调度、通知收件箱、Dashboard、本地稀疏检索、FastEmbed、确定性报告和本地网页/命令自动化都不需要 API key。
+
+只有选择需要访问外部 Provider 的功能时才需要凭据：
+
+- LLM 生成，包括配置了 `--use-llm` 的定时任务。
+- 托管 Embedding Endpoint 或远程 Qdrant。
+- 需要身份认证的外部集成，例如 Todoist、私有 GitHub、Notion、IMAP 或私有日历订阅。Open-Meteo 和公开 GitHub 访问可以不使用凭据。
+- 需要身份认证的远程 MCP Server。
+
+LLM 配置示例：
+
+```bash
+nexus config llm set --provider custom --base-url "https://provider.example/v1" --api-key "<api-key>" --simple-model "<fast-model>" --complex-model "<strong-model>"
 nexus config llm show
-nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-nexus config embedding show
-```
-
-配置文件默认保存到：
-
-```text
-.nexus/config.local.json
-```
-
-这个文件已经被 Git 忽略。CLI 输出时 API key 会自动脱敏。
-
-模型层级建议：
-
-- `simple`：便宜、快，适合简报、短总结、简单建议。
-- `complex`：更强，适合规划、深度复盘、架构/代码分析、多 Agent 决策。
-
-```bash
 nexus briefing --llm --model-tier simple
-nexus briefing --llm --model-tier complex
 ```
 
-## CLI 命令
+本地配置保存在 `.nexus/config.local.json`。CLI 和 Dashboard 会隐藏秘密。不要提交整个 `.nexus/` 目录。
+
+## 安全边界与当前限制
+
+- `.nexus/` 保存个人状态、凭据、向量、运行历史、通知、审计、轨迹、模型和锁文件；Git 会整体忽略该目录。
+- 共享配置更新使用操作系统级跨进程事务锁，校验本次更新的配置 Section，保留无关 Section，并通过原子替换写入。
+- 状态保存和通知投递状态转换同样使用规范化的操作系统级锁。多个进程不会覆盖调度认领，也不会同时认领同一条延迟通知；超长损坏通知行会被跳过，并在重写时移除。
+- Dashboard 只读且只允许 Loopback 地址。它验证 `Host` 和 `Origin`，只提供精确路由，拒绝编码别名和目录穿越，限制输入/输出，并按 Section 隔离错误。
+- 自动化策略为 `deny`、`ask` 和 `allow`。`ask` 每次都需要一次性批准；无人值守执行必须使用 `allow`。
+- 浏览器自动化只能打开固定 HTTP(S) URL，并且必须配置非空、匹配的 Host Allowlist。
+- 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
+- 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
+- Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、语音/视觉、智能家居控制或机器人能力。
+- 习惯追踪、独立项目进度面板和 AI 建议面板仍是未来 Dashboard 工作。
+
+## CLI 命令地图
 
 ```bash
-nexus memory add "..." --tags 学习 项目
-nexus memory list
-nexus memory search IELTS
-nexus memory retrieve "IELTS listening practice" --limit 5
-nexus memory reindex
-nexus memory index-status
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --pin
-nexus memory compress --dry-run
-nexus memory maintain --dry-run
-
-nexus goal add "开发 Nexus" --description "完成 MVP 功能" --cadence-days 2
-nexus goal list
-nexus goal check-in <goal_id> "完成了今天的训练。"
-
-nexus plan day --name Louis --coach-mode academic
-nexus plan day --agents --coach-mode startup
-nexus task list
-nexus task update <task_id> --status completed
-
+nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
+nexus goal add|list|check-in
+nexus plan day
+nexus task list|update
 nexus review
-nexus review day --name Louis
-nexus review day --llm --show-prompt --name Louis
-nexus review day --agents --name Louis
-nexus briefing --name Louis --weather "天气晴，最高 25 C"
-nexus briefing --llm --show-prompt --name Louis
-nexus briefing --agents --llm --name Louis
-nexus agent runs --limit 10
-nexus agent show <run_id>
+nexus review day
+nexus briefing
+nexus tool weather|calendar|todo|github|notion|email|files|audit
+nexus mcp servers|tools|call|audit
+nexus agent runs|show
 
-nexus config llm set --provider deepseek --api-key "你的 key" --simple-model v4flash --complex-model v4pro
-nexus config llm show
-nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-nexus config embedding show
+nexus config llm set|show
+nexus config embedding set|show
+nexus config tool set|disable|show
+nexus config mcp add|disable|remove|policy|planning-tool|show
+nexus config profile show|set
+nexus config runtime show|set
+
+nexus runtime status|tick|run|start
+nexus notifications list|flush
+nexus dashboard snapshot|serve
+nexus automation list|set|run|remove|audit
 ```
 
-## 项目跟踪
+使用 `nexus <command> --help` 查看准确参数。
 
-- [AIOS 任务清单](./docs/aios_task_checklist.md)：跟踪 Nexus 距离 J.A.R.V.I.S.-like AIOS 还差什么。
-- [项目文件职责清单](./docs/file_inventory.md)：说明重要文件的职责。
-- [架构文档](./docs/architecture.md)：当前系统设计和未来架构。
-- [路线图](./docs/roadmap.md)：开发阶段和状态。
+## 项目文档
 
-## 开发维护流程
+- [架构文档](./docs/architecture.md)
+- [路线图](./docs/roadmap.md)
+- [AIOS 任务清单](./docs/aios_task_checklist.md)
+- [项目文件职责清单](./docs/file_inventory.md)
+- [产品愿景](./docs/product_vision.md)
 
-每次实现新功能时：
+## 开发维护
 
-1. 更新相关代码和测试。
-2. 如果是用户可见功能，同步更新 `README.md` 和 `README_zh.md`。
-3. 如果进度变化，更新 `docs/aios_task_checklist.md`。
-4. 如果新增重要文件或文件职责变化，更新 `docs/file_inventory.md`。
-5. 尽可能先跑测试再提交。
-6. 除非用户明确要求推送，否则完成后询问是否推送。
-7. 永远不要提交 API key 或 `.nexus/config.local.json`。
+```bash
+python -m pytest tests -q
+python -m ruff check src tests
+python -m ruff format --check src tests
+```
+
+用户可见能力或重要文件发生变化时，要同步更新两份 README、任务清单和文件职责清单。不要提交 Key 或本地 Runtime 数据。
 
 ## 路线概览
 
-- **Phase 1**：CLI MVP：记忆、目标、打卡、主动复盘、早晨简报。已完成。
-- **Phase 2**：LLM 智能简报和 Provider 配置。已完成。
-- **Phase 3**：本地 RAG 长期记忆 MVP。已完成。
-- **Phase 4**：持久化每日规划、Reflection 与 Coach 模式。已完成。
-- **Phase 5**：RAG 2.0，包括真实 Embedding、Qdrant 持久化、混合检索和 Re-index。已完成。
-- **Phase 6**：受权限控制的只读真实工具集成和实时简报上下文。已完成。
-- **Phase 7**：支持 stdio/Streamable HTTP、工具发现、权限、审计、重试、结果标准化和 Planning 上下文的 MCP Client。已完成。
-- **Phase 8**：受预算约束的 Memory、Tool、Planner、Reflection、Coach Agent，以及编排、降级和隐私安全轨迹。已完成。
-- **Phase 9**：高级记忆重要性、重复/冲突处理、压缩、保留/隐私控制和检索重排。已完成。
-- **下一步**：主动调度、通知、免打扰时段和 Web Dashboard。
-- **之后**：受权限控制的浏览器/本地自动执行与多模态接口。
-- **长期方向**：在同一个 Nexus 核心上增加语音、视觉、智能家居适配器和可选的机器人集成。
+Phase 1-10 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、只读 Dashboard 和受权限控制的命名自动化。
+
+下一步可以深化 Dashboard 的习惯/项目/建议视图和科研伙伴工作流。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。

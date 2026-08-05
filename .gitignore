@@ -206,13 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Nexus local runtime data and secrets
-.nexus/config.local.json
-.nexus/qdrant/
-.nexus/models/
-.nexus/tool_audit.jsonl
-.nexus/mcp_audit.jsonl
-.nexus/agent_runs.jsonl
+# Nexus local runtime data, personal data, secrets, audits, and locks
+.nexus/
 
 # Local test scratch space
 .tmp/

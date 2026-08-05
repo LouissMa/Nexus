@@ -1,339 +1,240 @@
-# Nexus MVP Architecture
+# Nexus Architecture
 
-The current version is a local-first CLI assistant with optional LLM generation, semantic RAG, advanced memory lifecycle controls, permissioned real tools, a standards-based MCP client, and bounded multi-agent coordination. Core features remain usable offline. LLM calls occur only when the user passes `--llm`; agent coordination is opt-in through `--agents`.
+Nexus is a local-first personal AI assistant. The current system combines long-term memory, planning and reflection, optional LLM generation, permissioned real tools and MCP, bounded specialist agents, a proactive runtime, a read-only local dashboard, and named permissioned automation.
+
+Core workflows remain usable without an API key. Network providers are activated only by explicit configuration or command flags.
 
 ## Current Architecture
 
 ```text
 [User]
   |
-  v
-[Nexus CLI]
-  |---------------- default ----------------> [NexusService]
-  |
-  +-- --agents --> [AgentOrchestrator]
-                    |-- Memory Agent ----> [RAG / Qdrant]
-                    |-- Tool Agent ------> [MCPManager / approved MCP tools]
-                    |-- Planner Agent ---> [NexusService / JsonStore]
-                    |-- Reflection Agent -> [NexusService / JsonStore]
-                    |-- Coach Agent ------> [optional OpenAI-compatible LLM]
-                    |
-                    +--> [.nexus/agent_runs.jsonl]
+  +--> [Nexus CLI] ------------------------------+
+  |                                              |
+  +--> [Loopback DashboardServer]                |
+          | exact static routes                  |
+          +--> [DashboardSnapshot]               |
+                   |                             |
+                   +--> state / scheduler        |
+                   +--> notifications            |
+                   +--> tool + MCP audits         |
+                   +--> agent + automation traces|
+                                                 v
+                                      [Application Core]
+                                      |-- NexusService
+                                      |-- MemoryService / RAG
+                                      |-- Planning / Reflection
+                                      |-- ToolManager / MCPManager
+                                      |-- AgentOrchestrator
+                                      |
+                                      +--> local .nexus data
 
-[NexusService] --> [.nexus/state.json]
+[Runtime CLI / foreground loop]
+  -> ProactiveScheduler
+       -> briefing / review / stale-goal job
+       -> NotificationCenter
+            -> durable inbox
+            -> optional console / webhook
+
+[Automation CLI]
+  -> AutomationManager
+       -> deny / ask / allow gate
+       -> fixed browser / argv / GitHub / status report
+       -> bounded secret-safe audit
 ```
 
-## Current Modules
+The scheduler, dashboard, and automation manager reuse existing services and stores. They do not bypass tool permissions or write through the browser.
 
-- `src/nexus/cli.py`: CLI parsing for domain commands, MCP/tools/configuration, opt-in `--agents`, and agent trace inspection.
-- `src/nexus/service.py`: Application orchestration for memory/RAG, goals, persistent daily planning, structured task updates, reflection, coach-aware prompts, and briefings.
-- `src/nexus/memory_lifecycle.py`: Legacy normalization, importance scoring, duplicate detection, eligibility, transitions, compression planning, and retention rules.
-- `src/nexus/memory_service.py`: Persistent memory lifecycle operations, relation handling, index refresh, compression, maintenance, and safe purge enforcement.
-- `src/nexus/embeddings.py`: FastEmbed and OpenAI-compatible neural embedding providers.
-- `src/nexus/vector_store.py`: local/remote Qdrant persistence and collection operations.
-- `src/nexus/rag.py`: sparse retrieval, semantic indexing, hybrid score fusion, metadata, re-indexing, and fallback.
-- src/nexus/planning.py: daily-task decomposition rules, task status vocabulary, and Coach profiles.
-- `src/nexus/llm.py`: OpenAI-compatible LLM client, environment-based configuration, HTTP request handling, and LLM errors.
-- `src/nexus/store.py`: local JSON persistence.
-- `src/nexus/integrations/core.py`: HTTP normalization, permission policy, tool results, and secret-safe audit logging.
-- `src/nexus/integrations/web_tools.py`: Open-Meteo, Todoist, GitHub, and Notion adapters.
-- `src/nexus/integrations/personal_tools.py`: recurring iCalendar, read-only IMAP, and bounded filesystem adapters.
-- `src/nexus/integrations/manager.py`: tool registry, execution orchestration, auditing, and live briefing aggregation.
-- `src/nexus/mcp/config.py`: MCP server validation, local configuration, tool policies, Planning bindings, and masking.
-- `src/nexus/mcp/client.py`: official SDK lifecycle for stdio and Streamable HTTP, discovery, calls, and normalized results.
-- `src/nexus/mcp/manager.py`: permission enforcement, bounded retries, audit orchestration, and partial-failure Planning aggregation.
-- `src/nexus/mcp/audit.py`: secret-safe MCP JSONL audit trail.
-- `src/nexus/agents/models.py`: shared run context, specialist results, budgets, step traces, and run traces.
-- `src/nexus/agents/specialists.py`: Memory, Planner, Reflection, and Coach Agent implementations.
-- `src/nexus/agents/tool_agent.py`: allow-only MCP candidate selection, strict JSON parsing, argument validation, calls, and partial failure handling.
-- `src/nexus/agents/orchestrator.py`: plan, review, and briefing workflow sequencing, shared artifacts, fallback, and response assembly.
-- `src/nexus/agents/trace.py`: privacy-safe agent JSONL persistence and trace lookup.
-- `tests/test_cli.py`: end-to-end CLI flow tests plus LLM fallback and injected fake-LLM tests.
+## Core Modules
 
-## Data Model
+- `src/nexus/cli.py`: Parses all commands and lazily wires Phase 10 managers so legacy commands do not initialize optional runtime integrations.
+- `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
+- `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
+- `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, and runtime settings.
+- `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.
+- `src/nexus/runtime_config.py`: Defines immutable profile/runtime settings, IANA time-zone and clock validation, job names, quiet hours, channel flags, and masked output.
+- `src/nexus/notifications.py`: Implements inbox-first JSONL persistence, quiet-hour deferral, cross-process delivery claims, console/webhook delivery, bounded records/read buffers, corrupt-line repair, and deferred flush.
+- `src/nexus/scheduler.py`: Implements deterministic `tick`, explicit job runs, the foreground loop, occurrence claims, status, and partial-failure reporting.
+- `src/nexus/automation.py`: Validates named automations, enforces policies and path/host boundaries, runs fixed adapters, and stores bounded secret-safe audits.
+- `src/nexus/dashboard.py`: Builds privacy-filtered section snapshots and serves exact read-only HTTP routes on loopback addresses.
+- `src/nexus/dashboard/index.html`: Dashboard shell and accessible navigation.
+- `src/nexus/dashboard/dashboard.css`: Responsive operational layout, mobile navigation, states, and stable control dimensions.
+- `src/nexus/dashboard/dashboard.js`: Fetches snapshots and renders Today, Goals, Memory, Activity, and Settings with safe DOM text assignment.
+- `src/nexus/memory_lifecycle.py`: Normalization, importance, duplicates, eligibility, transitions, compression planning, expiry, and retention rules.
+- `src/nexus/memory_service.py`: Persistent memory lifecycle operations, relationships, index refresh, compression, maintenance, and purge enforcement.
+- `src/nexus/embeddings.py`, `src/nexus/vector_store.py`, `src/nexus/rag.py`: Embedding providers, Qdrant persistence, hybrid retrieval, eligibility filtering, re-ranking, metadata, re-indexing, and local fallback.
+- `src/nexus/integrations/`: Permissioned read-only weather, calendar, task, GitHub, Notion, email-header, and filesystem adapters plus tool auditing.
+- `src/nexus/mcp/`: MCP configuration, official SDK transports, deny/ask/allow enforcement, retries, normalization, Planning bindings, and audit.
+- `src/nexus/agents/`: Bounded Memory, Tool, Planner, Reflection, and Coach specialists, orchestration, budgets, fallback, and privacy-safe traces.
+
+## Persistent Data
+
+All personal runtime data defaults to `.nexus/` or the directory selected by `NEXUS_HOME`.
+
+- `state.json`: memories, goals, daily tasks, scheduler claims, and scheduler run history.
+- `config.local.json`: profile, runtime, LLM, embeddings, tools, MCP servers/policies, and named automation definitions.
+- `notifications.jsonl`: durable notification inbox and delivery state with bounded individual records.
+- `tool_audit.jsonl`, `mcp_audit.jsonl`, `automation_audit.jsonl`: sanitized activity records; automation audit rotation is bounded, and Dashboard reads expose bounded recent summaries.
+- `agent_runs.jsonl`: privacy-safe Agent step and budget summaries.
+- `qdrant/`: local semantic vector data.
+- `models/`: local embedding model cache.
+- `*.lock`: cross-process coordination files.
+
+The repository ignores `.nexus/` as a whole. The JSON state remains authoritative for memory eligibility even when vector synchronization is degraded.
+
+## Configuration Transactions
+
+All writers that share `config.local.json` coordinate through one canonical lock path.
 
 ```text
-Memory
-- id
-- text
-- tags
-- created_at
-- updated_at, importance, importance_source, pinned
-- privacy, status, expires_at
-- duplicate_of, supersedes, conflicts_with
-- summary_of, archived_at, forgotten_at
-
-Goal
-- id
-- title
-- description
-- cadence_days
-- status
-- created_at
-- last_check_in
-- check_ins
-
-CheckIn
-- at
-- note
+CLI partial update
+  -> acquire process-local + OS-backed cross-process lock
+  -> read latest complete configuration
+  -> merge only explicitly supplied fields
+  -> validate the updated section and preserve unrelated sections
+  -> write and flush a temporary file
+  -> atomically replace config.local.json
+  -> flush the containing directory where supported
+  -> release lock
 ```
 
-## Briefing Flow
+This transaction prevents stale profile/runtime updates from overwriting LLM, embedding, tool, MCP, or automation sections. Masked serializers never return API keys, webhook URLs, headers, command arguments, roots, or report paths.
 
-```text
-nexus briefing
-  -> load memories and active goals
-  -> select recent memories
-  -> select up to three important active goals
-  -> run proactive review
-  -> build briefing context
-  -> render local template briefing
-  -> return JSON
-```
+State and notification files use the same canonical lock identity and an adjacent lock file. A state save holds the OS lock across revision comparison and atomic replacement. A notification publish or flush holds it across the durable `delivering` transition and external side effect, so another process cannot claim the same delivery. Notification readers stream bounded lines; oversized corrupt records are ignored and removed by the next record rewrite. The durable inbox is not silently truncated, so operators should archive old delivered notifications when storage growth matters.
 
-
-## Planning / Reflection Flow
+## Planning, Reflection, and Memory Flow
 
 ```text
 nexus plan day
-  -> load active long-term goals
-  -> sort goals by oldest progress
-  -> create up to three prioritized daily tasks
-  -> persist tasks in .nexus/state.json
-  -> retrieve relevant memories
-  -> render local plan or optional LLM plan with Coach mode
-
-nexus task update <task_id>
-  -> update pending / in_progress / completed / blocked status
-  -> store blocker, unresolved items, and progress notes
+  -> active goals -> prioritized persistent tasks
+  -> retrieve eligible task-relevant memories
+  -> optional approved MCP context
+  -> local or optional LLM Coach response
 
 nexus review day
-  -> collect today's task state and goal check-ins
-  -> collect blockers and unresolved items
-  -> retrieve relevant long-term memories
-  -> place carry-forward work into tomorrow priorities
-  -> render local reflection or optional LLM reflection with Coach mode
+  -> task outcomes + blockers + unresolved items + check-ins
+  -> retrieve eligible relevant memories
+  -> tomorrow priorities
+  -> local or optional LLM Coach response
+
+memory retrieve
+  -> authoritative JSON lifecycle/privacy filter
+  -> dense Qdrant candidates + local sparse candidates
+  -> score fusion and stale-vector rejection
+  -> importance/recency/task re-ranking
+  -> public retrieval metadata and local fallback
 ```
 
-Daily plans are idempotent per date: running `nexus plan day` again returns the existing tasks instead of creating duplicates.
+Archive and forget are reversible. Permanent purge requires forgotten state and explicit confirmation. Derived summaries inherit and recompute source privacy/expiry policy.
 
-## RAG 2.0 Memory Flow
+## Proactive Runtime Flow
 
 ```text
-Configure
-  -> choose local FastEmbed or an OpenAI-compatible embedding endpoint
-  -> choose local Qdrant persistence or remote Qdrant
-
-Add memory
-  -> store deterministic sparse features in .nexus/state.json
-  -> generate a neural embedding when semantic RAG is enabled
-  -> incrementally upsert vector + public payload into Qdrant
-
-Retrieve memory
-  -> generate dense query embedding
-  -> query Qdrant semantic candidates
-  -> score local sparse candidates
-  -> reject candidates absent from the eligible JSON source set
-  -> fuse dense and sparse scores
-  -> filter by lifecycle, expiry, archived opt-in, and privacy scope
-  -> re-rank by relevance, importance, recency, and task/tag context
-  -> return memories plus provider/model/strategy/component-score/error metadata
-  -> automatically use sparse-only results if semantic retrieval fails
-
-Re-index
-  -> load all memories
-  -> regenerate embeddings with the current provider/model
-  -> recreate the Qdrant collection
-  -> persist index metadata in .nexus/state.json
-
-Briefing / Planning / Review
-  -> build a task-specific retrieval query
-  -> retrieve relevant long-term memories
-  -> inject memories and retrieval metadata into local and LLM contexts
+nexus runtime start
+  -> load immutable profile/runtime snapshot
+  -> ProactiveScheduler.run_forever
+  -> tick at poll interval
+  -> convert current time to profile IANA time zone
+  -> find enabled jobs inside due/grace window
+  -> claim job + local date before execution
+  -> run one workflow:
+       morning_briefing -> briefing
+       evening_review -> daily review
+       stale_goal_reminders -> proactive review
+  -> publish notification to durable inbox first
+  -> deliver to console/webhook now or defer for quiet hours
+  -> persist success / partial / error run status
 ```
 
-Local FastEmbed requires no API key but downloads its model on first use. Hosted embedding providers require their own API key. The local Qdrant index lives under `.nexus/qdrant/` and is not committed.
+Normal ticks do not retry an already claimed daily occurrence. `nexus runtime run <job>` is the explicit retry/manual path. Optional LLM, live-tool, and Agent enrichment are separate runtime flags and preserve existing provider and permission boundaries.
 
-## Advanced Memory Lifecycle Flow
+A channel failure produces a partial result and does not erase the generated message. Deferred records can be flushed after quiet hours.
+
+## Dashboard Snapshot and HTTP Flow
 
 ```text
-Add
-  -> normalize legacy-compatible lifecycle fields
-  -> calculate deterministic importance unless user supplied it
-  -> merge exact duplicates or link near duplicates
-  -> incrementally index a new active record
+Browser GET /
+  -> validate loopback Host and optional Origin
+  -> require exact unencoded route
+  -> serve packaged index.html / dashboard.css / dashboard.js
 
-Relate / Update
-  -> apply user importance, pin, privacy, and expiry controls
-  -> explicitly link conflicts or supersession
-  -> archive superseded history and rebuild the active vector index
-
-Compress / Maintain
-  -> preview old low-importance unpinned groups with --dry-run
-  -> create bounded summaries separated by privacy scope
-  -> inherit the earliest source expiry and retain source-ID lineage
-  -> archive source records without deleting them
-  -> forget derived summaries when a source is forgotten
-  -> propagate source privacy/expiry changes and reject direct derived-policy overrides
-  -> recompute privacy, expiry, and pin policy before summary restore
-  -> recursively remove derived summaries when a source is purged
-  -> archive expired unpinned records
-
-Forget / Purge
-  -> reversible forgotten state removes a record from retrieval
-  -> permanent purge requires forgotten state and --confirm
-  -> stale vector payloads remain ineligible even if index refresh fails
+Browser GET /api/snapshot
+  -> validate request
+  -> build sections independently:
+       Today -> tasks, reminders, scheduled jobs, latest briefing/review
+       Goals -> active goal cadence and check-ins
+       Memory -> bounded eligible memory timeline
+       Activity -> bounded notification/tool/MCP/Agent/automation summaries
+       Settings -> explicit allowlisted masked fields
+  -> redact secrets and omit raw prompts, arguments, output, paths, and URLs
+  -> enforce bounded nesting, collections, strings, and final response bytes
+  -> return read-only JSON
 ```
 
-All lifecycle operations work offline. Existing state records are normalized on read, so no destructive migration is required. The JSON store is authoritative; Qdrant candidates are accepted only when their IDs remain eligible in JSON state. Adds and mutations return safe `index_sync` metadata when semantic indexing is enabled; a backend refresh error is reported as a partial CLI outcome rather than a false success.
-## LLM Briefing Flow
+The server accepts only loopback binds and rejects foreign `Host` or `Origin`, query/fragment aliases, encoded routes, traversal, and unknown paths. Each section catches its own dependency failure, so one malformed optional integration does not make the remaining dashboard unavailable.
+
+The first dashboard has no mutation endpoints. State changes remain in the permissioned CLI.
+
+## Automation Policy Flow
 
 ```text
-nexus briefing --llm
-  -> load memories, goals, reminders, weather text
-  -> build structured briefing context
-  -> build system prompt and user prompt
-  -> if LLM is configured:
-       call OpenAI-compatible chat completions API
-       use model output as briefing
-     else:
-       keep local template briefing
-       report configuration error in llm.error
-  -> return JSON with briefing, context, llm status, and optional prompt
+nexus automation set <name> --definition <json>
+  -> validate name, exact type fields, enabled flag, and policy
+  -> validate fixed target and type-specific boundaries
+  -> persist under the canonical config lock with atomic replacement
+
+nexus automation run <name> [--approve]
+  -> reload and freeze validated settings
+  -> enabled check
+  -> deny: block
+  -> ask without --approve: block
+  -> ask with --approve or allow: execute one fixed adapter
+  -> append bounded secret-safe audit event
+  -> return normalized result/error
 ```
 
-## LLM Configuration
+Automation types:
 
-The LLM layer is configured by environment variables:
+- `browser`: fixed HTTP(S) URL plus mandatory non-empty matching host allowlist.
+- `command`: fixed non-empty argument vector, `shell=False`, existing working directory inside allowed roots, bounded timeout/output, no caller-supplied suffix or environment.
+- `github_inspect`: existing read-only GitHub integration with a bounded issue limit.
+- `status_report`: deterministic Markdown generated from sanitized state and written only to a `.md` path under an allowed root.
 
-```text
-NEXUS_LLM_API_KEY          optional, takes priority over OPENAI_API_KEY
-OPENAI_API_KEY             fallback API key
-NEXUS_LLM_MODEL            default: gpt-4o-mini
-NEXUS_LLM_BASE_URL         default: https://api.openai.com/v1
-NEXUS_LLM_TIMEOUT_SECONDS  default: 30
-```
+Path identities and roots are checked before execution and rechecked around sensitive operations. Audit events never contain command output, URL query strings, environment values, raw state text, or filesystem targets.
 
-## Real Tool Integration Flow
+## Failure Isolation
 
-```text
-nexus config tool set <tool>
-  -> validate required settings
-  -> save secrets in ignored .nexus/config.local.json
-  -> explicitly enable read-only operations
+- Invalid profile, time, time zone, webhook, automation, root, or policy fails before persistence.
+- Scheduler jobs persist running/success/partial/error state and isolate notification-channel failure.
+- JSONL readers skip corrupt records; notification and automation readers also enforce hostile-line size bounds, and notification rewrites remove oversized corrupt lines.
+- Dashboard sections fail independently and expose only normalized section errors.
+- RAG falls back to local sparse retrieval when embeddings or Qdrant fail.
+- Planning and Agent workflows preserve deterministic local fallback when optional LLM, MCP, tools, or specialists fail.
+- Command timeout terminates the child process tree; output is consumed under a byte bound.
+- Audit write failure is surfaced as degraded audit health rather than silently claiming complete auditability.
 
-nexus tool <tool>
-  -> ToolManager
-  -> PermissionPolicy checks tool + operation
-  -> adapter calls Open-Meteo / iCalendar / Todoist / GitHub / Notion / IMAP / filesystem
-  -> normalize result
-  -> append secret-safe success or failure to .nexus/tool_audit.jsonl
-  -> return structured JSON
+## Security and Scope
 
-nexus briefing --live-tools
-  -> fetch configured weather
-  -> expand upcoming one-off and recurring calendar events
-  -> fetch active Todoist tasks
-  -> keep partial results when one provider fails
-  -> inject live context and provider errors into template and LLM prompts
-```
+- Local/offline behavior is the default; jobs and external integrations require explicit opt-in.
+- Read-only integrations and the dashboard do not become write APIs.
+- `ask` actions require one-shot human approval; unattended automation requires explicit `allow`.
+- Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
+- Phase 10 is bounded automation, not an open-ended autonomous loop.
 
-Current tool adapters are read-only. Email uses a verified TLS context and opens the mailbox with `readonly=True`. Filesystem paths are resolved before access and must stay inside explicitly configured roots. Calendar URLs, tokens, and passwords are masked and never written to the audit log.
-
-## MCP Client Flow
-
-```text
-nexus config mcp add <server>
-  -> validate stdio command/arguments or Streamable HTTP URL/headers
-  -> save the definition only in ignored .nexus/config.local.json
-  -> mask URL, headers, and child-process environment in CLI output
-
-nexus mcp tools <server>
-  -> open the configured transport
-  -> complete MCP initialization and capability negotiation
-  -> list tools
-  -> normalize names, descriptions, titles, and input JSON Schemas
-  -> append a secret-safe discovery audit event
-
-nexus mcp call <server> <tool>
-  -> require enabled server
-  -> apply deny / ask / allow policy
-  -> require --approve for one ask-policy call
-  -> call through the official MCP SDK
-  -> retry only eligible transport failures within the configured bound
-  -> never retry an MCP-declared tool error
-  -> normalize text, structured content, non-text metadata, attempts, and timestamp
-  -> append a secret-safe success, denial, or failure audit event
-
-nexus plan day --live-mcp
-  -> run only explicit planning-tool bindings with allow policy
-  -> keep successful results when another binding fails
-  -> inject normalized MCP context into the local plan and optional LLM prompt
-  -> preserve normal local Planning when no MCP result is available
-```
-
-Nexus supports standard stdio and Streamable HTTP transports. Nexus remains an MCP client; Phase 8 adds allow-only autonomous selection above the Phase 7 permission layer.
-
-## Multi-Agent Coordination Flow
-
-```text
-nexus plan day --agents
-  -> create bounded AgentRunContext
-  -> Memory Agent retrieves relevant RAG context
-  -> Tool Agent discovers allow-policy MCP candidates
-  -> Tool Agent runs explicit bindings or validates strict-JSON LLM selections
-  -> Planner Agent creates/persists today's tasks
-  -> Coach Agent applies the selected tone and optional LLM generation
-  -> append privacy-safe run trace
-
-nexus review day --agents
-  -> Memory Agent -> Reflection Agent -> Coach Agent
-  -> keep blockers, unresolved items, check-ins, and tomorrow priorities structured
-
-nexus briefing --agents
-  -> Memory Agent -> Tool Agent -> Planner Agent -> Coach Agent
-  -> preserve Phase 6 live context and deterministic briefing fallback
-```
-
-A run is limited to 8 steps, 3 LLM calls, and 3 MCP calls under a shared 60-second deadline. MCP and production LLM request timeouts are clamped to the remaining time; the deadline is checked before and after specialist work. Agents share structured artifacts but never call one another directly; the Orchestrator owns sequencing and trace persistence. Only enabled MCP tools with explicit `allow` policy are eligible for autonomous Tool Agent calls. Agent traces under `.nexus/agent_runs.jsonl` exclude prompts, memory text, raw content, credentials, URLs, and argument values.
-
-Default commands without `--agents` remain unchanged. Any specialist, LLM, RAG, MCP, or budget failure produces a partial trace and falls back to the existing local plan, review, or briefing when possible.
-## Design Constraints
-
-- Nexus does not fake integrations. Weather, iCalendar, Todoist, GitHub, Notion, IMAP headers, and bounded local files now use real adapters; unavailable providers remain explicit in structured errors.
-- LLM usage must be optional. The local template path remains the stable fallback.
-- The service and memory lifecycle layers own product decisions. The CLI only parses arguments and wires dependencies.
-- Archive and forget are reversible; permanent memory purge requires explicit confirmation.
-- Prompt construction is inspectable on legacy LLM workflows with `--show-prompt`; agent workflows instead expose privacy-safe structured step traces.
-- Multi-agent coordination is bounded orchestration, not an open-ended autonomous loop.
+Current limitations include no remote dashboard, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Habit tracking, a dedicated project-progress panel, and AI-suggestion panels remain future dashboard work.
 
 ## Future Architecture
 
+Future interfaces should reuse the same memory, planning, permission, transaction, and audit layers:
+
 ```text
-[User]
-  |
-  v
-[CLI / Web / Mobile / Chat / Voice gateway / Vision gateway]
-  |
-  v
-[Backend API]
-  |-- Memory engine
-  |-- RAG retriever
-  |-- Goal engine
-  |-- Briefing engine
-  |-- Review engine
-  |-- Planning engine
-  |-- Reflection engine
-  |-- Coach mode controller
-  |-- MCP tool adapters
-  |-- Browser/local automation adapters
-  |-- Smart-home adapters (long-term)
-  |-- Robotics adapters (long-term, simulation-first)
-  |
-  +--> [Relational DB: goals, tasks, habits]
-  +--> [Vector DB: long-term semantic memory]
-  +--> [Scheduler: morning briefing, evening review, reminders]
-  +--> [LLM API: reasoning and generation]
-  +--> [External tools: calendar, weather, email, Notion, GitHub, health]
+[CLI / Web / Mobile / Voice / Vision]
+                  |
+             [Nexus Core]
+  memory | planning | runtime | permissions | audit
+       |              |               |
+ research tools   future habits   future home/robot adapters
+                                     simulation-first
 ```
-The architecture keeps one Nexus core across interfaces. Voice, vision, home, and robotics integrations are future adapters behind the same permission and audit boundaries; they are not part of the current CLI product.
+
+Voice, vision, home, and robotics integrations are long-term adapters, not current capabilities or an AGI claim.

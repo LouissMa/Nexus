@@ -1,8 +1,8 @@
 # Nexus / LifeAgent
 
-> **A proactive personal AI assistant with long-term memory, planning, and reflection.**
+> **A proactive, local-first personal AI assistant with long-term memory, planning, reflection, and permissioned action.**
 
-Nexus is an open-source, local-first personal AI assistant that remembers goals, retrieves relevant context, coordinates specialist agents, connects approved real-world tools, and helps users reflect and take action.
+Nexus remembers goals and life context, creates daily plans, runs scheduled briefings and reviews, coordinates bounded specialist agents, and connects only to tools you explicitly approve.
 
 [English](./README.md) | [Chinese](./README_zh.md)
 
@@ -10,346 +10,239 @@ Nexus is an open-source, local-first personal AI assistant that remembers goals,
 
 ## Product Direction
 
-Most AI assistants are passive. They wait for users to ask questions.
+Most assistants wait for a prompt. Nexus is being built as a dependable personal AI core that can remember, plan, remind, review, and perform named actions at the right time.
 
-Nexus is different: it is designed to remember, plan, remind, review, and eventually act through approved tools.
-
-The current project focuses on a dependable personal assistant core: memory, goals, planning, reflection, and optional LLM generation.
-
-Over time, this core can become a **Personal AI Operating System** shared by CLI, web, voice, and vision interfaces. Permissioned integrations may later connect it to digital tools, home devices, and robotic systems. These are long-term directions, not current capabilities.
+The long-term direction is a Personal AI Operating System shared by CLI, web, voice, and future embodied interfaces. The current release is not AGI: it is a local, permission-bounded assistant with explicit limits.
 
 ## Current Features
 
-- **Memory**: Add, inspect, update, relate, search, and RAG-retrieve long-term memories.
-- **RAG 2.0 Long-Term Memory**: Use real neural embeddings, persistent Qdrant vector search, dense+sparse hybrid retrieval, re-indexing, and offline sparse fallback.
-- **Advanced Memory Lifecycle**: Score importance, merge duplicates, track conflicts/supersession, compress and archive history, enforce privacy/expiry, and explain context-aware re-ranking.
-- **Permissioned Real Tools**: Read live weather, iCalendar events, Todoist tasks, GitHub repositories, Notion pages, IMAP headers, and approved local files.
-- **MCP Tool Calling**: Configure stdio or Streamable HTTP MCP servers, discover schemas, apply deny/ask/allow policies, call tools, audit activity, and enrich daily planning.
-- **Multi-Agent Coordination**: Run bounded Memory, Tool, Planner, Reflection, and Coach agents for planning, review, and briefing workflows with privacy-safe traces.
-- **Goal Tracker**: Add goals with descriptions and check-in cadence.
-- **Goal Check-In**: Record progress notes for goals.
-- **Proactive Review**: Detect stale goals and generate reminders.
-- **Daily Planning**: Decompose active long-term goals into persistent, prioritized tasks for today.
-- **Structured Task Tracking**: Update task status, blockers, unresolved items, and progress notes.
-- **Daily Review / Reflection**: Review progressed goals, task outcomes, blockers, RAG memories, and tomorrow priorities.
-- **Coach Modes**: Use strict, gentle, academic, or startup guidance for plans and reviews.
-- **Morning Briefing**: Generate a template daily briefing from goals, reminders, weather text, and memories.
-- **LLM Briefing**: Optionally use an OpenAI-compatible LLM for more natural briefings.
-- **LLM Provider Config**: Save local provider/model settings, including `simple` and `complex` model tiers.
-- **Prompt Inspection**: Use `--show-prompt` to inspect LLM context.
-- **Local Storage**: Store MVP data in `.nexus/state.json` by default.
+- Long-term memory with search, semantic RAG, Qdrant persistence, re-indexing, lifecycle controls, privacy, expiry, compression, and explainable re-ranking.
+- Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
+- Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
+- Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, and bounded filesystem integrations.
+- Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
+- Bounded Memory, Tool, Planner, Reflection, and Coach Agent coordination with budgets, fallback, and privacy-safe traces.
+- Proactive morning briefing, evening review, and stale-goal reminder jobs in the user's IANA time zone.
+- Durable inbox notifications, optional console/webhook delivery, and normal or overnight quiet hours.
+- Responsive read-only dashboard for Today, Goals, Memory, Activity, and masked Settings.
+- Named browser, command, GitHub-inspection, and Markdown status-report automations under explicit policies.
 
 ## Quick Start
 
+Install the core package and create a local profile:
+
 ```bash
 python -m pip install -e .
-
-nexus memory add "Louis is preparing for IELTS and wants to apply for an overseas CS/AI master's program." --tags identity study
-nexus memory add "Louis is building Nexus as a personal AI OS." --tags project Nexus
-nexus goal add "IELTS listening practice" --description "Complete one focused listening session" --cadence-days 1
-nexus goal add "Develop Nexus" --description "Build the morning briefing module" --cadence-days 2
-nexus briefing --name Louis --weather "weather is sunny, high 25 C"
+nexus config profile set --name Alex --timezone Asia/Shanghai
+nexus config profile show
 ```
 
-## RAG 2.0 Long-Term Memory
-
-Nexus now supports production-oriented semantic retrieval while preserving a dependency-free offline fallback.
-
-Install the optional local RAG stack:
+Add context and create today's plan:
 
 ```bash
-python -m pip install -e ".[rag]"
+nexus memory add "Alex is preparing for IELTS." --tags study exam
+nexus goal add "IELTS listening" --description "Complete one focused session" --cadence-days 1
+nexus plan day --name Alex --coach-mode academic
+nexus task list
+nexus briefing --name Alex --weather "sunny, high 25 C"
+nexus review day --name Alex
+```
+
+These local workflows do not require an API key.
+
+## Memory, Tools, MCP, and Agents
+
+Install optional local semantic retrieval and tool dependencies as needed:
+
+```bash
+python -m pip install -e ".[rag,tools,mcp]"
 nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 nexus memory reindex
-nexus memory index-status
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --pin
-nexus memory compress --dry-run
-nexus memory maintain --dry-run
-nexus memory retrieve "language exam preparation" --limit 3
+nexus memory retrieve "exam preparation" --limit 5
 ```
 
-FastEmbed runs locally and needs no API key. Its model is downloaded on first use. Vectors are persisted by Qdrant under `.nexus/qdrant/`, which is ignored by Git.
+FastEmbed and local Qdrant need no API key. Hosted embeddings and remote services require their own credentials.
 
-Nexus can also use OpenAI or another OpenAI-compatible embedding endpoint:
-
-```bash
-nexus config embedding set --provider openai --api-key "your-key"
-nexus config embedding set --provider custom --base-url "https://provider.example/v1" --model "embedding-model" --api-key "your-key"
-```
-
-The retrieval pipeline combines dense semantic scores with local sparse scores. If the embedding model, API, or vector store is unavailable, Nexus reports the error in retrieval metadata and automatically continues with local sparse retrieval. New memories are indexed incrementally; run `nexus memory reindex` after changing the provider/model or migrating existing memories.
-
-RAG 2.0 covers neural embeddings, vector persistence, re-indexing, hybrid retrieval, status metadata, and fallback behavior. Phase 9 adds a complete local memory lifecycle on top of it.
-
-## Advanced Long-Term Memory
-
-New memories receive deterministic importance scores and exact/near-duplicate checks without calling an LLM. Users can override importance, pin memories, choose `private`, `personal`, or `shared` scope, set expiry, and explicitly record `supersedes` or `conflicts_with` relationships.
-
-```bash
-nexus memory add "IELTS exam is in October" --tags exam --importance 0.9 --privacy personal --pin
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --expires-at 2027-01-01T00:00:00+00:00
-nexus memory relate <new_id> --supersedes <old_id>
-nexus memory archive <memory_id>
-nexus memory restore <memory_id>
-nexus memory forget <memory_id>
-nexus memory purge <memory_id> --confirm
-nexus memory compress --older-than-days 90 --max-importance 0.4 --dry-run
-nexus memory maintain --dry-run
-```
-
-Exact duplicates update the existing record's observation count instead of creating another copy. Near duplicates remain inspectable through `duplicate_of`. Compression creates a bounded deterministic summary and archives its source records; dry-run previews every affected ID. Summaries never mix privacy scopes, inherit the earliest source expiry, and are forgotten when any source is explicitly forgotten. Later source privacy/expiry changes propagate to summaries, and derived privacy/expiry/pin controls cannot be overridden directly; purging a source recursively removes its derived summaries. Archive and forget are reversible. Permanent purge accepts only an already-forgotten memory and requires `--confirm`.
-
-Retrieval excludes forgotten and expired memories, excludes archived memories unless requested, rejects stale vector-store IDs, and re-ranks with relevance (70%), effective importance (15%), recency (10%), and task/tag context (5%). Every result exposes its component scores. These lifecycle operations are local and require no API key. If adding or mutating JSON state succeeds but semantic index refresh fails, mutation output uses `status: partial` and returns safe `index_sync` error metadata; JSON eligibility still prevents stale vectors from being retrieved.
-
-## Real Tool Integrations
-
-Install the optional calendar dependencies:
-
-```bash
-python -m pip install -e ".[tools]"
-```
-
-Configure only the tools you want to enable:
+Configure only the read-only integrations you want:
 
 ```bash
 nexus config tool set weather --location "Shanghai"
-nexus config tool set calendar --calendar-url "https://calendar.example/private.ics"
-nexus config tool set todo --token "your-todoist-token"
-nexus config tool set github --repo "LouissMa/Nexus"
-nexus config tool set notion --token "your-notion-token"
-nexus config tool set email --host "imap.example.com" --username "you@example.com" --password "app-password" --mailbox INBOX
-nexus config tool set filesystem --root "D:/AI_Projects/Nexus"
+nexus config tool set github --repo "example/project"
+nexus config tool set filesystem --root "/path/to/project"
 nexus config tool show
-```
-
-For private repositories or higher API limits, configure GitHub again with `--token "your-github-token"`.
-
-Run integrations explicitly:
-
-```bash
-nexus tool weather
-nexus tool calendar --days 2
-nexus tool todo --limit 20
-nexus tool github --limit 10
-nexus tool notion --query "research"
-nexus tool email --limit 10
-nexus tool files list .
-nexus tool files read README.md
-nexus tool files search . --query "RAG"
+nexus briefing --name Alex --live-tools
 nexus tool audit --limit 20
 ```
 
-Use configured weather, calendar, and Todoist data in the morning briefing:
+Configure MCP servers and approve tools explicitly:
 
 ```bash
-nexus briefing --name Louis --live-tools
-nexus briefing --name Louis --live-tools --llm
-```
-
-Safety boundaries:
-
-- Every tool must be explicitly configured and enabled.
-- Phase 6 integrations remain read-only. MCP servers may expose mutating tools, so Nexus gates every MCP tool with deny/ask/allow policy.
-- IMAP mailboxes are opened in read-only mode and only message headers are returned.
-- Filesystem operations are limited to configured roots and reject path traversal or access outside those roots.
-- Calendar feed URLs, tokens, and passwords are stored only in the ignored local config and masked in CLI output.
-- Every success and failure is appended to the ignored local audit log at `.nexus/tool_audit.jsonl`.
-- Run `nexus config tool disable <tool>` to revoke a tool without deleting its local settings.
-
-## MCP Tool Calling
-
-Install the official stable MCP Python SDK:
-
-```bash
-python -m pip install -e ".[mcp]"
-```
-
-Configure a local stdio server or a remote Streamable HTTP server:
-
-```bash
-nexus config mcp add research --transport stdio --command python --arg path/to/mcp_server.py
-nexus config mcp add remote --transport streamable_http --url "https://mcp.example/mcp" --header "Authorization=Bearer your-token"
-nexus config mcp show
-```
-
-Discover schemas and set a per-tool policy:
-
-```bash
-nexus mcp servers
+nexus config mcp add research --transport stdio --command python --arg path/to/server.py
 nexus mcp tools research
 nexus config mcp policy research search ask
-nexus mcp call research search --arguments '{"query":"MCP research"}' --approve
+nexus mcp call research search --arguments '{"query":"research notes"}' --approve
 nexus mcp audit --limit 20
 ```
 
-Policies are `deny`, `ask`, and `allow`. Unknown tools default to `ask`; `ask` requires the one-shot `--approve` flag. Transport failures use bounded retries, while MCP-declared tool errors are never retried because a tool may have side effects.
-
-To enrich Planning, explicitly bind a tool and set its policy to `allow`:
-
-```bash
-nexus config mcp policy research search allow
-nexus config mcp planning-tool research search --arguments '{"query":"today research priorities"}'
-nexus plan day --name Louis --live-mcp
-```
-
-Planning executes only explicit `planning-tool` bindings with an `allow` policy. Successful results and failures are returned in `mcp_context`; one failed server does not stop the local plan. Server definitions stay in ignored `.nexus/config.local.json`, masked CLI output never reveals URLs, headers, or environment secrets, and MCP audit records go to ignored `.nexus/mcp_audit.jsonl`.
-
-
-
-## Multi-Agent Coordination
-
-Phase 8 adds an opt-in agent layer while preserving every existing local command:
+Agent mode remains opt-in and bounded:
 
 ```bash
 nexus plan day --agents --coach-mode startup
 nexus review day --agents --coach-mode academic
 nexus briefing --agents --live-tools
-nexus briefing --agents --llm --model-tier complex
 nexus agent runs --limit 10
-nexus agent show <run_id>
 ```
 
-Planning and briefing run `Memory -> Tool -> Planner -> Coach`; daily review runs `Memory -> Reflection -> Coach`. Agent mode works without an API key. With `--llm`, the configured model can select from approved MCP candidates and produce the final coached response.
+The Tool Agent can autonomously select only enabled MCP tools whose policy is explicitly `allow`. Specialist failures fall back to the local workflow.
 
-Every run is bounded to 8 agent steps, 3 LLM calls, and 3 MCP calls under a shared 60-second deadline. Production MCP and LLM timeouts are clamped to the remaining deadline, and every specialist is checked again after it returns. The Tool Agent can autonomously call only enabled MCP tools whose policy is explicitly `allow`; `ask` and `deny` tools are never executed unattended. A specialist failure degrades to the existing local plan, review, or briefing instead of ending the workflow.
+## Proactive Runtime, Dashboard, and Automation
 
-Privacy-safe traces are stored in ignored `.nexus/agent_runs.jsonl`. They include step order, status, duration, budget usage, retrieval metadata, and selected tool names, but exclude prompts, memory text, raw tool payloads, credentials, and tool argument values.
-## Daily Planning and Reflection
-
-Create today's plan from active long-term goals:
+Runtime jobs are disabled until you opt in. Configure the three jobs, local times, and quiet hours:
 
 ```bash
-nexus plan day --name Louis --coach-mode academic
-nexus plan day --agents --coach-mode startup
-nexus plan day --llm --model-tier complex --show-prompt
+nexus config runtime set \
+  --job morning_briefing \
+  --job evening_review \
+  --job stale_goal_reminders \
+  --morning-time 08:00 \
+  --evening-time 21:30 \
+  --reminder-time 12:00 \
+  --quiet-hours 23:00 07:00 \
+  --console
+nexus config runtime show
 ```
 
-The first run creates up to three prioritized tasks and saves them in `.nexus/state.json`. Re-running the command on the same date returns the same tasks instead of creating duplicates.
+Optional `--use-llm`, `--live-tools`, and `--agents` switches let scheduled jobs use already configured providers and permissions.
 
-Track execution and reflection data:
+Inspect or run the scheduler:
 
 ```bash
-nexus task list
-nexus task update <task_id> --status in_progress --note "Started the first practice set"
-nexus task update <task_id> --blocker "Need calendar access" --unresolved "Reschedule this task tomorrow"
-nexus task update <task_id> --status completed
-nexus review day --name Louis --coach-mode strict
+nexus runtime status
+nexus runtime tick
+nexus runtime run morning_briefing
+nexus runtime run evening_review
+nexus runtime run stale_goal_reminders
+nexus runtime start
 ```
 
-A blocker automatically marks the task as `blocked`. Daily Review carries blocked and unresolved work into tomorrow priorities. Coach modes are `strict`, `gentle`, `academic`, and `startup`.
+A normal scheduled occurrence is claimed by `job + local date` before execution, preventing duplicate daily work after restart. `runtime run` is the explicit manual/retry path.
 
-## LLM Usage
-
-Nexus works without an API key for local memory, goals, planning, task updates, check-ins, proactive/daily review, template briefing, and local RAG retrieval.
-
-An API key is only required when you run LLM-backed features such as:
+Every message is written to the local inbox before optional console or webhook delivery. Quiet hours defer non-urgent external delivery without losing the inbox record.
 
 ```bash
-nexus briefing --llm
+nexus notifications list --limit 20
+nexus notifications flush
 ```
 
-Never commit API keys to GitHub.
-
-## Local LLM Configuration
-
-For project testing, save provider/model settings locally:
+Inspect the privacy-filtered snapshot or start the dashboard:
 
 ```bash
-nexus config llm set --provider deepseek --api-key "your-key" --simple-model v4flash --complex-model v4pro --default-tier simple
+nexus dashboard snapshot
+nexus dashboard serve
+# Open http://127.0.0.1:8765
+```
+
+The first dashboard is read-only. Today shows scheduled jobs, tasks, reminders, and the latest briefing/review; the other views expose active goals, eligible memories, bounded activity summaries, and masked settings.
+
+Automations are named JSON definitions. New definitions default to `ask`, which requires one-shot `--approve`.
+
+```bash
+nexus automation set project-home --definition '{"type":"browser","url":"https://github.com/example/project","allowed_hosts":["github.com"],"policy":"ask"}'
+nexus automation set repo-check --definition '{"type":"github_inspect","repo":"example/project","limit":20,"policy":"ask"}'
+nexus automation set git-status --definition '{"type":"command","argv":["git","status","--short"],"cwd":".","allowed_roots":["."],"timeout_seconds":30,"max_output_bytes":65536,"policy":"ask"}'
+nexus automation set status-report --definition '{"type":"status_report","output_path":"./nexus-status.md","allowed_roots":["."],"policy":"ask"}'
+nexus automation list
+nexus automation run project-home --approve
+nexus automation run status-report --approve
+nexus automation audit --limit 20
+nexus automation remove project-home
+```
+
+Supported types are `browser`, `command`, `github_inspect`, and `status_report`. Definitions are fixed at configuration time; callers cannot append arbitrary arguments or change a target at run time.
+
+## API Keys and Local Configuration
+
+No API key is required for local memory, goals, planning, task updates, check-ins, deterministic briefing/review, proactive scheduling, inbox notifications, the dashboard, local sparse retrieval, FastEmbed, deterministic reports, or local browser/command automation.
+
+Credentials are required only when the chosen feature contacts a provider that requires them:
+
+- LLM generation, including scheduled jobs configured with `--use-llm`.
+- Hosted embedding endpoints or remote Qdrant.
+- External integrations that require authentication, such as Todoist, private GitHub, Notion, IMAP, or private calendar feeds. Open-Meteo and public GitHub access can work without credentials.
+- Authenticated remote MCP servers.
+
+Example LLM configuration:
+
+```bash
+nexus config llm set --provider custom --base-url "https://provider.example/v1" --api-key "<api-key>" --simple-model "<fast-model>" --complex-model "<strong-model>"
 nexus config llm show
-nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-nexus config embedding show
-```
-
-The config is saved to:
-
-```text
-.nexus/config.local.json
-```
-
-This file is ignored by Git. API keys are masked in CLI output.
-
-Model tier guidance:
-
-- `simple`: cheap and fast. Good for briefings, short summaries, and simple suggestions.
-- `complex`: stronger. Good for planning, deep review, architecture/code analysis, and multi-agent decisions.
-
-```bash
 nexus briefing --llm --model-tier simple
-nexus briefing --llm --model-tier complex
 ```
 
-## CLI Commands
+Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard output mask secrets. Never commit the `.nexus/` directory.
+
+## Security Boundaries and Current Limits
+
+- `.nexus/` contains personal state, credentials, vectors, runtime history, notifications, audits, traces, models, and lock files; Git ignores the directory as a whole.
+- Shared configuration updates use an OS-backed cross-process transaction lock, validate the updated section, preserve unrelated sections, and atomically replace the file.
+- State saves and notification delivery transitions also use canonical OS-backed locks. Concurrent processes cannot overwrite scheduler claims or claim the same deferred delivery; oversized corrupt notification lines are skipped and removed on rewrite.
+- The dashboard is read-only and loopback-only. It validates `Host` and `Origin`, serves exact routes, rejects encoded aliases/traversal, bounds input/output, and isolates each snapshot section.
+- Automation policies are `deny`, `ask`, and `allow`. `ask` always needs one-shot approval; unattended execution requires `allow`.
+- Browser automation opens only a fixed HTTP(S) URL covered by a mandatory non-empty host allowlist.
+- Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
+- Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
+- Nexus does not provide open-ended autonomy, remote dashboard hosting, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
+- Habit tracking, a dedicated project-progress panel, and AI-suggestion panels remain future dashboard work.
+
+## CLI Command Map
 
 ```bash
-nexus memory add "..." --tags study project
-nexus memory list
-nexus memory search IELTS
-nexus memory retrieve "IELTS listening practice" --limit 5
-nexus memory reindex
-nexus memory index-status
-nexus memory show <memory_id>
-nexus memory update <memory_id> --importance 0.8 --pin
-nexus memory compress --dry-run
-nexus memory maintain --dry-run
-
-nexus goal add "Develop Nexus" --description "Ship MVP features" --cadence-days 2
-nexus goal list
-nexus goal check-in <goal_id> "Finished today's session."
-
-nexus plan day --name Louis --coach-mode academic
-nexus plan day --agents --coach-mode startup
-nexus task list
-nexus task update <task_id> --status completed
-
+nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
+nexus goal add|list|check-in
+nexus plan day
+nexus task list|update
 nexus review
-nexus review day --name Louis
-nexus review day --llm --show-prompt --name Louis
-nexus review day --agents --name Louis
-nexus briefing --name Louis --weather "weather is sunny, high 25 C"
-nexus briefing --llm --show-prompt --name Louis
-nexus briefing --agents --llm --name Louis
-nexus agent runs --limit 10
-nexus agent show <run_id>
+nexus review day
+nexus briefing
+nexus tool weather|calendar|todo|github|notion|email|files|audit
+nexus mcp servers|tools|call|audit
+nexus agent runs|show
 
-nexus config llm set --provider deepseek --api-key "your-key" --simple-model v4flash --complex-model v4pro
-nexus config llm show
-nexus config embedding set --provider fastembed --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-nexus config embedding show
+nexus config llm set|show
+nexus config embedding set|show
+nexus config tool set|disable|show
+nexus config mcp add|disable|remove|policy|planning-tool|show
+nexus config profile show|set
+nexus config runtime show|set
+
+nexus runtime status|tick|run|start
+nexus notifications list|flush
+nexus dashboard snapshot|serve
+nexus automation list|set|run|remove|audit
 ```
 
-## Project Tracking
+Use `nexus <command> --help` for exact options.
 
-- [AIOS task checklist](./docs/aios_task_checklist.md): Tracks remaining work toward a J.A.R.V.I.S.-like AIOS.
-- [Project file inventory](./docs/file_inventory.md): Explains important files and their responsibilities.
-- [Architecture](./docs/architecture.md): Current system design and future architecture.
-- [Roadmap](./docs/roadmap.md): Development phases and status.
+## Project Documentation
 
-## Development Workflow
+- [Architecture](./docs/architecture.md)
+- [Roadmap](./docs/roadmap.md)
+- [AIOS task checklist](./docs/aios_task_checklist.md)
+- [Project file inventory](./docs/file_inventory.md)
+- [Product vision](./docs/product_vision.md)
 
-When implementing new features:
+## Development
 
-1. Update the related code and tests.
-2. Update `README.md` and `README_zh.md` for user-facing changes.
-3. Update `docs/aios_task_checklist.md` when progress changes.
-4. Update `docs/file_inventory.md` when important files are added or responsibilities change.
-5. Run tests before committing when possible.
-6. Ask whether to push unless the user explicitly asked for a push.
-7. Never commit API keys or `.nexus/config.local.json`.
+```bash
+python -m pytest tests -q
+python -m ruff check src tests
+python -m ruff format --check src tests
+```
+
+Update both READMEs, the checklist, and the inventory when user-facing capabilities or important files change. Never commit keys or local runtime data.
 
 ## Roadmap Summary
 
-- **Phase 1**: CLI MVP: memory, goals, check-ins, proactive review, morning briefing. Done.
-- **Phase 2**: LLM briefing and provider configuration. Done.
-- **Phase 3**: Local RAG long-term memory MVP. Done.
-- **Phase 4**: Persistent Daily Planning / Reflection and Coach modes. Done.
-- **Phase 5**: RAG 2.0 with real embeddings, Qdrant persistence, hybrid retrieval, and re-indexing. Done.
-- **Phase 6**: Permissioned read-only real tool integrations and live briefing context. Done.
-- **Phase 7**: Permissioned MCP client with stdio/Streamable HTTP, discovery, policies, audit, retries, normalized results, and Planning context. Done.
-- **Phase 8**: Bounded Memory, Tool, Planner, Reflection, and Coach agents with orchestration, budgets, fallback, and privacy-safe traces. Done.
-- **Phase 9**: Advanced memory importance, duplicate/conflict handling, compression, retention/privacy controls, and retrieval re-ranking. Done.
-- **Next**: Proactive scheduler, notifications, quiet hours, and the web dashboard.
-- **Later**: Permissioned browser/local automation and multimodal interfaces.
-- **Long-term direction**: Voice and vision interfaces, smart-home adapters, and optional robotics integration built on the same Nexus core.
+Phases 1-10 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the read-only dashboard, and permissioned named automation.
+
+Next work can deepen dashboard habit/project/suggestion views and research-companion workflows. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
