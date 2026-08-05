@@ -108,15 +108,15 @@ layers, HTML/CSS/JavaScript, pytest, Playwright.
 - Consumes: state, notification/audit/trace stores, masked settings.
 - Produces: `DashboardSnapshot.build` and `DashboardServer`.
 
-- [ ] Write failing tests for privacy-filtered snapshots, corrupt logs,
+- [x] Write failing tests for privacy-filtered snapshots, corrupt logs,
   section errors, HTTP routes, MIME types, loopback defaults, and traversal
   rejection.
-- [ ] Run `pytest tests/test_dashboard.py -q` and confirm feature failures.
-- [ ] Implement the snapshot aggregator and standard-library HTTP server.
-- [ ] Build the responsive Today/Goals/Memory/Activity/Settings interface with
+- [x] Run `pytest tests/test_dashboard.py -q` and confirm feature failures.
+- [x] Implement the snapshot aggregator and standard-library HTTP server.
+- [x] Build the responsive Today/Goals/Memory/Activity/Settings interface with
   fixed-size controls, accessible navigation, empty/error states, and no
   nested cards.
-- [ ] Run `pytest tests/test_dashboard.py -q` and confirm it passes.
+- [x] Run `pytest tests/test_dashboard.py -q` and confirm it passes.
 
 ### Task 6: CLI Integration
 

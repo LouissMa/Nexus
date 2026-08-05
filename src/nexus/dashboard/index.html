@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Nexus Control Desk</title>
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true">N</span>
+        <div>
+          <p class="eyebrow">PERSONAL OPERATIONS</p>
+          <h1>Nexus</h1>
+        </div>
+      </div>
+      <div class="topbar-status" aria-live="polite">
+        <span class="status-dot" id="system-dot" aria-hidden="true"></span>
+        <span id="system-status">Connecting</span>
+        <time id="generated-at"></time>
+      </div>
+      <button class="icon-button" id="refresh-button" type="button" title="Refresh" aria-label="Refresh dashboard">
+        <span aria-hidden="true">&#8635;</span>
+      </button>
+    </header>
+
+    <div class="workspace">
+      <nav class="view-nav" aria-label="Dashboard views">
+        <div class="tab-list" role="tablist" aria-orientation="vertical">
+          <button class="nav-tab is-active" id="tab-today" role="tab" aria-selected="true" aria-controls="panel-today" tabindex="0" data-view="today" type="button">
+            <span class="tab-index">01</span><span>Today</span>
+          </button>
+          <button class="nav-tab" id="tab-goals" role="tab" aria-selected="false" aria-controls="panel-goals" tabindex="-1" data-view="goals" type="button">
+            <span class="tab-index">02</span><span>Goals</span>
+          </button>
+          <button class="nav-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-view="memory" type="button">
+            <span class="tab-index">03</span><span>Memory</span>
+          </button>
+          <button class="nav-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-view="activity" type="button">
+            <span class="tab-index">04</span><span>Activity</span>
+          </button>
+          <button class="nav-tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1" data-view="settings" type="button">
+            <span class="tab-index">05</span><span>Settings</span>
+          </button>
+        </div>
+        <div class="nav-footer">
+          <span>LOCAL</span>
+          <span class="local-indicator" aria-label="Loopback connection"></span>
+        </div>
+      </nav>
+
+      <main class="main-stage">
+        <section class="view-panel is-active" id="panel-today" role="tabpanel" aria-labelledby="tab-today" tabindex="0">
+          <header class="view-heading">
+            <div><p class="eyebrow">DAILY COMMAND</p><h2>Today</h2></div>
+            <p class="view-meta" id="today-date">--</p>
+          </header>
+          <div class="dashboard-grid today-grid" id="today-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-goals" role="tabpanel" aria-labelledby="tab-goals" tabindex="0" hidden>
+          <header class="view-heading">
+            <div><p class="eyebrow">FORWARD MOTION</p><h2>Goals</h2></div>
+            <p class="view-meta" id="goals-count">0 active</p>
+          </header>
+          <div class="data-surface" id="goals-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-memory" role="tabpanel" aria-labelledby="tab-memory" tabindex="0" hidden>
+          <header class="view-heading">
+            <div><p class="eyebrow">LONG-TERM CONTEXT</p><h2>Memory</h2></div>
+            <p class="view-meta" id="memory-count">0 eligible</p>
+          </header>
+          <div class="data-surface timeline" id="memory-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" tabindex="0" hidden>
+          <header class="view-heading">
+            <div><p class="eyebrow">SYSTEM LEDGER</p><h2>Activity</h2></div>
+            <p class="view-meta">Read only</p>
+          </header>
+          <div class="activity-layout" id="activity-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
+          <header class="view-heading">
+            <div><p class="eyebrow">LOCAL CONFIGURATION</p><h2>Settings</h2></div>
+            <p class="view-meta">Sensitive values masked</p>
+          </header>
+          <div class="settings-layout" id="settings-content" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="app-footer">
+      <span>NEXUS / LOOPBACK CONTROL DESK</span>
+      <a href="https://deerflow.tech" target="_blank" rel="noopener noreferrer">Created by DeerFlow</a>
+    </footer>
+  </div>
+
+  <script src="/dashboard.js" defer></script>
+</body>
+</html>
