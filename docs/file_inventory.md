@@ -76,7 +76,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `docs/product_vision.md`: Product direction and long-term Personal AI Operating System vision.
 - `docs/architecture.md`: Current component boundaries, persistence, configuration transactions, runtime, Dashboard, automation, failure isolation, and future adapters.
-- `docs/roadmap.md`: Phase 1-10 implementation status and Phase 11 research direction.
+- `docs/roadmap.md`: Phase 1-10 implementation status, Phase 11 adaptive workspace, and Phase 12 research direction.
 - `docs/aios_task_checklist.md`: Detailed progress tracker, including partial Dashboard expansion work.
 - `docs/file_inventory.md`: This responsibility index.
 - `docs/superpowers/specs/2026-07-17-mcp-client-design.md`: Phase 7 MCP design and safety contract.
@@ -87,6 +87,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `docs/superpowers/plans/2026-07-27-advanced-long-term-memory.md`: Phase 9 implementation plan.
 - `docs/superpowers/specs/2026-07-27-proactive-runtime-dashboard-design.md`: Phase 10 runtime, notification, Dashboard, automation, policy, and success criteria.
 - `docs/superpowers/plans/2026-07-27-proactive-runtime-dashboard.md`: Phase 10 test-driven implementation and release-verification checklist.
+- `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`: Phase 11 habits, projects, suggestions, calendar replanning, conversation, Dashboard mutation, and Nexus MCP Server safety contract.
 
 ## Phase 10 Tests
 

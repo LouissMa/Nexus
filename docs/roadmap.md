@@ -108,7 +108,21 @@ Future Dashboard work:
 - [ ] Dedicated project-progress panel.
 - [ ] AI-suggestion panel.
 
-## Phase 11: Multimodal and Embodied Interfaces
+## Phase 11: Adaptive Life Workspace
+
+Objective: make Nexus easier to use every day while preserving local-first and permission-bounded behavior.
+
+- [ ] Habit tracking with cadence, check-ins, streaks, and Dashboard controls.
+- [ ] Project milestones, progress history, linked goals/tasks, and a dedicated Dashboard view.
+- [ ] Explainable suggestions derived from goals, tasks, habits, projects, calendar, and RAG memories.
+- [ ] Calendar-aware replan preview and stale-safe apply without calendar writes.
+- [ ] Unified local-first `nexus ask` entry point with optional strict-JSON LLM intent parsing.
+- [ ] Allowlisted loopback Dashboard mutations protected by Origin and CSRF checks.
+- [ ] Explicitly launched permissioned Nexus MCP stdio server.
+
+The proposed safety and architecture contract is documented in `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`.
+
+## Phase 12: Multimodal and Embodied Interfaces
 
 Objective: explore additional interfaces around the stable Nexus core.
 

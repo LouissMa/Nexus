@@ -17,7 +17,8 @@ Status legend:
 5. Multi-Agent coordination. Completed.
 6. Advanced memory importance, compression, privacy, and retention. Completed.
 7. Proactive runtime, local Dashboard, and permissioned named automation. Completed.
-8. Dashboard expansion and long-term multimodal/embodied interfaces. Future.
+8. Adaptive life workspace: Dashboard 2.0, calendar replanning, conversation, and Nexus MCP Server. Design drafted; review next.
+9. Long-term multimodal/embodied interfaces. Future.
 
 ## Completed Foundation
 
@@ -163,7 +164,20 @@ Current status: `[x]` Named permissioned automation completed.
 
 Arbitrary LLM-authored commands and unattended ask-policy actions are intentionally unsupported.
 
-## 10. Long-Term Multimodal and Embodied Interfaces
+## 10. Adaptive Life Workspace
+
+Current status: `[ ]` Design completed; implementation not started.
+
+- [ ] Habit tracking model, CLI, check-ins, streaks, and Dashboard panel.
+- [ ] Project model, milestones, progress history, CLI, and Dashboard panel.
+- [ ] Explainable deterministic AI suggestions with optional LLM wording.
+- [ ] Calendar-aware replan preview and conflict-safe apply.
+- [ ] Unified `nexus ask` deterministic router with optional strict-JSON LLM parsing.
+- [ ] Allowlisted loopback Dashboard mutation endpoints with CSRF protection.
+- [ ] Permissioned Nexus MCP stdio server with read and mutation tools.
+- [ ] Phase 11 audits, tests, English/Chinese documentation, and browser verification.
+
+## 11. Long-Term Multimodal and Embodied Interfaces
 
 Current status: `[ ]` Research direction, not started.
 
