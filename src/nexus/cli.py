@@ -272,6 +272,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     suggestion_dismiss.add_argument("suggestion_id")
     suggestion_dismiss.add_argument("--now")
+
+    replan_parser = subparsers.add_parser(
+        "replan", help="Replan tasks around calendar constraints."
+    )
+    replan_subparsers = replan_parser.add_subparsers(
+        dest="replan_command", required=True
+    )
+    replan_preview = replan_subparsers.add_parser(
+        "preview", help="Preview a conflict-safe replan."
+    )
+    replan_preview.add_argument("--date", required=True)
+    replan_preview.add_argument("--events-json", default="[]")
+    replan_preview.add_argument("--calendar-unavailable", action="store_true")
+    replan_preview.add_argument("--live-calendar", action="store_true")
+    replan_preview.add_argument("--working-start", default="09:00")
+    replan_preview.add_argument("--working-end", default="18:00")
+    replan_preview.add_argument("--now")
+    replan_apply = replan_subparsers.add_parser(
+        "apply", help="Apply a fresh replan preview."
+    )
+    replan_apply.add_argument("--preview-json", required=True)
+    replan_apply.add_argument("--events-json", default="[]")
+    replan_apply.add_argument("--calendar-unavailable", action="store_true")
+    replan_apply.add_argument("--live-calendar", action="store_true")
+    replan_apply.add_argument("--now")
+
     plan_parser = subparsers.add_parser("plan", help="Create and inspect daily plans.")
     plan_parser.add_argument(
         "plan_command", choices=["day"], help="Create today's structured plan."
@@ -1229,6 +1255,29 @@ def main() -> None:
                 print_json({"status": "ok", "suggestion": result})
         except (TypeError, ValueError) as exc:
             _error_exit("invalid_suggestion", str(exc), 2)
+        return
+    if args.command == "replan":
+        try:
+            now = datetime.fromisoformat(args.now) if args.now else None
+            profile, _runtime = load_runtime_settings()
+            events = None if args.calendar_unavailable else json.loads(args.events_json)
+            if args.replan_command == "preview":
+                preview = service.preview_replan(
+                    args.date,
+                    events,
+                    (args.working_start, args.working_end),
+                    timezone=profile.timezone,
+                    now=now,
+                )
+                print_json({"preview": preview})
+            else:
+                preview = json.loads(args.preview_json)
+                result = service.apply_replan(
+                    preview, events, timezone=profile.timezone, now=now
+                )
+                print_json({"status": "ok", "result": result})
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            _error_exit("invalid_replan", str(exc), 2)
         return
     tool_settings = load_tool_settings()
     tool_manager = build_tool_manager(tool_settings, nexus_home())

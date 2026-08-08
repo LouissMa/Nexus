@@ -21,6 +21,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
 - Project tracking with linked goals/tasks, milestones, derived or explicit progress, correction history, and archival.
 - Explainable offline suggestions from quiet goals, blocked/pending tasks, habit risk, and milestone deadlines, with expiring snapshots and approval-gated actions.
+- Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
@@ -205,6 +206,7 @@ nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
 nexus project add|list|milestone-add|milestone-update|progress|archive
 nexus suggestion list|refresh|accept|dismiss
+nexus replan preview|apply
 nexus plan day
 nexus task list|update
 nexus review

@@ -115,11 +115,11 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Produces: `ReplanningService.apply(preview, events, now) -> dict`
 - Preview fields: `id`, `state_revision`, `calendar_fingerprint`, `kept`, `moved`, `shortened`, `unscheduled`, `degradations`.
 
-- [ ] Write failing tests for free windows, overlapping/all-day events, priorities, completed/in-progress tasks, unscheduled reasons, calendar failure fallback, and stale apply.
-- [ ] Run focused tests and verify RED.
-- [ ] Implement deterministic interval allocation and `nexus replan preview|apply`; apply only scheduling fields and preserve task content/status.
-- [ ] Run focused tests, Ruff, and AST parsing.
-- [ ] Update docs, commit `feat: add calendar aware replanning`, and push.
+- [x] Write failing tests for free windows, overlapping/all-day events, priorities, completed/in-progress tasks, unscheduled reasons, calendar failure fallback, and stale apply.
+- [x] Run focused tests and verify RED.
+- [x] Implement deterministic interval allocation and `nexus replan preview|apply`; apply only scheduling fields and preserve task content/status.
+- [x] Run focused tests, Ruff, and AST parsing.
+- [x] Update docs, commit `feat: add calendar aware replanning`, and push.
 
 ### Task 5: Unified Conversation Router
 

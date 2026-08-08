@@ -13,6 +13,7 @@ from .memory_service import UNSET, MemoryManager, ManagedMemory
 from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .projects import ProjectService
 from .rag import MemoryRetriever
+from .replanning import ReplanningService
 from .store import JsonStore
 from .suggestions import SuggestionService, SuggestionWordingAdapter
 
@@ -163,6 +164,18 @@ class NexusService:
     ) -> dict[str, Any]:
         return self._suggestion_service(timezone).dismiss(suggestion_id, now=now)
 
+    def _replanning_service(self, timezone: str = "UTC") -> ReplanningService:
+        return ReplanningService(self.store, timezone=timezone)
+
+    def preview_replan(
+        self, *args: Any, timezone: str = "UTC", **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._replanning_service(timezone).preview(*args, **kwargs)
+
+    def apply_replan(
+        self, *args: Any, timezone: str = "UTC", **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._replanning_service(timezone).apply(*args, **kwargs)
     def add_memory(
         self,
         text: str,
