@@ -95,11 +95,11 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Produces: `SuggestionService.accept(suggestion_id, approved, now) -> dict`
 - Produces: `SuggestionService.dismiss(suggestion_id, now) -> dict`
 
-- [ ] Write failing tests for quiet goals, blocked tasks, streak risk, milestone deadlines, stable ranking/IDs, expiry, source IDs, acceptance allowlist, and dismissal.
-- [ ] Run focused tests and verify RED.
-- [ ] Implement deterministic generation and `nexus suggestion list|refresh|accept|dismiss`; keep optional LLM wording behind a structure-preserving adapter.
-- [ ] Run focused tests, Ruff, and AST parsing.
-- [ ] Update docs, commit `feat: add explainable life suggestions`, and push.
+- [x] Write failing tests for quiet goals, blocked tasks, streak risk, milestone deadlines, stable ranking/IDs, expiry, source IDs, acceptance allowlist, and dismissal.
+- [x] Run focused tests and verify RED.
+- [x] Implement deterministic generation and `nexus suggestion list|refresh|accept|dismiss`; keep optional LLM wording behind a structure-preserving adapter.
+- [x] Run focused tests, Ruff, and AST parsing.
+- [x] Update docs, commit `feat: add explainable life suggestions`, and push.
 
 ### Task 4: Calendar-Aware Replanning
 

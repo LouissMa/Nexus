@@ -241,6 +241,37 @@ def build_parser() -> argparse.ArgumentParser:
     project_archive.add_argument("project_id")
     project_archive.add_argument("--now")
 
+    suggestion_parser = subparsers.add_parser(
+        "suggestion", help="Manage explainable suggestions."
+    )
+    suggestion_subparsers = suggestion_parser.add_subparsers(
+        dest="suggestion_command", required=True
+    )
+    suggestion_list = suggestion_subparsers.add_parser(
+        "list", help="List current suggestions."
+    )
+    suggestion_list.add_argument("--now")
+    suggestion_list.add_argument("--limit", type=int, default=10)
+    suggestion_list.add_argument("--llm", action="store_true")
+    suggestion_list.add_argument("--model-tier", choices=["simple", "complex"])
+    suggestion_refresh = suggestion_subparsers.add_parser(
+        "refresh", help="Regenerate suggestions."
+    )
+    suggestion_refresh.add_argument("--now")
+    suggestion_refresh.add_argument("--limit", type=int, default=10)
+    suggestion_refresh.add_argument("--llm", action="store_true")
+    suggestion_refresh.add_argument("--model-tier", choices=["simple", "complex"])
+    suggestion_accept = suggestion_subparsers.add_parser(
+        "accept", help="Accept a suggestion action."
+    )
+    suggestion_accept.add_argument("suggestion_id")
+    suggestion_accept.add_argument("--approve", action="store_true")
+    suggestion_accept.add_argument("--now")
+    suggestion_dismiss = suggestion_subparsers.add_parser(
+        "dismiss", help="Dismiss a suggestion."
+    )
+    suggestion_dismiss.add_argument("suggestion_id")
+    suggestion_dismiss.add_argument("--now")
     plan_parser = subparsers.add_parser("plan", help="Create and inspect daily plans.")
     plan_parser.add_argument(
         "plan_command", choices=["day"], help="Create today's structured plan."
@@ -1162,6 +1193,43 @@ def main() -> None:
             _error_exit("invalid_project", str(exc), 2)
         return
 
+    if args.command == "suggestion":
+        try:
+            now = (
+                datetime.fromisoformat(args.now) if getattr(args, "now", None) else None
+            )
+            profile, _runtime = load_runtime_settings()
+            if args.suggestion_command in {"list", "refresh"}:
+                if args.llm:
+                    config = LLMConfig.from_env(model_tier=args.model_tier)
+                    llm = OpenAICompatibleLLM(config) if config.is_configured else None
+                    service = NexusService(store, llm=llm, memory_retriever=retriever)
+                suggestions = service.list_suggestions(
+                    timezone=profile.timezone,
+                    now=now,
+                    refresh=args.suggestion_command == "refresh",
+                    limit=args.limit,
+                    use_llm=args.llm,
+                )
+                print_json({"suggestions": suggestions})
+            elif args.suggestion_command == "accept":
+                result = service.accept_suggestion(
+                    args.suggestion_id,
+                    approved=args.approve,
+                    timezone=profile.timezone,
+                    now=now,
+                )
+                print_json({"status": "ok", **result})
+            else:
+                result = service.dismiss_suggestion(
+                    args.suggestion_id,
+                    timezone=profile.timezone,
+                    now=now,
+                )
+                print_json({"status": "ok", "suggestion": result})
+        except (TypeError, ValueError) as exc:
+            _error_exit("invalid_suggestion", str(exc), 2)
+        return
     tool_settings = load_tool_settings()
     tool_manager = build_tool_manager(tool_settings, nexus_home())
     mcp_settings = load_mcp_settings()

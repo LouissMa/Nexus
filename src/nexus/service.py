@@ -14,6 +14,7 @@ from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .projects import ProjectService
 from .rag import MemoryRetriever
 from .store import JsonStore
+from .suggestions import SuggestionService, SuggestionWordingAdapter
 
 
 class BriefingLLM(Protocol):
@@ -122,6 +123,45 @@ class NexusService:
 
     def archive_project(self, project_id: str, *, now: datetime | None = None) -> dict[str, Any]:
         return self._project_service().archive(project_id, now=now)
+
+    def _suggestion_service(self, timezone: str = "UTC") -> SuggestionService:
+        return SuggestionService(self.store, timezone=timezone)
+
+    def list_suggestions(
+        self,
+        *,
+        timezone: str = "UTC",
+        use_llm: bool = False,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        suggestions = self._suggestion_service(timezone).list(**kwargs)
+        if use_llm and self.llm is not None:
+            try:
+                return SuggestionWordingAdapter.rewrite(suggestions, self.llm)
+            except (LLMError, ValueError):
+                pass
+        return suggestions
+
+    def accept_suggestion(
+        self,
+        suggestion_id: str,
+        *,
+        approved: bool,
+        timezone: str = "UTC",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._suggestion_service(timezone).accept(
+            suggestion_id, approved=approved, now=now
+        )
+
+    def dismiss_suggestion(
+        self,
+        suggestion_id: str,
+        *,
+        timezone: str = "UTC",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._suggestion_service(timezone).dismiss(suggestion_id, now=now)
 
     def add_memory(
         self,
