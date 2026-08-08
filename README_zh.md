@@ -22,6 +22,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 项目追踪：关联目标与任务、里程碑、推导或显式进度、纠正历史和归档。
 - 可解释离线建议：从静默目标、阻塞/待办任务、习惯风险和里程碑期限生成，并提供过期快照与需批准的受限动作。
 - 日历感知重排：基于只读实时 iCalendar 约束生成预览，按优先级分配、缩短或说明无法安排，并通过状态版本安全应用。
+- 统一 `nexus ask` 入口：识别常用中英文本地意图，写操作先预览并批准，习惯打卡可低风险执行，并可选用严格 JSON 的 LLM 意图选择。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
 - 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头和受目录约束的文件系统集成。
 - 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
@@ -207,6 +208,7 @@ nexus habit add|list|check-in|archive
 nexus project add|list|milestone-add|milestone-update|progress|archive
 nexus suggestion list|refresh|accept|dismiss
 nexus replan preview|apply
+nexus ask TEXT [--approve] [--llm] [--show-intent]
 nexus plan day
 nexus task list|update
 nexus review

@@ -18,6 +18,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/projects.py`: Project validation, goal/task links, milestone-derived and explicit progress, correction history, archival, and cross-process-safe store mutation.
 - `src/nexus/suggestions.py`: Deterministic suggestion ranking, stable IDs, expiry/status persistence, allowlisted approved actions, and structure-safe optional LLM wording.
 - `src/nexus/replanning.py`: Time-zone-aware calendar interval normalization, free-window allocation, preview integrity/freshness checks, and scheduling-field-only apply transactions.
+- `src/nexus/conversation.py`: Static intent schemas, Chinese/English local parsing, strict optional LLM selection, approval previews, and registered service dispatch.
 - `src/nexus/store.py`: Cross-process-safe JSON persistence for memories, goals, daily tasks, scheduler occurrence claims, and bounded scheduler run history; revision checks and atomic replacement prevent lost updates.
 - `src/nexus/planning.py`: Daily-task construction, task statuses, and strict/gentle/academic/startup Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible chat-completions client, tier selection, timeouts, response normalization, and public errors.
@@ -104,6 +105,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_suggestion_cli.py`: Suggestion refresh/list/accept CLI workflows and approval errors.
 - `tests/test_replanning.py`: Calendar constraints, overlap/all-day handling, priorities, status preservation, shortening, degradation, and stale apply rejection.
 - `tests/test_replanning_cli.py`: Replan preview/apply CLI workflow and persisted schedule verification.
+- `tests/test_conversation.py`: Local and LLM intent parsing, schema rejection, mutation previews, low-risk check-ins, and approved dispatch.
+- `tests/test_conversation_cli.py`: Unified `nexus ask` read, intent-inspection, preview, and approved mutation workflows.
 
 ## Phase 10 Tests
 

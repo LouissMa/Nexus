@@ -172,7 +172,7 @@ Current status: `[ ]` Design completed; implementation not started.
 - [~] Project model, milestones, progress history, links, archive, and CLI completed; Dashboard panel remains.
 - [~] Explainable deterministic AI suggestions, optional structure-safe LLM wording, CLI lifecycle, and approved allowlisted actions completed; Dashboard panel remains.
 - [x] Calendar-aware replan preview and conflict-safe apply with state revision, calendar fingerprint, integrity check, and read-only live-calendar fallback.
-- [ ] Unified `nexus ask` deterministic router with optional strict-JSON LLM parsing.
+- [x] Unified `nexus ask` deterministic Chinese/English router with mutation previews, low-risk check-ins, static schemas, and optional strict-JSON LLM parsing.
 - [ ] Allowlisted loopback Dashboard mutation endpoints with CSRF protection.
 - [ ] Permissioned Nexus MCP stdio server with read and mutation tools.
 - [ ] Phase 11 audits, tests, English/Chinese documentation, and browser verification.

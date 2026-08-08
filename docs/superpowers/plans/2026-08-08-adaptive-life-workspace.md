@@ -136,11 +136,11 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Produces: `ConversationService.handle(text, approved=False, use_llm=False) -> dict`
 - Envelope fields: `intent`, `confidence`, `source`, `requires_approval`, `preview`, `result`, `explanation`, `degradations`.
 
-- [ ] Write failing tests for Chinese/English local intents, ambiguity, strict LLM JSON, unknown intent/schema rejection, preview-before-mutation, low-risk check-in, and LLM fallback.
-- [ ] Run focused tests and verify RED.
-- [ ] Implement static schemas/dispatch and `nexus ask TEXT [--llm] [--approve] [--show-intent]`.
-- [ ] Run focused tests, Ruff, and AST parsing.
-- [ ] Update docs, commit `feat: add unified conversation entrypoint`, and push.
+- [x] Write failing tests for Chinese/English local intents, ambiguity, strict LLM JSON, unknown intent/schema rejection, preview-before-mutation, low-risk check-in, and LLM fallback.
+- [x] Run focused tests and verify RED.
+- [x] Implement static schemas/dispatch and `nexus ask TEXT [--llm] [--approve] [--show-intent]`.
+- [x] Run focused tests, Ruff, and AST parsing.
+- [x] Update docs, commit `feat: add unified conversation entrypoint`, and push.
 
 ### Task 6: Dashboard 2.0 Snapshot and Mutation API
 

@@ -176,6 +176,27 @@ class NexusService:
         self, *args: Any, timezone: str = "UTC", **kwargs: Any
     ) -> dict[str, Any]:
         return self._replanning_service(timezone).apply(*args, **kwargs)
+    def ask(
+        self,
+        text: str,
+        *,
+        timezone: str = "UTC",
+        approved: bool = False,
+        use_llm: bool = False,
+        show_intent: bool = False,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        from .conversation import ConversationService
+
+        return ConversationService(
+            self, timezone=timezone, llm=self.llm
+        ).handle(
+            text,
+            approved=approved,
+            use_llm=use_llm,
+            show_intent=show_intent,
+            now=now,
+        )
     def add_memory(
         self,
         text: str,

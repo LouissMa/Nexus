@@ -70,6 +70,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    ask_parser = subparsers.add_parser(
+        "ask", help="Use the unified local-first conversation entry point."
+    )
+    ask_parser.add_argument("text")
+    ask_parser.add_argument("--approve", action="store_true")
+    ask_parser.add_argument("--llm", action="store_true")
+    ask_parser.add_argument("--model-tier", choices=["simple", "complex"])
+    ask_parser.add_argument("--show-intent", action="store_true")
+    ask_parser.add_argument("--now")
     memory_parser = subparsers.add_parser("memory", help="Manage long-term memories.")
     memory_subparsers = memory_parser.add_subparsers(
         dest="memory_command", required=True
@@ -1105,6 +1114,26 @@ def main() -> None:
     retriever = build_memory_retriever(embedding_settings, nexus_home())
     service = NexusService(store, memory_retriever=retriever)
 
+    if args.command == "ask":
+        try:
+            now = datetime.fromisoformat(args.now) if args.now else None
+            profile, _runtime = load_runtime_settings()
+            if args.llm:
+                config = LLMConfig.from_env(model_tier=args.model_tier)
+                llm = OpenAICompatibleLLM(config) if config.is_configured else None
+                service = NexusService(store, llm=llm, memory_retriever=retriever)
+            result = service.ask(
+                args.text,
+                timezone=profile.timezone,
+                approved=args.approve,
+                use_llm=args.llm,
+                show_intent=args.show_intent,
+                now=now,
+            )
+            print_json(result)
+        except (TypeError, ValueError) as exc:
+            _error_exit("invalid_conversation", str(exc), 2)
+        return
     if args.command == "habit":
         try:
             profile, _runtime = load_runtime_settings()

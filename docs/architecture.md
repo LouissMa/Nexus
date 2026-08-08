@@ -53,6 +53,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/projects.py`: Owns bounded projects, goal/task links, milestones, derived or explicit progress, correction history, and archival.
 - `src/nexus/suggestions.py`: Ranks explainable offline suggestions, persists expiry/status, executes allowlisted approved actions, and constrains optional LLM rewriting to wording fields.
 - `src/nexus/replanning.py`: Normalizes immutable calendar constraints, allocates task windows, records shortened/unscheduled work, and applies previews only when state and calendar fingerprints remain fresh.
+- `src/nexus/conversation.py`: Maps bounded Chinese/English requests to a static intent registry, validates optional strict-JSON LLM selections, previews mutations, and dispatches only registered Nexus services.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
 - `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, and runtime settings.
 - `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.
