@@ -88,6 +88,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `docs/superpowers/specs/2026-07-27-proactive-runtime-dashboard-design.md`: Phase 10 runtime, notification, Dashboard, automation, policy, and success criteria.
 - `docs/superpowers/plans/2026-07-27-proactive-runtime-dashboard.md`: Phase 10 test-driven implementation and release-verification checklist.
 - `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`: Phase 11 habits, projects, suggestions, calendar replanning, conversation, Dashboard mutation, and Nexus MCP Server safety contract.
+- `docs/superpowers/plans/2026-08-08-adaptive-life-workspace.md`: Phase 11 test-driven implementation order, interfaces, verification, documentation, and release checklist.
 
 ## Phase 10 Tests
 
