@@ -33,7 +33,7 @@ from .config import (
     update_llm_settings,
     update_tool_settings,
 )
-from .dashboard import DashboardServer, DashboardSnapshot
+from .dashboard import DashboardActions, DashboardServer, DashboardSnapshot
 from .integrations.core import ToolError
 from .integrations.manager import build_tool_manager
 from .llm import LLMConfig, OpenAICompatibleLLM
@@ -877,7 +877,17 @@ def _build_dashboard_snapshot() -> DashboardSnapshot:
 
 
 def _build_dashboard_server(*, host: str, port: int) -> DashboardServer:
-    return DashboardServer(_build_dashboard_snapshot(), host=host, port=port)
+    profile, _runtime = load_runtime_settings()
+    actions = DashboardActions(
+        NexusService(JsonStore.from_env()),
+        timezone=profile.timezone,
+    )
+    return DashboardServer(
+        _build_dashboard_snapshot(),
+        actions=actions,
+        host=host,
+        port=port,
+    )
 
 
 def _serve_dashboard(server: DashboardServer) -> None:

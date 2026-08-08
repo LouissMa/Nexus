@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+import secrets
 import socket
 import threading
 from collections.abc import Callable, Mapping
@@ -14,7 +15,10 @@ from typing import Any, Protocol
 from urllib.parse import unquote, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .dashboard_actions import DashboardActions
+from .habits import habit_summary
 from .memory_lifecycle import is_memory_eligible, normalize_memory
+from .projects import project_summary
 
 
 class RecentStore(Protocol):
@@ -24,7 +28,16 @@ class RecentStore(Protocol):
 StateSource = Callable[[], Mapping[str, Any]]
 MappingSource = Callable[[], Mapping[str, Any]]
 
-_SECTION_NAMES = ("today", "goals", "memory", "activity", "settings")
+_SECTION_NAMES = (
+    "today",
+    "goals",
+    "habits",
+    "projects",
+    "suggestions",
+    "memory",
+    "activity",
+    "settings",
+)
 _SECRET_VALUE = "[redacted]"
 _MAX_STRING_CHARS = 1_000
 _MAX_LIST_ITEMS = 100
@@ -421,6 +434,9 @@ class DashboardSnapshot:
         builders: dict[str, Callable[[], dict[str, Any]]] = {
             "today": lambda: self._build_today(now),
             "goals": self._build_goals,
+            "habits": lambda: self._build_habits(now),
+            "projects": self._build_projects,
+            "suggestions": lambda: self._build_suggestions(now),
             "memory": lambda: self._build_memory(now),
             "activity": self._build_activity,
             "settings": self._build_settings,
@@ -616,6 +632,119 @@ class DashboardSnapshot:
         )
         return {"items": goals, "total": len(goals)}
 
+    def _build_habits(self, now: datetime) -> dict[str, Any]:
+        today = now.astimezone(self._timezone).date()
+        items: list[dict[str, Any]] = []
+        for habit in _bounded_records(self._state().get("habits", []), _MAX_STATE_SCAN):
+            public = _public_record(
+                habit,
+                (
+                    "id",
+                    "name",
+                    "description",
+                    "goal_id",
+                    "cadence",
+                    "weekdays",
+                    "target_count",
+                    "status",
+                    "created_at",
+                    "archived_at",
+                    "check_ins",
+                ),
+            )
+            if public is None:
+                continue
+            public["summary"] = habit_summary(dict(habit), today)
+            items.append(public)
+            if len(items) >= self.MAX_SECTION_ITEMS:
+                break
+        items.sort(
+            key=lambda item: (item.get("status") != "active", item.get("name", ""))
+        )
+        return {"items": items, "total": len(items)}
+
+    def _build_projects(self) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        for project in _bounded_records(
+            self._state().get("projects", []), _MAX_STATE_SCAN
+        ):
+            public = _public_record(
+                project,
+                (
+                    "id",
+                    "name",
+                    "description",
+                    "status",
+                    "priority",
+                    "target_date",
+                    "goal_ids",
+                    "task_ids",
+                    "milestones",
+                    "progress_entries",
+                    "created_at",
+                    "updated_at",
+                    "archived_at",
+                ),
+            )
+            if public is None:
+                continue
+            public["summary"] = project_summary(dict(project))
+            items.append(public)
+            if len(items) >= self.MAX_SECTION_ITEMS:
+                break
+        items.sort(
+            key=lambda item: (
+                item.get("status") == "archived",
+                item.get("priority", 99),
+                item.get("target_date") or "9999-12-31",
+            )
+        )
+        return {"items": items, "total": len(items)}
+
+    def _build_suggestions(self, now: datetime) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        for suggestion in _bounded_records(
+            self._state().get("suggestions", []), _MAX_STATE_SCAN
+        ):
+            if not isinstance(suggestion, Mapping):
+                continue
+            try:
+                expires = datetime.fromisoformat(str(suggestion.get("expires_at")))
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=UTC)
+            except ValueError:
+                continue
+            if expires <= now:
+                continue
+            public = _public_record(
+                suggestion,
+                (
+                    "id",
+                    "kind",
+                    "title",
+                    "reason",
+                    "confidence",
+                    "source_ids",
+                    "created_at",
+                    "expires_at",
+                    "status",
+                    "accepted_at",
+                    "dismissed_at",
+                ),
+            )
+            if public is None:
+                continue
+            action = suggestion.get("action")
+            public["action"] = (
+                {"type": _sanitize_text(str(action.get("type")))}
+                if isinstance(action, Mapping) and action.get("type")
+                else {}
+            )
+            items.append(public)
+            if len(items) >= self.MAX_SECTION_ITEMS:
+                break
+        return {"items": items, "total": len(items)}
+
     def _build_memory(self, now: datetime) -> dict[str, Any]:
         memories: list[dict[str, Any]] = []
         for raw in _bounded_records(self._state().get("memories", []), _MAX_STATE_SCAN):
@@ -731,7 +860,7 @@ class _DashboardHTTPServerV6(_DashboardHTTPServer):
 
 
 class DashboardServer:
-    """Serve the read-only Nexus dashboard on a loopback address."""
+    """Serve the permission-bounded Nexus dashboard on a loopback address."""
 
     _ASSETS = {
         "/": ("index.html", "text/html; charset=utf-8"),
@@ -744,9 +873,11 @@ class DashboardServer:
         self,
         snapshot: DashboardSnapshot,
         *,
+        actions: DashboardActions | None = None,
         host: str = "127.0.0.1",
         port: int = 8765,
         max_snapshot_bytes: int = 1_048_576,
+        max_request_bytes: int = 16_384,
     ) -> None:
         self.host = self._validate_host(host)
         if (
@@ -757,8 +888,13 @@ class DashboardServer:
             raise ValueError("port must be an integer from 0 to 65535.")
         if max_snapshot_bytes < 1024:
             raise ValueError("max_snapshot_bytes must be at least 1024.")
+        if max_request_bytes < 1 or max_request_bytes > 16_384:
+            raise ValueError("max_request_bytes must be from 1 to 16384.")
         self._snapshot = snapshot
+        self._actions = actions
         self._max_snapshot_bytes = max_snapshot_bytes
+        self._max_request_bytes = max_request_bytes
+        self.csrf_token = secrets.token_urlsafe(32)
         self._thread: threading.Thread | None = None
         self._closed = False
         server_type = (
@@ -921,13 +1057,97 @@ class DashboardServer:
                 except (FileNotFoundError, OSError):
                     self._send_error(404, "not_found")
                     return
+                if name == "index.html":
+                    payload = payload.replace(
+                        b"__NEXUS_CSRF_TOKEN__",
+                        owner.csrf_token.encode("ascii"),
+                    )
                 self._send(200, payload, content_type)
 
-            def _trusted_request(self) -> bool:
+            def do_POST(self) -> None:
+                if not self._trusted_request(require_origin=True):
+                    self._send_error(403, "forbidden")
+                    return
+                parsed = urlsplit(self.path)
+                raw_path = parsed.path
+                if (
+                    parsed.scheme
+                    or parsed.netloc
+                    or parsed.query
+                    or parsed.fragment
+                    or "%" in raw_path
+                    or unquote(raw_path, errors="replace") != raw_path
+                ):
+                    self._send_error(404, "not_found")
+                    return
+                content_types = self.headers.get_all("Content-Type", failobj=[])
+                if (
+                    len(content_types) != 1
+                    or content_types[0].split(";", 1)[0].strip().casefold()
+                    != "application/json"
+                ):
+                    self._send_error(415, "unsupported_media_type")
+                    return
+                csrf_headers = self.headers.get_all("X-Nexus-CSRF", failobj=[])
+                if len(csrf_headers) != 1 or not secrets.compare_digest(
+                    csrf_headers[0], owner.csrf_token
+                ):
+                    self._send_error(403, "invalid_csrf")
+                    return
+                lengths = self.headers.get_all("Content-Length", failobj=[])
+                try:
+                    length = int(lengths[0]) if len(lengths) == 1 else -1
+                except ValueError:
+                    length = -1
+                if length < 0:
+                    self._send_error(411, "length_required")
+                    return
+                if length > owner._max_request_bytes:
+                    if length <= owner._max_request_bytes * 4:
+                        self.rfile.read(length)
+                    else:
+                        self.close_connection = True
+                    self._send_error(413, "request_too_large")
+                    return
+                try:
+                    payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    self._send_error(400, "invalid_json")
+                    return
+                if not isinstance(payload, dict):
+                    self._send_error(400, "invalid_request")
+                    return
+                if owner._actions is None:
+                    self._send_error(503, "actions_unavailable")
+                    return
+                try:
+                    result = owner._actions.dispatch(raw_path, payload)
+                except (TypeError, ValueError):
+                    self._send_error(400, "invalid_request")
+                    return
+                except Exception:
+                    self._send_error(500, "action_failed")
+                    return
+                if result is None:
+                    self._send_error(404, "not_found")
+                    return
+                self._send_json(200, {"status": "ok", "result": result})
+
+            def do_PUT(self) -> None:
+                self._send_error(405, "method_not_allowed")
+
+            do_PATCH = do_PUT
+            do_DELETE = do_PUT
+
+            def _trusted_request(self, require_origin: bool = False) -> bool:
                 host_headers = self.headers.get_all("Host", failobj=[])
                 if len(host_headers) != 1 or not owner._host_allowed(host_headers[0]):
                     return False
                 origin_headers = self.headers.get_all("Origin", failobj=[])
+                if require_origin:
+                    return len(origin_headers) == 1 and owner._origin_allowed(
+                        origin_headers[0]
+                    )
                 return len(origin_headers) <= 1 and (
                     not origin_headers or owner._origin_allowed(origin_headers[0])
                 )
@@ -948,6 +1168,19 @@ class DashboardServer:
                     self._send(503, payload, "application/json; charset=utf-8")
                     return
                 self._send(200, payload, "application/json; charset=utf-8")
+
+            def _send_json(self, status: int, value: Any) -> None:
+                try:
+                    payload = json.dumps(
+                        value, ensure_ascii=False, separators=(",", ":")
+                    ).encode("utf-8")
+                except (TypeError, ValueError):
+                    self._send_error(500, "response_unavailable")
+                    return
+                if len(payload) > owner._max_snapshot_bytes:
+                    self._send_error(500, "response_too_large")
+                    return
+                self._send(status, payload, "application/json; charset=utf-8")
 
             def _send_error(self, status: int, code: str) -> None:
                 payload = json.dumps({"error": code}, separators=(",", ":")).encode(

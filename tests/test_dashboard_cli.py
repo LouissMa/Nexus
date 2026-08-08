@@ -60,6 +60,9 @@ def test_dashboard_snapshot_is_privacy_safe(tmp_path: Path) -> None:
     assert set(snapshot["sections"]) == {
         "today",
         "goals",
+        "habits",
+        "projects",
+        "suggestions",
         "memory",
         "activity",
         "settings",

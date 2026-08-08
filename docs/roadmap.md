@@ -117,7 +117,7 @@ Objective: make Nexus easier to use every day while preserving local-first and p
 - [~] Explainable suggestions from goals, tasks, habits, and project milestones, with structure-safe LLM wording and CLI actions completed; calendar/RAG enrichment and Dashboard view remain.
 - [x] Calendar-aware replan preview and stale-safe apply without calendar writes, including live read-only iCalendar constraints and explicit degradation.
 - [x] Unified local-first `nexus ask` entry point with common Chinese/English intents, approval previews, and optional strict-JSON LLM intent parsing.
-- [ ] Allowlisted loopback Dashboard mutations protected by Origin and CSRF checks.
+- [x] Allowlisted loopback Dashboard mutations protected by exact routes, Origin, CSRF, strict schemas, and request bounds.
 - [ ] Explicitly launched permissioned Nexus MCP stdio server.
 
 The proposed safety and architecture contract is documented in `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`.

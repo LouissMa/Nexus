@@ -37,7 +37,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Dashboard
 
-- `src/nexus/dashboard.py`: Privacy-filtered `DashboardSnapshot` aggregation and standard-library `DashboardServer`. Builds Today, Goals, Memory, Activity, and Settings independently; bounds raw/serialized data; allows only loopback hosts, trusted Host/Origin, and exact read-only routes.
+- `src/nexus/dashboard.py`: Privacy-filtered `DashboardSnapshot` aggregation and standard-library `DashboardServer`. Builds eight isolated sections; bounds data; allows only loopback hosts and exact routes; enforces Host, Origin, CSRF, content type, and request limits.
+- `src/nexus/dashboard_actions.py`: Strict allowlisted schemas and service delegation for habit check-in, project progress, suggestion accept/dismiss, and replan preview/apply.
 - `src/nexus/dashboard/index.html`: Packaged Dashboard shell, semantic sections, accessible navigation, loading/empty/error containers, and viewport metadata.
 - `src/nexus/dashboard/dashboard.css`: Responsive desktop/mobile operational layout, stable controls, accessible focus/contrast, section states, and navigation behavior.
 - `src/nexus/dashboard/dashboard.js`: Snapshot fetch, view switching, safe `textContent` rendering, schedules/tasks/reminders/latest briefing-review, goals, memory timeline, activity, and masked settings.
@@ -118,6 +119,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_runtime_cli.py`: Profile/runtime sparse configuration, masking, conflicts, runtime status/tick/run/start, notifications, Ctrl+C, and stable errors.
 - `tests/test_automation_cli.py`: Automation set/list/remove, masked definitions, policy outcomes, one-shot approval, audit, and validation exit codes.
 - `tests/test_dashboard_cli.py`: Snapshot privacy, loopback serving, startup/shutdown behavior, stable errors, and optional-section dependency isolation.
+- `tests/test_dashboard_actions.py`: New life-section filtering plus exact POST routes, CSRF bootstrap, content type, Origin, body bounds, and allowlisted action dispatch.
 
 ## Other Test Suites
 

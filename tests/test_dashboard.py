@@ -208,6 +208,9 @@ def test_snapshot_builds_all_views_and_filters_private_data() -> None:
     assert set(result["sections"]) == {
         "today",
         "goals",
+        "habits",
+        "projects",
+        "suggestions",
         "memory",
         "activity",
         "settings",

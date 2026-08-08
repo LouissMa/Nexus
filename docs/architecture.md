@@ -61,7 +61,8 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/notifications.py`: Implements inbox-first JSONL persistence, quiet-hour deferral, cross-process delivery claims, console/webhook delivery, bounded records/read buffers, corrupt-line repair, and deferred flush.
 - `src/nexus/scheduler.py`: Implements deterministic `tick`, explicit job runs, the foreground loop, occurrence claims, status, and partial-failure reporting.
 - `src/nexus/automation.py`: Validates named automations, enforces policies and path/host boundaries, runs fixed adapters, and stores bounded secret-safe audits.
-- `src/nexus/dashboard.py`: Builds privacy-filtered section snapshots and serves exact read-only HTTP routes on loopback addresses.
+- `src/nexus/dashboard.py`: Builds privacy-filtered section snapshots and serves exact loopback HTTP reads plus six Origin/CSRF-protected life-workspace action routes.
+- `src/nexus/dashboard_actions.py`: Validates allowlisted Dashboard action schemas and delegates habit, project, suggestion, and replan operations to Nexus services.
 - `src/nexus/dashboard/index.html`: Dashboard shell and accessible navigation.
 - `src/nexus/dashboard/dashboard.css`: Responsive operational layout, mobile navigation, states, and stable control dimensions.
 - `src/nexus/dashboard/dashboard.js`: Fetches snapshots and renders Today, Goals, Memory, Activity, and Settings with safe DOM text assignment.

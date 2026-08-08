@@ -29,7 +29,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 有预算与降级机制的 Memory、Tool、Planner、Reflection、Coach Agent 协作，以及隐私安全轨迹。
 - 按用户 IANA 时区主动运行早晨简报、晚间复盘和静默目标提醒。
 - 持久化通知收件箱、可选控制台/Webhook 投递，以及普通或跨夜免打扰时段。
-- 响应式只读 Dashboard：Today、Goals、Memory、Activity 和脱敏 Settings。
+- 响应式 Loopback Dashboard：Today、Goals、Memory、Activity 和脱敏 Settings，并提供有界的 Habit/Project/Suggestion 快照与六条 CSRF 保护的生活工作区动作。
 - 受策略控制的命名自动化：固定网页、固定命令、GitHub 检查和 Markdown 状态报告。
 
 ## 快速开始
@@ -191,7 +191,7 @@ nexus briefing --llm --model-tier simple
 - `.nexus/` 保存个人状态、凭据、向量、运行历史、通知、审计、轨迹、模型和锁文件；Git 会整体忽略该目录。
 - 共享配置更新使用操作系统级跨进程事务锁，校验本次更新的配置 Section，保留无关 Section，并通过原子替换写入。
 - 状态保存和通知投递状态转换同样使用规范化的操作系统级锁。多个进程不会覆盖调度认领，也不会同时认领同一条延迟通知；超长损坏通知行会被跳过，并在重写时移除。
-- Dashboard 只读且只允许 Loopback 地址。它验证 `Host` 和 `Origin`，只提供精确路由，拒绝编码别名和目录穿越，限制输入/输出，并按 Section 隔离错误。
+- Dashboard 只允许 Loopback 地址。它验证 `Host`、`Origin` 和 CSRF，只提供精确的读取及受限动作路由，拒绝编码别名和目录穿越，限制输入/输出，并按 Section 隔离错误。
 - 自动化策略为 `deny`、`ask` 和 `allow`。`ask` 每次都需要一次性批准；无人值守执行必须使用 `allow`。
 - 浏览器自动化只能打开固定 HTTP(S) URL，并且必须配置非空、匹配的 Host Allowlist。
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。

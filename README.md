@@ -29,7 +29,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Bounded Memory, Tool, Planner, Reflection, and Coach Agent coordination with budgets, fallback, and privacy-safe traces.
 - Proactive morning briefing, evening review, and stale-goal reminder jobs in the user's IANA time zone.
 - Durable inbox notifications, optional console/webhook delivery, and normal or overnight quiet hours.
-- Responsive read-only dashboard for Today, Goals, Memory, Activity, and masked Settings.
+- Responsive loopback Dashboard for Today, Goals, Memory, Activity, and masked Settings, plus bounded Habit/Project/Suggestion snapshots and six CSRF-protected life-workspace actions.
 - Named browser, command, GitHub-inspection, and Markdown status-report automations under explicit policies.
 
 ## Quick Start

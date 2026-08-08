@@ -155,11 +155,11 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Produces: `DashboardActions.check_in_habit`, `update_project_progress`, `accept_suggestion`, `dismiss_suggestion`, `preview_replan`, and `apply_replan`.
 - Produces exact POST routes with 16 KiB JSON bound and CSRF validation.
 
-- [ ] Write failing tests for section privacy/isolation, exact POST routes, content type, body bound, Host/Origin/CSRF, normalized errors, and absence of generic mutation.
-- [ ] Run Dashboard tests and verify RED.
-- [ ] Implement bounded snapshot sections, per-process CSRF bootstrap, action adapter, and allowlisted POST dispatch.
-- [ ] Run Dashboard and backward-compatibility tests, Ruff, and AST parsing.
-- [ ] Commit `feat: add dashboard life workspace api` and push.
+- [x] Write failing tests for section privacy/isolation, exact POST routes, content type, body bound, Host/Origin/CSRF, normalized errors, and absence of generic mutation.
+- [x] Run Dashboard tests and verify RED.
+- [x] Implement bounded snapshot sections, per-process CSRF bootstrap, action adapter, and allowlisted POST dispatch.
+- [x] Run Dashboard and backward-compatibility tests, Ruff, and AST parsing.
+- [x] Commit `feat: add dashboard life workspace api` and push.
 
 ### Task 7: Dashboard 2.0 Frontend
 
