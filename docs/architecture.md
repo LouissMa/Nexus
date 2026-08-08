@@ -50,6 +50,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/cli.py`: Parses all commands and lazily wires Phase 10 managers so legacy commands do not initialize optional runtime integrations.
 - `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
 - `src/nexus/habits.py`: Owns bounded daily/weekday habits, idempotent local-date check-ins, derived streak/completion metrics, and archival.
+- `src/nexus/projects.py`: Owns bounded projects, goal/task links, milestones, derived or explicit progress, correction history, and archival.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
 - `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, and runtime settings.
 - `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.
@@ -222,7 +223,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
 - Phase 10 is bounded automation, not an open-ended autonomous loop.
 
-Current limitations include no remote dashboard, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Habit tracking, a dedicated project-progress panel, and AI-suggestion panels remain future dashboard work.
+Current limitations include no remote dashboard, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Habit and project workflows currently use the CLI; their dedicated Dashboard panels and AI suggestions remain future work.
 
 ## Future Architecture
 

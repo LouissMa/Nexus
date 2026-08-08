@@ -113,7 +113,7 @@ Future Dashboard work:
 Objective: make Nexus easier to use every day while preserving local-first and permission-bounded behavior.
 
 - [~] Habit cadence, check-ins, streaks, completion rates, archive, and CLI completed; Dashboard controls remain.
-- [ ] Project milestones, progress history, linked goals/tasks, and a dedicated Dashboard view.
+- [~] Project milestones, progress history, linked goals/tasks, archive, and CLI completed; dedicated Dashboard view remains.
 - [ ] Explainable suggestions derived from goals, tasks, habits, projects, calendar, and RAG memories.
 - [ ] Calendar-aware replan preview and stale-safe apply without calendar writes.
 - [ ] Unified local-first `nexus ask` entry point with optional strict-JSON LLM intent parsing.

@@ -73,11 +73,11 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Produces: `ProjectService.update_progress(project_id, percent, note, correction, now) -> dict`
 - Produces: `ProjectService.list(include_archived=False) -> list[dict]`
 
-- [ ] Write failing tests for milestone-derived progress, explicit progress, monotonic enforcement, correction, target-date validation, links, and cross-process mutation.
-- [ ] Run the focused tests and verify RED.
-- [ ] Implement project records and `nexus project add|list|milestone-add|milestone-update|progress|archive`.
-- [ ] Run focused tests, Ruff, and AST parsing.
-- [ ] Update docs, commit `feat: add project progress tracking`, and push.
+- [x] Write failing tests for milestone-derived progress, explicit progress, monotonic enforcement, correction, target-date validation, links, and mutation.
+- [x] Run the focused tests and verify RED.
+- [x] Implement project records and `nexus project add|list|milestone-add|milestone-update|progress|archive`.
+- [x] Run focused tests, Ruff, and AST parsing.
+- [x] Update docs, commit `feat: add project progress tracking`, and push.
 
 ### Task 3: Explainable Suggestion Engine
 

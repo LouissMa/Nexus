@@ -11,6 +11,7 @@ from .llm import LLMError
 from .memory_lifecycle import is_memory_eligible, normalize_memory
 from .memory_service import UNSET, MemoryManager, ManagedMemory
 from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
+from .projects import ProjectService
 from .rag import MemoryRetriever
 from .store import JsonStore
 
@@ -100,6 +101,27 @@ class NexusService:
         timezone: str = "UTC",
     ) -> dict[str, Any]:
         return self._habit_service(timezone).archive(habit_id, now=now)
+
+    def _project_service(self) -> ProjectService:
+        return ProjectService(self.store)
+
+    def add_project(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._project_service().add(*args, **kwargs)
+
+    def list_projects(self, **kwargs: Any) -> list[dict[str, Any]]:
+        return self._project_service().list(**kwargs)
+
+    def add_project_milestone(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._project_service().add_milestone(*args, **kwargs)
+
+    def update_project_milestone(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._project_service().update_milestone(*args, **kwargs)
+
+    def update_project_progress(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._project_service().update_progress(*args, **kwargs)
+
+    def archive_project(self, project_id: str, *, now: datetime | None = None) -> dict[str, Any]:
+        return self._project_service().archive(project_id, now=now)
 
     def add_memory(
         self,

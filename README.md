@@ -19,6 +19,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Long-term memory with search, semantic RAG, Qdrant persistence, re-indexing, lifecycle controls, privacy, expiry, compression, and explainable re-ranking.
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
 - Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
+- Project tracking with linked goals/tasks, milestones, derived or explicit progress, correction history, and archival.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
@@ -193,7 +194,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
 - Nexus does not provide open-ended autonomy, remote dashboard hosting, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
-- Habit tracking, a dedicated project-progress panel, and AI-suggestion panels remain future dashboard work.
+- Habit and project domain workflows are available through the CLI; their dedicated Dashboard panels and AI suggestions remain future work.
 
 ## CLI Command Map
 
@@ -201,6 +202,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
 nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
+nexus project add|list|milestone-add|milestone-update|progress|archive
 nexus plan day
 nexus task list|update
 nexus review

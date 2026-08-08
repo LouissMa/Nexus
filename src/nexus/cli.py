@@ -197,6 +197,50 @@ def build_parser() -> argparse.ArgumentParser:
     habit_archive.add_argument("habit_id")
     habit_archive.add_argument("--now")
 
+    project_parser = subparsers.add_parser("project", help="Manage projects.")
+    project_subparsers = project_parser.add_subparsers(
+        dest="project_command", required=True
+    )
+    project_add = project_subparsers.add_parser("add", help="Create a project.")
+    project_add.add_argument("name")
+    project_add.add_argument("--description", default="")
+    project_add.add_argument("--priority", type=int, default=3)
+    project_add.add_argument("--target-date")
+    project_add.add_argument("--goal-id", action="append", default=[])
+    project_add.add_argument("--task-id", action="append", default=[])
+    project_add.add_argument("--now")
+    project_list = project_subparsers.add_parser("list", help="List projects.")
+    project_list.add_argument("--include-archived", action="store_true")
+    milestone_add = project_subparsers.add_parser(
+        "milestone-add", help="Add a project milestone."
+    )
+    milestone_add.add_argument("project_id")
+    milestone_add.add_argument("title")
+    milestone_add.add_argument("--target-date")
+    milestone_add.add_argument("--now")
+    milestone_update = project_subparsers.add_parser(
+        "milestone-update", help="Update a milestone."
+    )
+    milestone_update.add_argument("project_id")
+    milestone_update.add_argument("milestone_id")
+    milestone_update.add_argument(
+        "--status", choices=["pending", "in_progress", "completed"], required=True
+    )
+    milestone_update.add_argument("--now")
+    project_progress = project_subparsers.add_parser(
+        "progress", help="Record project progress."
+    )
+    project_progress.add_argument("project_id")
+    project_progress.add_argument("percent", type=int)
+    project_progress.add_argument("--note", default="")
+    project_progress.add_argument("--correction", action="store_true")
+    project_progress.add_argument("--now")
+    project_archive = project_subparsers.add_parser(
+        "archive", help="Archive a project."
+    )
+    project_archive.add_argument("project_id")
+    project_archive.add_argument("--now")
+
     plan_parser = subparsers.add_parser("plan", help="Create and inspect daily plans.")
     plan_parser.add_argument(
         "plan_command", choices=["day"], help="Create today's structured plan."
@@ -1059,6 +1103,63 @@ def main() -> None:
                 print_json({"status": "ok", "habit": habit})
         except (TypeError, ValueError) as exc:
             _error_exit("invalid_habit", str(exc), 2)
+        return
+
+    if args.command == "project":
+        try:
+            now = (
+                datetime.fromisoformat(args.now) if getattr(args, "now", None) else None
+            )
+            if args.project_command == "add":
+                result = service.add_project(
+                    args.name,
+                    args.description,
+                    args.priority,
+                    args.target_date,
+                    tuple(args.goal_id),
+                    tuple(args.task_id),
+                    now=now,
+                )
+                print_json({"status": "ok", "project": result})
+            elif args.project_command == "list":
+                print_json(
+                    {
+                        "projects": service.list_projects(
+                            include_archived=args.include_archived
+                        )
+                    }
+                )
+            elif args.project_command == "milestone-add":
+                result = service.add_project_milestone(
+                    args.project_id, args.title, args.target_date, now=now
+                )
+                print_json({"status": "ok", **result})
+            elif args.project_command == "milestone-update":
+                result = service.update_project_milestone(
+                    args.project_id, args.milestone_id, args.status, now=now
+                )
+                print_json(
+                    {
+                        "status": "ok",
+                        "project": {**result["project"], "summary": result["summary"]},
+                        "milestone": result["milestone"],
+                    }
+                )
+            elif args.project_command == "progress":
+                result = service.update_project_progress(
+                    args.project_id, args.percent, args.note, args.correction, now=now
+                )
+                print_json(
+                    {
+                        "status": "ok",
+                        "project": {**result["project"], "summary": result["summary"]},
+                    }
+                )
+            else:
+                result = service.archive_project(args.project_id, now=now)
+                print_json({"status": "ok", "project": result})
+        except (TypeError, ValueError) as exc:
+            _error_exit("invalid_project", str(exc), 2)
         return
 
     tool_settings = load_tool_settings()

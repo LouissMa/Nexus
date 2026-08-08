@@ -19,6 +19,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 长期记忆：搜索、语义 RAG、Qdrant 持久化、Re-index、生命周期、隐私、过期、压缩和可解释重排。
 - 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。
 - 习惯追踪：每日/指定星期周期、同日幂等打卡、连续完成天数、完成率和归档。
+- 项目追踪：关联目标与任务、里程碑、推导或显式进度、纠正历史和归档。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
 - 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头和受目录约束的文件系统集成。
 - 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
@@ -193,7 +194,7 @@ nexus briefing --llm --model-tier simple
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
 - 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
 - Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、语音/视觉、智能家居控制或机器人能力。
-- 习惯追踪、独立项目进度面板和 AI 建议面板仍是未来 Dashboard 工作。
+- 习惯和项目领域流程已可通过 CLI 使用；它们的专用 Dashboard 面板和 AI 建议仍是后续工作。
 
 ## CLI 命令地图
 
@@ -201,6 +202,7 @@ nexus briefing --llm --model-tier simple
 nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
 nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
+nexus project add|list|milestone-add|milestone-update|progress|archive
 nexus plan day
 nexus task list|update
 nexus review

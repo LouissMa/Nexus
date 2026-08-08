@@ -169,7 +169,7 @@ Arbitrary LLM-authored commands and unattended ask-policy actions are intentiona
 Current status: `[ ]` Design completed; implementation not started.
 
 - [~] Habit model, CLI, check-ins, streaks, completion rates, and archive completed; Dashboard panel remains.
-- [ ] Project model, milestones, progress history, CLI, and Dashboard panel.
+- [~] Project model, milestones, progress history, links, archive, and CLI completed; Dashboard panel remains.
 - [ ] Explainable deterministic AI suggestions with optional LLM wording.
 - [ ] Calendar-aware replan preview and conflict-safe apply.
 - [ ] Unified `nexus ask` deterministic router with optional strict-JSON LLM parsing.
