@@ -49,6 +49,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 
 - `src/nexus/cli.py`: Parses all commands and lazily wires Phase 10 managers so legacy commands do not initialize optional runtime integrations.
 - `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
+- `src/nexus/habits.py`: Owns bounded daily/weekday habits, idempotent local-date check-ins, derived streak/completion metrics, and archival.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
 - `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, and runtime settings.
 - `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.

@@ -172,6 +172,31 @@ def build_parser() -> argparse.ArgumentParser:
     goal_check_in.add_argument("goal_id", help="Goal identifier.")
     goal_check_in.add_argument("note", help="Short progress note.")
 
+    habit_parser = subparsers.add_parser("habit", help="Manage habits.")
+    habit_subparsers = habit_parser.add_subparsers(dest="habit_command", required=True)
+    habit_add = habit_subparsers.add_parser("add", help="Create a habit.")
+    habit_add.add_argument("name")
+    habit_add.add_argument("--description", default="")
+    habit_add.add_argument("--cadence", choices=["daily", "weekdays"], default="daily")
+    habit_add.add_argument("--weekday", action="append", type=int, default=[])
+    habit_add.add_argument("--target-count", type=int, default=1)
+    habit_add.add_argument("--goal-id")
+    habit_add.add_argument("--now")
+    habit_list = habit_subparsers.add_parser("list", help="List habits.")
+    habit_list.add_argument("--include-archived", action="store_true")
+    habit_list.add_argument("--now")
+    habit_check = habit_subparsers.add_parser(
+        "check-in", help="Record a habit check-in."
+    )
+    habit_check.add_argument("habit_id")
+    habit_check.add_argument("--date")
+    habit_check.add_argument("--count", type=int, default=1)
+    habit_check.add_argument("--note", default="")
+    habit_check.add_argument("--now")
+    habit_archive = habit_subparsers.add_parser("archive", help="Archive a habit.")
+    habit_archive.add_argument("habit_id")
+    habit_archive.add_argument("--now")
+
     plan_parser = subparsers.add_parser("plan", help="Create and inspect daily plans.")
     plan_parser.add_argument(
         "plan_command", choices=["day"], help="Create today's structured plan."
@@ -978,6 +1003,64 @@ def main() -> None:
     embedding_settings = load_embedding_settings()
     retriever = build_memory_retriever(embedding_settings, nexus_home())
     service = NexusService(store, memory_retriever=retriever)
+
+    if args.command == "habit":
+        try:
+            profile, _runtime = load_runtime_settings()
+            timezone = profile.timezone
+            now = (
+                datetime.fromisoformat(args.now) if getattr(args, "now", None) else None
+            )
+            if args.habit_command == "add":
+                if args.cadence == "weekdays" and not args.weekday:
+                    raise ValueError(
+                        "weekdays cadence requires at least one --weekday."
+                    )
+                habit = service.add_habit(
+                    args.name,
+                    args.description,
+                    args.cadence,
+                    tuple(args.weekday),
+                    args.target_count,
+                    args.goal_id,
+                    now=now,
+                    timezone=timezone,
+                )
+                print_json({"status": "ok", "habit": habit})
+            elif args.habit_command == "list":
+                print_json(
+                    {
+                        "habits": service.list_habits(
+                            now=now,
+                            include_archived=args.include_archived,
+                            timezone=timezone,
+                        )
+                    }
+                )
+            elif args.habit_command == "check-in":
+                current = now or datetime.now()
+                local_date = args.date or current.date().isoformat()
+                result = service.check_in_habit(
+                    args.habit_id,
+                    local_date,
+                    args.count,
+                    args.note,
+                    now=now,
+                    timezone=timezone,
+                )
+                print_json(
+                    {
+                        "status": "ok",
+                        "habit": {**result["habit"], "summary": result["summary"]},
+                    }
+                )
+            else:
+                habit = service.archive_habit(args.habit_id, now=now, timezone=timezone)
+                print_json({"status": "ok", "habit": habit})
+        except (TypeError, ValueError) as exc:
+            _error_exit("invalid_habit", str(exc), 2)
+        return
+
     tool_settings = load_tool_settings()
     tool_manager = build_tool_manager(tool_settings, nexus_home())
     mcp_settings = load_mcp_settings()

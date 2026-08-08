@@ -39,7 +39,7 @@
 - Produces: `HabitService.archive(habit_id, now) -> dict`
 - Produces: `habit_summary(habit, today) -> dict`
 
-- [ ] Write failing tests for daily/weekday validation, idempotent same-day check-in, derived streak/completion, archive, legacy normalization, and concurrent mutation.
+- [x] Write failing tests for daily/weekday validation, idempotent same-day check-in, derived streak/completion, archive, legacy normalization, and concurrent mutation.
 
 ```python
 def test_same_day_check_in_updates_in_place(tmp_path):
@@ -51,10 +51,10 @@ def test_same_day_check_in_updates_in_place(tmp_path):
     assert len(result["habit"]["check_ins"]) == 1
 ```
 
-- [ ] Run `python -m pytest tests/test_habits.py tests/test_habit_cli.py -q` and confirm failures are caused by missing habit interfaces.
-- [ ] Implement bounded records, cadence calculations, service wrappers, and `nexus habit add|list|check-in|archive`.
-- [ ] Run focused tests, `python -m ruff check src/nexus/habits.py tests/test_habits.py tests/test_habit_cli.py`, and AST parsing.
-- [ ] Update checklist/file inventory, commit `feat: add habit tracking`, and push `main`.
+- [x] Run `python -m pytest tests/test_habits.py tests/test_habit_cli.py -q` and confirm failures are caused by missing habit interfaces.
+- [x] Implement bounded records, cadence calculations, service wrappers, and `nexus habit add|list|check-in|archive`.
+- [x] Run focused tests, `python -m ruff check src/nexus/habits.py tests/test_habits.py tests/test_habit_cli.py`, and AST parsing.
+- [x] Update checklist/file inventory, commit `feat: add habit tracking`, and push `main`.
 
 ### Task 2: Project Domain and CLI
 

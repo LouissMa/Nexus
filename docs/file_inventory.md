@@ -14,6 +14,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/__init__.py`: Package marker and package description.
 - `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, configuration, integrations, MCP, Agents, proactive runtime, notifications, Dashboard, and automation commands. Phase 10 managers are built lazily so legacy commands do not initialize optional integrations.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
+- `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, derived streak/completion summaries, archival, and cross-process-safe store mutation.
 - `src/nexus/store.py`: Cross-process-safe JSON persistence for memories, goals, daily tasks, scheduler occurrence claims, and bounded scheduler run history; revision checks and atomic replacement prevent lost updates.
 - `src/nexus/planning.py`: Daily-task construction, task statuses, and strict/gentle/academic/startup Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible chat-completions client, tier selection, timeouts, response normalization, and public errors.
@@ -89,6 +90,11 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `docs/superpowers/plans/2026-07-27-proactive-runtime-dashboard.md`: Phase 10 test-driven implementation and release-verification checklist.
 - `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`: Phase 11 habits, projects, suggestions, calendar replanning, conversation, Dashboard mutation, and Nexus MCP Server safety contract.
 - `docs/superpowers/plans/2026-08-08-adaptive-life-workspace.md`: Phase 11 test-driven implementation order, interfaces, verification, documentation, and release checklist.
+
+## Phase 11 Tests
+
+- `tests/test_habits.py`: Habit validation, check-in idempotency, cadence-aware streak/completion derivation, archive, and legacy-state normalization.
+- `tests/test_habit_cli.py`: Habit add/list/check-in/archive CLI workflows and validation errors.
 
 ## Phase 10 Tests
 

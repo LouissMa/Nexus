@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 from uuid import uuid4
 
+from .habits import HabitService
 from .llm import LLMError
 from .memory_lifecycle import is_memory_eligible, normalize_memory
 from .memory_service import UNSET, MemoryManager, ManagedMemory
@@ -72,6 +73,33 @@ class NexusService:
 
     def _memory_manager(self) -> MemoryManager:
         return MemoryManager(self.store, self.memory_retriever)
+
+    def _habit_service(self, timezone: str = "UTC") -> HabitService:
+        return HabitService(self.store, timezone=timezone)
+
+    def add_habit(
+        self, *args: Any, timezone: str = "UTC", **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._habit_service(timezone).add(*args, **kwargs)
+
+    def list_habits(
+        self, *, timezone: str = "UTC", **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        return self._habit_service(timezone).list(**kwargs)
+
+    def check_in_habit(
+        self, *args: Any, timezone: str = "UTC", **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._habit_service(timezone).check_in(*args, **kwargs)
+
+    def archive_habit(
+        self,
+        habit_id: str,
+        *,
+        now: datetime | None = None,
+        timezone: str = "UTC",
+    ) -> dict[str, Any]:
+        return self._habit_service(timezone).archive(habit_id, now=now)
 
     def add_memory(
         self,

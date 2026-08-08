@@ -18,6 +18,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 
 - Long-term memory with search, semantic RAG, Qdrant persistence, re-indexing, lifecycle controls, privacy, expiry, compression, and explainable re-ranking.
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
+- Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
@@ -199,6 +200,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 ```bash
 nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
 nexus goal add|list|check-in
+nexus habit add|list|check-in|archive
 nexus plan day
 nexus task list|update
 nexus review

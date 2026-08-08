@@ -18,6 +18,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 
 - 长期记忆：搜索、语义 RAG、Qdrant 持久化、Re-index、生命周期、隐私、过期、压缩和可解释重排。
 - 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。
+- 习惯追踪：每日/指定星期周期、同日幂等打卡、连续完成天数、完成率和归档。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
 - 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头和受目录约束的文件系统集成。
 - 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
@@ -199,6 +200,7 @@ nexus briefing --llm --model-tier simple
 ```bash
 nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|purge|compress|maintain|reindex|index-status
 nexus goal add|list|check-in
+nexus habit add|list|check-in|archive
 nexus plan day
 nexus task list|update
 nexus review

@@ -18,6 +18,9 @@ DEFAULT_STATE = {
     "memories": [],
     "goals": [],
     "daily_tasks": [],
+    "habits": [],
+    "projects": [],
+    "suggestions": [],
     "rag_index": None,
     "runtime": {
         "job_runs": [],
