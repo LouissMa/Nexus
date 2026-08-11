@@ -173,12 +173,12 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 - Consumes snapshot sections and POST endpoints from Task 6.
 - Produces responsive Habits, Projects, and Suggestions views plus replan preview/apply dialog.
 
-- [ ] Add failing asset/DOM tests for tabs, semantic controls, safe `textContent`, CSRF header, loading/error/confirmation states, stable dimensions, and keyboard navigation.
-- [ ] Run Dashboard tests and verify RED.
-- [ ] Implement compact views, progress/streak visualization, check-in/progress controls, suggestions, and replan dialog using packaged assets only.
-- [ ] Run tests and start the local server with realistic demo data.
-- [ ] Verify Playwright screenshots and overlap checks at 1440px desktop and 390px mobile.
-- [ ] Update docs, commit `feat: add dashboard life workspace views`, and push.
+- [x] Add failing asset/DOM tests for tabs, semantic controls, safe `textContent`, CSRF header, loading/error/confirmation states, stable dimensions, and keyboard navigation.
+- [x] Run Dashboard tests and verify RED.
+- [x] Implement compact views, progress/streak visualization, check-in/progress controls, suggestions, and replan dialog using packaged assets only.
+- [x] Run tests and start the local server with realistic demo data.
+- [x] Verify Playwright screenshots and overlap checks at 1440px desktop and 390px mobile.
+- [x] Update docs for Dashboard life workspace views.
 
 ### Task 8: Permissioned Nexus MCP Server
 
@@ -193,14 +193,14 @@ def test_same_day_check_in_updates_in_place(tmp_path):
 **Interfaces:**
 - Produces: `NexusMCPTools.list_tools() -> list[dict]`
 - Produces: `NexusMCPTools.call(name, arguments, session_approvals=()) -> dict`
-- Produces: `run_stdio_server(service, policy, approvals) -> None`.
+- Produces: `run_stdio_server(tools: NexusMCPTools) -> None`.
 - CLI: `nexus mcp-server stdio [--approve-tool NAME]`.
 
-- [ ] Write failing tests for exact tool catalog/schemas, bounded arguments/results, read tools, mutation deny/ask/allow, session approvals, errors, audit redaction, and SDK lifecycle.
-- [ ] Run focused tests and verify RED.
-- [ ] Implement the static adapter and official-SDK stdio server without enabling HTTP.
-- [ ] Run focused MCP server tests plus existing MCP client tests, Ruff, and AST parsing.
-- [ ] Update docs, commit `feat: expose nexus mcp server`, and push.
+- [x] Write failing tests for exact tool catalog/schemas, bounded arguments/results, read tools, mutation deny/ask/allow, session approvals, errors, audit redaction, and SDK lifecycle.
+- [x] Run focused tests and verify RED.
+- [x] Implement the static adapter and official-SDK stdio server without enabling HTTP.
+- [x] Run focused MCP server tests plus existing MCP client tests and real SDK lifecycle verification.
+- [x] Update user and architecture documentation for the Nexus MCP Server.
 
 ### Task 9: Release Integration and Verification
 

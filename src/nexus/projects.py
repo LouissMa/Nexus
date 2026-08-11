@@ -59,16 +59,17 @@ def project_summary(project: dict[str, Any]) -> dict[str, Any]:
         item for item in project.get("milestones", []) if isinstance(item, dict)
     ]
     completed = sum(item.get("status") == "completed" for item in milestones)
+    entries = [
+        item for item in project.get("progress_entries", []) if isinstance(item, dict)
+    ]
     if milestones:
         progress = round(completed * 100 / len(milestones))
         source = "milestones"
+    elif entries:
+        progress = int(entries[-1].get("percent", 0))
+        source = "explicit"
     else:
-        entries = [
-            item
-            for item in project.get("progress_entries", [])
-            if isinstance(item, dict)
-        ]
-        progress = int(entries[-1].get("percent", 0)) if entries else 0
+        progress = 0
         source = "explicit"
     return {
         "progress_percent": progress,
@@ -231,7 +232,7 @@ class ProjectService:
         def mutation(state: dict[str, Any]) -> dict[str, Any]:
             project = self._find(state, project_id)
             entries = project.setdefault("progress_entries", [])
-            previous = int(entries[-1].get("percent", 0)) if entries else 0
+            previous = project_summary(project)["progress_percent"]
             if percent < previous and not correction:
                 raise ValueError(
                     "Lower progress requires the explicit correction flag."

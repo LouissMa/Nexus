@@ -95,6 +95,11 @@ class NexusService:
     ) -> dict[str, Any]:
         return self._habit_service(timezone).check_in(*args, **kwargs)
 
+    def increment_habit_check_in(
+        self, *args: Any, timezone: str = "UTC", **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._habit_service(timezone).increment_check_in(*args, **kwargs)
+
     def archive_habit(
         self,
         habit_id: str,
@@ -355,16 +360,17 @@ class NexusService:
     def rag_status(self) -> dict[str, Any]:
         return self._memory_manager().status()
     def add_goal(self, title: str, description: str, cadence_days: int) -> Goal:
-        state = self.store.load()
         goal = Goal(
             id=str(uuid4())[:8],
             title=title.strip(),
             description=description.strip(),
             cadence_days=cadence_days,
         )
-        state["goals"].append(self._goal_to_dict(goal))
-        self.store.save(state)
-        return goal
+        def mutation(state: dict[str, Any]) -> Goal:
+            state.setdefault("goals", []).append(self._goal_to_dict(goal))
+            return goal
+
+        return self.store.mutate(mutation)
 
     def list_goals(self) -> list[dict[str, Any]]:
         state = self.store.load()

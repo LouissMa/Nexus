@@ -68,6 +68,7 @@ TOOL_ALLOWED_OPERATIONS = {
     "filesystem": ["list", "read", "search"],
 }
 TOOL_SECRET_FIELDS = {"token", "password", "calendar_url"}
+MCP_SERVER_POLICY_VALUES = {"deny", "ask", "allow"}
 
 
 @dataclass(frozen=True)
@@ -132,6 +133,19 @@ def nexus_home() -> Path:
 
 def local_config_path() -> Path:
     return nexus_home() / "config.local.json"
+
+
+def load_nexus_mcp_server_policies(path: Path | None = None) -> dict[str, str]:
+    raw = load_local_config(path).get("nexus_mcp_server", {})
+    if not isinstance(raw, Mapping):
+        raise ValueError("nexus_mcp_server configuration must be an object.")
+    policies = raw.get("tool_policies", {})
+    if not isinstance(policies, Mapping):
+        raise ValueError("Nexus MCP tool_policies must be an object.")
+    result = {str(name): str(policy) for name, policy in policies.items()}
+    if any(policy not in MCP_SERVER_POLICY_VALUES for policy in result.values()):
+        raise ValueError("Nexus MCP tool policies must be deny, ask, or allow.")
+    return result
 
 
 def mask_secret(value: str | None) -> str | None:

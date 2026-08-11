@@ -59,6 +59,19 @@ def test_same_day_check_in_updates_in_place_and_derives_summary(tmp_path: Path) 
     assert result["habit"]["check_ins"][0]["note"] == "evening"
 
 
+def test_increment_check_in_adds_to_latest_persisted_count(tmp_path: Path) -> None:
+    habits = service(tmp_path)
+    habit = habits.add("Read", "", "daily", (), 3, None, now=NOW)
+    habits.check_in(habit["id"], "2026-08-08", 2, "other client", now=NOW)
+
+    result = habits.increment_check_in(
+        habit["id"], "2026-08-08", 1, "Dashboard check-in", now=NOW
+    )
+
+    assert result["summary"]["today_count"] == 3
+    assert result["summary"]["today_complete"] is True
+
+
 def test_weekday_streak_skips_days_that_are_not_scheduled(tmp_path: Path) -> None:
     habits = service(tmp_path)
     habit = habits.add("Train", "", "weekdays", (1, 3, 5), 1, None, now=NOW)

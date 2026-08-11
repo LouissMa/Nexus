@@ -29,7 +29,8 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Bounded Memory, Tool, Planner, Reflection, and Coach Agent coordination with budgets, fallback, and privacy-safe traces.
 - Proactive morning briefing, evening review, and stale-goal reminder jobs in the user's IANA time zone.
 - Durable inbox notifications, optional console/webhook delivery, and normal or overnight quiet hours.
-- Responsive loopback Dashboard for Today, Goals, Memory, Activity, and masked Settings, plus bounded Habit/Project/Suggestion snapshots and six CSRF-protected life-workspace actions.
+- Responsive loopback Dashboard with Today, Goals, Habits, Projects, Suggestions, Memory, Activity, and masked Settings; six exact CSRF-protected actions cover atomic habit increments, progress, suggestion decisions, and live-calendar replan preview/apply.
+- Permissioned Nexus stdio MCP Server with seven bounded read tools, five approval-gated mutation tools, per-tool deny/ask/allow policy overrides, and content-free secret-safe audit summaries.
 - Named browser, command, GitHub-inspection, and Markdown status-report automations under explicit policies.
 
 ## Quick Start
@@ -100,6 +101,17 @@ nexus agent runs --limit 10
 
 The Tool Agent can autonomously select only enabled MCP tools whose policy is explicitly `allow`. Specialist failures fall back to the local workflow.
 
+Expose Nexus itself to an MCP-compatible client over local stdio:
+
+```bash
+pip install -e ".[mcp]"
+nexus mcp-server stdio
+# Approve one ask-policy mutation for this process only:
+nexus mcp-server stdio --approve-tool nexus_check_in_habit
+```
+
+The server exposes goals, memory retrieval, habits, projects, suggestions, and daily tasks as bounded read tools. Habit check-in, project progress, and suggestion acceptance default to `ask`; they run only when named with `--approve-tool` or configured as `allow` under `nexus_mcp_server.tool_policies` in `.nexus/config.local.json`.
+
 ## Proactive Runtime, Dashboard, and Automation
 
 Runtime jobs are disabled until you opt in. Configure the three jobs, local times, and quiet hours:
@@ -147,7 +159,7 @@ nexus dashboard serve
 # Open http://127.0.0.1:8765
 ```
 
-The first dashboard is read-only. Today shows scheduled jobs, tasks, reminders, and the latest briefing/review; the other views expose active goals, eligible memories, bounded activity summaries, and masked settings.
+The Dashboard has eight views. Today shows schedules, tasks, reminders, and the latest briefing/review; Habits supports check-ins, Projects supports correction-aware progress updates, Suggestions supports accept/dismiss, and Today offers replan preview/apply. Goals, eligible memory, bounded activity, and masked settings remain privacy-filtered views.
 
 Automations are named JSON definitions. New definitions default to `ask`, which requires one-shot `--approve`.
 
@@ -191,13 +203,13 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - `.nexus/` contains personal state, credentials, vectors, runtime history, notifications, audits, traces, models, and lock files; Git ignores the directory as a whole.
 - Shared configuration updates use an OS-backed cross-process transaction lock, validate the updated section, preserve unrelated sections, and atomically replace the file.
 - State saves and notification delivery transitions also use canonical OS-backed locks. Concurrent processes cannot overwrite scheduler claims or claim the same deferred delivery; oversized corrupt notification lines are skipped and removed on rewrite.
-- The dashboard is read-only and loopback-only. It validates `Host` and `Origin`, serves exact routes, rejects encoded aliases/traversal, bounds input/output, and isolates each snapshot section.
+- The dashboard is loopback-only. It validates `Host`, `Origin`, and per-process CSRF tokens; serves only exact read routes and six allowlisted action routes; rejects encoded aliases/traversal and generic mutation; bounds input/output; and isolates each snapshot section.
+- The Nexus MCP Server is stdio-only and explicitly launched. Its fixed 12-tool catalog covers today context, memory search, goals, habits, projects, suggestions, replan preview, memory/goal creation, habit check-ins, project progress, and verified replan apply. Read tools are bounded; mutations default to `ask`; tool arguments/results are bounded; and audit events omit raw user content and secrets.
 - Automation policies are `deny`, `ask`, and `allow`. `ask` always needs one-shot approval; unattended execution requires `allow`.
 - Browser automation opens only a fixed HTTP(S) URL covered by a mandatory non-empty host allowlist.
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
-- Nexus does not provide open-ended autonomy, remote dashboard hosting, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
-- Habit and project domain workflows are available through the CLI; their dedicated Dashboard panels and AI suggestions remain future work.
+- Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
 
 ## CLI Command Map
 
@@ -216,6 +228,7 @@ nexus review day
 nexus briefing
 nexus tool weather|calendar|todo|github|notion|email|files|audit
 nexus mcp servers|tools|call|audit
+nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
 
 nexus config llm set|show
@@ -253,6 +266,6 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 ## Roadmap Summary
 
-Phases 1-10 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the read-only dashboard, and permissioned named automation.
+Phases 1-11 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, and unified conversation.
 
-Next work can deepen dashboard habit/project/suggestion views and research-companion workflows. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
+Next work can deepen calendar/RAG-informed suggestions and research-companion workflows. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.

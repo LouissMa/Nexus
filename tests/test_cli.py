@@ -144,6 +144,25 @@ def test_llm_config_set_and_show_masks_api_key(tmp_path: Path) -> None:
     assert "sk-test-secret-value" not in json.dumps(shown)
 
 
+def test_add_goal_uses_retryable_store_mutation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    store = JsonStore(tmp_path / "state.json")
+    original_mutate = store.mutate
+    calls = 0
+
+    def tracked_mutate(callback, *, retries=3):
+        nonlocal calls
+        calls += 1
+        return original_mutate(callback, retries=retries)
+
+    monkeypatch.setattr(store, "mutate", tracked_mutate)
+    goal = NexusService(store).add_goal("Build Nexus", "Ship safely", 3)
+
+    assert calls == 1
+    assert goal.title == "Build Nexus"
+
+
 class FakeLLM:
     def __init__(self) -> None:
         self.system_prompt = ""

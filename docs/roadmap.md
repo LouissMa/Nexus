@@ -63,7 +63,7 @@ Objective: use a standard permission layer for external tools.
 - [x] One-shot approval, bounded retries, normalized results, and audits.
 - [x] Explicit allow-policy Planning bindings with local fallback.
 
-Nexus is currently an MCP client. Exposing Nexus itself as an MCP server remains separate future work.
+Nexus is both an MCP client and an explicitly launched stdio MCP server. The server exposes a fixed 12-tool catalog with seven bounded reads and five approval-gated mutations.
 
 ## Phase 8: Multi-Agent Coordination
 
@@ -100,25 +100,26 @@ Objective: make Nexus available at configured times, expose its state locally, a
 - [x] deny/ask/allow policies, one-shot approval, mandatory browser host allowlists, fixed `shell=False` argument vectors, root boundaries, bounded timeout/output, and secret-safe audit.
 - [x] Transactional cross-process-safe local configuration shared by all writers.
 
-Phase 10 remains bounded automation. The dashboard is read-only, and runtime jobs are disabled until explicitly enabled.
+Phase 10 remains bounded automation. Runtime jobs are disabled until explicitly enabled.
 
-Future Dashboard work:
+Phase 11 Dashboard extensions:
 
-- [ ] Habit tracking panel.
-- [ ] Dedicated project-progress panel.
-- [ ] AI-suggestion panel.
+- [x] Habit tracking panel.
+- [x] Dedicated project-progress panel.
+- [x] AI-suggestion panel.
+- [x] Replan preview/apply dialog and six exact CSRF-protected actions.
 
 ## Phase 11: Adaptive Life Workspace
 
 Objective: make Nexus easier to use every day while preserving local-first and permission-bounded behavior.
 
-- [~] Habit cadence, check-ins, streaks, completion rates, archive, and CLI completed; Dashboard controls remain.
-- [~] Project milestones, progress history, linked goals/tasks, archive, and CLI completed; dedicated Dashboard view remains.
-- [~] Explainable suggestions from goals, tasks, habits, and project milestones, with structure-safe LLM wording and CLI actions completed; calendar/RAG enrichment and Dashboard view remain.
+- [x] Habit cadence, check-ins, streaks, completion rates, archive, CLI, and Dashboard controls.
+- [x] Project milestones, explicit/derived progress history, linked goals/tasks, archive, CLI, and dedicated Dashboard view.
+- [~] Explainable suggestions from goals, tasks, habits, and project milestones, with structure-safe LLM wording, CLI actions, and Dashboard view completed; calendar/RAG enrichment remains future work.
 - [x] Calendar-aware replan preview and stale-safe apply without calendar writes, including live read-only iCalendar constraints and explicit degradation.
 - [x] Unified local-first `nexus ask` entry point with common Chinese/English intents, approval previews, and optional strict-JSON LLM intent parsing.
 - [x] Allowlisted loopback Dashboard mutations protected by exact routes, Origin, CSRF, strict schemas, and request bounds.
-- [ ] Explicitly launched permissioned Nexus MCP stdio server.
+- [x] Explicitly launched permissioned Nexus MCP stdio server with bounded reads, approval-gated mutations, policy overrides, and redacted audit.
 
 The proposed safety and architecture contract is documented in `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`.
 

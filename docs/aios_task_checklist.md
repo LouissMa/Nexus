@@ -17,7 +17,7 @@ Status legend:
 5. Multi-Agent coordination. Completed.
 6. Advanced memory importance, compression, privacy, and retention. Completed.
 7. Proactive runtime, local Dashboard, and permissioned named automation. Completed.
-8. Adaptive life workspace: Dashboard 2.0, calendar replanning, conversation, and Nexus MCP Server. Design drafted; review next.
+8. Adaptive life workspace: Dashboard 2.0, calendar replanning, conversation, and Nexus MCP Server. Completed.
 9. Long-term multimodal/embodied interfaces. Future.
 
 ## Completed Foundation
@@ -56,7 +56,7 @@ Current status: `[x]` Permissioned read-only integration phase completed.
 
 ## 3. MCP Tool Calling
 
-Current status: `[x]` Permissioned MCP client completed.
+Current status: `[x]` Permissioned MCP client and Nexus MCP stdio server completed.
 
 - [x] stdio and Streamable HTTP configuration and discovery.
 - [x] Official-SDK gateway, schemas, and normalized results.
@@ -65,8 +65,7 @@ Current status: `[x]` Permissioned MCP client completed.
 - [x] Bounded transport retry and secret-safe audit.
 - [x] Explicit allow-policy Planning bindings.
 - [x] Local Planning fallback when MCP is unavailable.
-
-Exposing Nexus as an MCP server remains future work.
+- [x] Fixed 12-tool Nexus MCP stdio server with seven read tools and five approval-gated mutations.
 
 ## 4. Planning / Reflection
 
@@ -78,7 +77,7 @@ Current status: `[x]` Local Planning / Reflection completed.
 - [x] Goals, check-ins, reminders, and RAG memory context.
 - [x] Strict, gentle, academic, and startup Coach modes.
 
-Calendar-aware automatic replanning remains future work.
+- [x] Calendar-aware preview/apply replanning with live event refresh and stale-calendar rejection.
 
 ## 5. Multi-Agent Architecture
 
@@ -130,7 +129,7 @@ Current status: `[x]` Proactive local runtime completed.
 
 ## 8. Frontend Dashboard
 
-Current status: `[~]` Read-only responsive Dashboard completed; deeper life-management panels remain future.
+Current status: `[x]` Interactive local life-management Dashboard completed.
 
 - [x] Packaged web Dashboard shell.
 - [x] Responsive desktop/mobile navigation and stable controls.
@@ -140,12 +139,13 @@ Current status: `[~]` Read-only responsive Dashboard completed; deeper life-mana
 - [x] Activity view for notifications, tools, MCP, Agents, and automations.
 - [x] Masked Settings view.
 - [x] Empty/error states and per-section failure isolation.
-- [x] Loopback-only HTTP, exact routes, Host/Origin validation, bounded snapshots, and read-only API.
-- [ ] Habit tracking panel.
-- [ ] Dedicated project-progress panel.
-- [ ] AI-suggestion panel.
+- [x] Loopback-only HTTP, exact routes, Host/Origin/CSRF validation, bounded snapshots, and six allowlisted actions.
+- [x] Habit tracking panel with check-ins, streaks, and completion status.
+- [x] Dedicated project-progress panel with progress bars and correction confirmation.
+- [x] AI-suggestion panel with reasons, confidence, sources, accept, and dismiss.
+- [x] Replan preview/apply dialog with explicit confirmation.
 
-Browser-authored state mutation and remote Dashboard hosting are intentionally outside the current version.
+Generic browser-authored state mutation and remote Dashboard hosting are intentionally outside the current version.
 
 ## 9. Browser and Local Automation
 
@@ -166,16 +166,16 @@ Arbitrary LLM-authored commands and unattended ask-policy actions are intentiona
 
 ## 10. Adaptive Life Workspace
 
-Current status: `[ ]` Design completed; implementation not started.
+Current status: `[x]` Phase 11 adaptive life workspace completed.
 
-- [~] Habit model, CLI, check-ins, streaks, completion rates, and archive completed; Dashboard panel remains.
-- [~] Project model, milestones, progress history, links, archive, and CLI completed; Dashboard panel remains.
-- [~] Explainable deterministic AI suggestions, optional structure-safe LLM wording, CLI lifecycle, and approved allowlisted actions completed; Dashboard panel remains.
+- [x] Habit model, CLI, atomic Dashboard increment check-ins, streaks, completion rates, and archive.
+- [x] Project model, milestones, explicit/derived progress, correction history, links, archive, CLI, and Dashboard panel.
+- [x] Explainable deterministic AI suggestions, optional structure-safe LLM wording, CLI lifecycle, approved allowlisted actions, and Dashboard panel.
 - [x] Calendar-aware replan preview and conflict-safe apply with state revision, calendar fingerprint, integrity check, and read-only live-calendar fallback.
 - [x] Unified `nexus ask` deterministic Chinese/English router with mutation previews, low-risk check-ins, static schemas, and optional strict-JSON LLM parsing.
 - [x] Allowlisted loopback Dashboard mutation endpoints with exact routes, Origin/CSRF protection, strict JSON schemas, and a 16 KiB body limit.
-- [ ] Permissioned Nexus MCP stdio server with read and mutation tools.
-- [ ] Phase 11 audits, tests, English/Chinese documentation, and browser verification.
+- [x] Permissioned Nexus MCP stdio server with seven bounded read tools, five approval-gated mutation tools, policy overrides, and content-free secret-safe audit summaries.
+- [x] Phase 11 audits, focused tests, English/Chinese documentation, and desktop/mobile browser verification.
 
 ## 11. Long-Term Multimodal and Embodied Interfaces
 

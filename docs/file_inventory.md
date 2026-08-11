@@ -4,7 +4,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
-- `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Phase 10 runtime/dashboard/automation usage, security boundaries, and limitations.
+- `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Phase 11 Dashboard/MCP Server usage, security boundaries, and limitations.
 - `README_zh.md`: Chinese version of the same user-facing structure and commands.
 - `pyproject.toml`: Package metadata, `nexus` CLI entry point, core and optional dependency groups, and packaged Dashboard HTML/CSS/JavaScript assets.
 - `.gitignore`: Excludes Python/build/test output plus the complete local `.nexus/` personal runtime directory.
@@ -12,10 +12,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 ## Application Core
 
 - `src/nexus/__init__.py`: Package marker and package description.
-- `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, configuration, integrations, MCP, Agents, proactive runtime, notifications, Dashboard, and automation commands. Phase 10 managers are built lazily so legacy commands do not initialize optional integrations.
+- `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, configuration, integrations, MCP client/server, Agents, proactive runtime, notifications, Dashboard, and automation commands. Optional managers remain lazy where possible.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
-- `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, derived streak/completion summaries, archival, and cross-process-safe store mutation.
-- `src/nexus/projects.py`: Project validation, goal/task links, milestone-derived and explicit progress, correction history, archival, and cross-process-safe store mutation.
+- `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, atomic increments, derived streak/completion summaries, archival, and cross-process-safe store mutation.
+- `src/nexus/projects.py`: Project validation, goal/task links, authoritative milestone-derived progress with explicit progress for milestone-free projects, correction history, archival, and cross-process-safe store mutation.
 - `src/nexus/suggestions.py`: Deterministic suggestion ranking, stable IDs, expiry/status persistence, allowlisted approved actions, and structure-safe optional LLM wording.
 - `src/nexus/replanning.py`: Time-zone-aware calendar interval normalization, free-window allocation, preview integrity/freshness checks, and scheduling-field-only apply transactions.
 - `src/nexus/conversation.py`: Static intent schemas, Chinese/English local parsing, strict optional LLM selection, approval previews, and registered service dispatch.
@@ -39,9 +39,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `src/nexus/dashboard.py`: Privacy-filtered `DashboardSnapshot` aggregation and standard-library `DashboardServer`. Builds eight isolated sections; bounds data; allows only loopback hosts and exact routes; enforces Host, Origin, CSRF, content type, and request limits.
 - `src/nexus/dashboard_actions.py`: Strict allowlisted schemas and service delegation for habit check-in, project progress, suggestion accept/dismiss, and replan preview/apply.
-- `src/nexus/dashboard/index.html`: Packaged Dashboard shell, semantic sections, accessible navigation, loading/empty/error containers, and viewport metadata.
-- `src/nexus/dashboard/dashboard.css`: Responsive desktop/mobile operational layout, stable controls, accessible focus/contrast, section states, and navigation behavior.
-- `src/nexus/dashboard/dashboard.js`: Snapshot fetch, view switching, safe `textContent` rendering, schedules/tasks/reminders/latest briefing-review, goals, memory timeline, activity, and masked settings.
+- `src/nexus/dashboard/index.html`: Packaged eight-view Dashboard shell, semantic sections, accessible navigation, confirmation/replan dialogs, loading/empty/error containers, and viewport metadata.
+- `src/nexus/dashboard/dashboard.css`: Responsive desktop/mobile operational layout, stable action controls and progress bars, accessible focus/contrast, dialogs, section states, and eight-tab mobile scrolling.
+- `src/nexus/dashboard/dashboard.js`: Safe `textContent` rendering for all views plus CSRF-protected habit, project, suggestion, and replan interactions with busy/error/confirmation states.
 - `pyproject.toml` package data: Includes all three Dashboard assets in wheel and source distributions.
 
 ## Long-Term Memory and RAG
@@ -68,6 +68,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/mcp/client.py`: Official MCP SDK lifecycle for stdio and Streamable HTTP discovery/calls.
 - `src/nexus/mcp/manager.py`: Registry, deny/ask/allow enforcement, bounded retries, partial-failure Planning aggregation, and allow-only Agent candidates.
 - `src/nexus/mcp/audit.py`: Sanitized MCP discovery, permission, retry, call, and failure audit with bounded recent-query output.
+- `src/nexus/mcp_server.py`: Static 12-tool Nexus MCP catalog, strict JSON-schema and date validation, deny/ask/allow enforcement, session approvals, 64 KiB result ceiling, content-free audit summaries, and official-SDK stdio lifecycle.
 
 ## Multi-Agent Coordination
 
@@ -82,8 +83,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `docs/product_vision.md`: Product direction and long-term Personal AI Operating System vision.
 - `docs/architecture.md`: Current component boundaries, persistence, configuration transactions, runtime, Dashboard, automation, failure isolation, and future adapters.
-- `docs/roadmap.md`: Phase 1-10 implementation status, Phase 11 adaptive workspace, and Phase 12 research direction.
-- `docs/aios_task_checklist.md`: Detailed progress tracker, including partial Dashboard expansion work.
+- `docs/roadmap.md`: Phase 1-11 implementation status and Phase 12 research direction.
+- `docs/aios_task_checklist.md`: Detailed progress tracker, including completed Phase 11 adaptive workspace work.
 - `docs/file_inventory.md`: This responsibility index.
 - `docs/superpowers/specs/2026-07-17-mcp-client-design.md`: Phase 7 MCP design and safety contract.
 - `docs/superpowers/plans/2026-07-17-mcp-client.md`: Phase 7 implementation plan.
@@ -120,6 +121,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_automation_cli.py`: Automation set/list/remove, masked definitions, policy outcomes, one-shot approval, audit, and validation exit codes.
 - `tests/test_dashboard_cli.py`: Snapshot privacy, loopback serving, startup/shutdown behavior, stable errors, and optional-section dependency isolation.
 - `tests/test_dashboard_actions.py`: New life-section filtering plus exact POST routes, CSRF bootstrap, content type, Origin, body bounds, and allowlisted action dispatch.
+- `tests/test_dashboard_workspace_assets.py`: Eight-view semantic assets, safe DOM mutation calls, CSRF headers, dialogs, stable controls, progress visualization, and mobile navigation assertions.
+- `tests/test_mcp_server.py`: Static catalog/schema, bounded reads, validation, deny/ask/allow, session approval, unknown tools, and secret-safe audit behavior.
+- `tests/test_mcp_server_cli.py`: CLI registration, approval validation, and real official-SDK stdio initialize/list/call lifecycle.
 
 ## Other Test Suites
 

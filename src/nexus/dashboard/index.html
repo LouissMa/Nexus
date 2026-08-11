@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="nexus-csrf" content="__NEXUS_CSRF_TOKEN__">
+  <meta name="nexus-csrf" content="__NEXUS_CSRF_TOKEN__">
   <meta name="color-scheme" content="light">
   <title>Nexus Control Desk</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
@@ -13,10 +14,7 @@
     <header class="topbar">
       <div class="brand-block">
         <span class="brand-mark" aria-hidden="true">N</span>
-        <div>
-          <p class="eyebrow">PERSONAL OPERATIONS</p>
-          <h1>Nexus</h1>
-        </div>
+        <div><p class="eyebrow">PERSONAL OPERATIONS</p><h1>Nexus</h1></div>
       </div>
       <div class="topbar-status" aria-live="polite">
         <span class="status-dot" id="system-dot" aria-hidden="true"></span>
@@ -31,66 +29,59 @@
     <div class="workspace">
       <nav class="view-nav" aria-label="Dashboard views">
         <div class="tab-list" role="tablist" aria-orientation="vertical">
-          <button class="nav-tab is-active" id="tab-today" role="tab" aria-selected="true" aria-controls="panel-today" tabindex="0" data-view="today" type="button">
-            <span class="tab-index">01</span><span>Today</span>
-          </button>
-          <button class="nav-tab" id="tab-goals" role="tab" aria-selected="false" aria-controls="panel-goals" tabindex="-1" data-view="goals" type="button">
-            <span class="tab-index">02</span><span>Goals</span>
-          </button>
-          <button class="nav-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-view="memory" type="button">
-            <span class="tab-index">03</span><span>Memory</span>
-          </button>
-          <button class="nav-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-view="activity" type="button">
-            <span class="tab-index">04</span><span>Activity</span>
-          </button>
-          <button class="nav-tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1" data-view="settings" type="button">
-            <span class="tab-index">05</span><span>Settings</span>
-          </button>
+          <button class="nav-tab is-active" id="tab-today" role="tab" aria-selected="true" aria-controls="panel-today" tabindex="0" data-view="today" type="button"><span class="tab-index">01</span><span>Today</span></button>
+          <button class="nav-tab" id="tab-goals" role="tab" aria-selected="false" aria-controls="panel-goals" tabindex="-1" data-view="goals" type="button"><span class="tab-index">02</span><span>Goals</span></button>
+          <button class="nav-tab" id="tab-habits" role="tab" aria-selected="false" aria-controls="panel-habits" tabindex="-1" data-view="habits" type="button"><span class="tab-index">03</span><span>Habits</span></button>
+          <button class="nav-tab" id="tab-projects" role="tab" aria-selected="false" aria-controls="panel-projects" tabindex="-1" data-view="projects" type="button"><span class="tab-index">04</span><span>Projects</span></button>
+          <button class="nav-tab" id="tab-suggestions" role="tab" aria-selected="false" aria-controls="panel-suggestions" tabindex="-1" data-view="suggestions" type="button"><span class="tab-index">05</span><span>Suggestions</span></button>
+          <button class="nav-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-view="memory" type="button"><span class="tab-index">06</span><span>Memory</span></button>
+          <button class="nav-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-view="activity" type="button"><span class="tab-index">07</span><span>Activity</span></button>
+          <button class="nav-tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1" data-view="settings" type="button"><span class="tab-index">08</span><span>Settings</span></button>
         </div>
-        <div class="nav-footer">
-          <span>LOCAL</span>
-          <span class="local-indicator" aria-label="Loopback connection"></span>
-        </div>
+        <div class="nav-footer"><span>LOCAL</span><span class="local-indicator" aria-label="Loopback connection"></span></div>
       </nav>
 
       <main class="main-stage">
         <section class="view-panel is-active" id="panel-today" role="tabpanel" aria-labelledby="tab-today" tabindex="0">
           <header class="view-heading">
             <div><p class="eyebrow">DAILY COMMAND</p><h2>Today</h2></div>
-            <p class="view-meta" id="today-date">--</p>
+            <div class="heading-actions"><p class="view-meta" id="today-date">--</p><button class="action-button secondary" id="replan-open" type="button">Replan day</button></div>
           </header>
           <div class="dashboard-grid today-grid" id="today-content" aria-live="polite"></div>
         </section>
 
         <section class="view-panel" id="panel-goals" role="tabpanel" aria-labelledby="tab-goals" tabindex="0" hidden>
-          <header class="view-heading">
-            <div><p class="eyebrow">FORWARD MOTION</p><h2>Goals</h2></div>
-            <p class="view-meta" id="goals-count">0 active</p>
-          </header>
+          <header class="view-heading"><div><p class="eyebrow">FORWARD MOTION</p><h2>Goals</h2></div><p class="view-meta" id="goals-count">0 active</p></header>
           <div class="data-surface" id="goals-content" aria-live="polite"></div>
         </section>
 
+        <section class="view-panel" id="panel-habits" role="tabpanel" aria-labelledby="tab-habits" tabindex="0" hidden>
+          <header class="view-heading"><div><p class="eyebrow">DAILY RHYTHM</p><h2>Habits</h2></div><p class="view-meta" id="habits-count">0 due</p></header>
+          <div class="data-surface" id="habits-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-projects" role="tabpanel" aria-labelledby="tab-projects" tabindex="0" hidden>
+          <header class="view-heading"><div><p class="eyebrow">DELIVERY CONTROL</p><h2>Projects</h2></div><p class="view-meta" id="projects-count">0 active</p></header>
+          <div class="data-surface" id="projects-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-suggestions" role="tabpanel" aria-labelledby="tab-suggestions" tabindex="0" hidden>
+          <header class="view-heading"><div><p class="eyebrow">EXPLAINABLE GUIDANCE</p><h2>Suggestions</h2></div><p class="view-meta" id="suggestions-count">0 open</p></header>
+          <div class="data-surface" id="suggestions-content" aria-live="polite"></div>
+        </section>
+
         <section class="view-panel" id="panel-memory" role="tabpanel" aria-labelledby="tab-memory" tabindex="0" hidden>
-          <header class="view-heading">
-            <div><p class="eyebrow">LONG-TERM CONTEXT</p><h2>Memory</h2></div>
-            <p class="view-meta" id="memory-count">0 eligible</p>
-          </header>
+          <header class="view-heading"><div><p class="eyebrow">LONG-TERM CONTEXT</p><h2>Memory</h2></div><p class="view-meta" id="memory-count">0 eligible</p></header>
           <div class="data-surface timeline" id="memory-content" aria-live="polite"></div>
         </section>
 
         <section class="view-panel" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" tabindex="0" hidden>
-          <header class="view-heading">
-            <div><p class="eyebrow">SYSTEM LEDGER</p><h2>Activity</h2></div>
-            <p class="view-meta">Read only</p>
-          </header>
+          <header class="view-heading"><div><p class="eyebrow">SYSTEM LEDGER</p><h2>Activity</h2></div><p class="view-meta">Read only</p></header>
           <div class="activity-layout" id="activity-content" aria-live="polite"></div>
         </section>
 
         <section class="view-panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
-          <header class="view-heading">
-            <div><p class="eyebrow">LOCAL CONFIGURATION</p><h2>Settings</h2></div>
-            <p class="view-meta">Sensitive values masked</p>
-          </header>
+          <header class="view-heading"><div><p class="eyebrow">LOCAL CONFIGURATION</p><h2>Settings</h2></div><p class="view-meta">Sensitive values masked</p></header>
           <div class="settings-layout" id="settings-content" aria-live="polite"></div>
         </section>
       </main>
@@ -101,6 +92,37 @@
       <a href="https://deerflow.tech" target="_blank" rel="noopener noreferrer">Created by DeerFlow</a>
     </footer>
   </div>
+
+  <dialog id="replan-dialog" aria-labelledby="replan-title">
+    <form class="dialog-shell" method="dialog">
+      <header class="dialog-header">
+        <div><p class="eyebrow">CALENDAR-AWARE</p><h2 id="replan-title">Replan today</h2></div>
+        <button class="icon-button" value="cancel" title="Close" aria-label="Close replan dialog" type="submit">&#215;</button>
+      </header>
+      <div class="dialog-fields">
+        <label>Date<input id="replan-date" type="date" required></label>
+        <label>Work starts<input id="replan-start" type="time" value="09:00" required></label>
+        <label>Work ends<input id="replan-end" type="time" value="18:00" required></label>
+      </div>
+      <div class="preview-surface" id="replan-preview" aria-live="polite">No preview generated</div>
+      <p class="dialog-status" id="replan-status" aria-live="polite"></p>
+      <footer class="dialog-actions">
+        <button class="action-button secondary" id="replan-preview-button" type="button">Preview</button>
+        <button class="action-button primary" id="replan-apply-button" type="button" disabled>Apply plan</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form class="dialog-shell confirm-shell" method="dialog">
+      <div><p class="eyebrow">CONFIRM ACTION</p><h2 id="confirm-title">Continue?</h2></div>
+      <p id="confirm-message"></p>
+      <footer class="dialog-actions">
+        <button class="action-button secondary" value="cancel" type="submit">Cancel</button>
+        <button class="action-button primary" id="confirm-accept" value="confirm" type="submit">Confirm</button>
+      </footer>
+    </form>
+  </dialog>
 
   <script src="/dashboard.js" defer></script>
 </body>

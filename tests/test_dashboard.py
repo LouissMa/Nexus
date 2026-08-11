@@ -353,7 +353,7 @@ def test_packaged_index_references_local_accessible_assets() -> None:
     assert 'href="https://deerflow.tech"' in html
     assert 'target="_blank"' in html
     assert 'role="tablist"' in html
-    assert html.count('role="tab"') == 5
+    assert html.count('role="tab"') == 8
     assert "innerHTML" not in script
     assert "textContent" in script
 

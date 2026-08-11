@@ -238,6 +238,64 @@ class HabitService:
         habit = self.store.mutate(mutation)
         return {"habit": habit, "summary": habit_summary(habit, checked_date)}
 
+    def increment_check_in(
+        self,
+        habit_id: str,
+        local_date: str,
+        increment: int,
+        note: str,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        checked_date = _parse_date(local_date)
+        if (
+            not isinstance(increment, int)
+            or isinstance(increment, bool)
+            or increment < 1
+            or increment > 1000
+        ):
+            raise ValueError("increment must be an integer from 1 to 1000.")
+        clean_note = _bounded_text(note, "note")
+        timestamp = _iso_utc(now or datetime.now(UTC))
+
+        def mutation(state: dict[str, Any]) -> dict[str, Any]:
+            for habit in state.setdefault("habits", []):
+                if habit.get("id") != habit_id:
+                    continue
+                if habit.get("status") != "active":
+                    raise ValueError(f"Habit '{habit_id}' is archived.")
+                check_ins = habit.setdefault("check_ins", [])
+                existing = next(
+                    (
+                        item
+                        for item in check_ins
+                        if item.get("date") == checked_date.isoformat()
+                    ),
+                    None,
+                )
+                count = (
+                    int(existing.get("count", 0)) + increment if existing else increment
+                )
+                if count > 1000:
+                    raise ValueError("habit count cannot exceed 1000.")
+                record = {
+                    "date": checked_date.isoformat(),
+                    "count": count,
+                    "note": clean_note,
+                    "at": timestamp,
+                }
+                if existing is None:
+                    check_ins.append(record)
+                else:
+                    check_ins[check_ins.index(existing)] = record
+                check_ins.sort(key=lambda item: item.get("date", ""))
+                del check_ins[:-MAX_CHECK_INS]
+                return deepcopy(habit)
+            raise ValueError(f"Habit '{habit_id}' not found.")
+
+        habit = self.store.mutate(mutation)
+        return {"habit": habit, "summary": habit_summary(habit, checked_date)}
+
     def archive(
         self,
         habit_id: str,

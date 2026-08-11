@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import threading
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from .agents.orchestrator import AgentOrchestrator
 from .agents.trace import AgentTraceStore
@@ -23,6 +24,7 @@ from .config import (
     load_embedding_settings,
     load_llm_settings,
     load_local_config,
+    load_nexus_mcp_server_policies,
     load_runtime_settings,
     load_tool_settings,
     masked_tool_settings,
@@ -48,6 +50,7 @@ from .mcp.config import (
 )
 from .mcp.manager import build_mcp_manager
 from .mcp.models import MCPError
+from .mcp_server import NEXUS_MCP_TOOL_NAMES, NexusMCPTools, run_stdio_server
 from .memory_lifecycle import MemoryLifecycleError, PRIVACY_SCOPES
 from .notifications import NotificationCenter
 from .planning import COACH_MODES, TASK_STATUSES
@@ -461,6 +464,21 @@ def build_parser() -> argparse.ArgumentParser:
         "audit", help="Show secret-safe MCP audit events."
     )
     mcp_audit.add_argument("--limit", type=int, default=50)
+    mcp_server_parser = subparsers.add_parser(
+        "mcp-server", help="Expose Nexus as a permissioned local MCP server."
+    )
+    mcp_server_subparsers = mcp_server_parser.add_subparsers(
+        dest="mcp_server_command", required=True
+    )
+    mcp_server_stdio = mcp_server_subparsers.add_parser(
+        "stdio", help="Run the Nexus MCP server over standard input/output."
+    )
+    mcp_server_stdio.add_argument(
+        "--approve-tool",
+        action="append",
+        default=[],
+        help="Approve one ask-policy tool for this server session.",
+    )
     agent_parser = subparsers.add_parser("agent", help="Inspect multi-agent runs.")
     agent_subparsers = agent_parser.add_subparsers(dest="agent_command", required=True)
     agent_runs = agent_subparsers.add_parser("runs", help="List recent agent runs.")
@@ -856,6 +874,21 @@ def _dashboard_mcp_manager() -> Any:
     return build_mcp_manager(load_mcp_settings(), nexus_home())
 
 
+def _dashboard_calendar_events(plan_date: str) -> list[dict[str, Any]] | None:
+    profile, _runtime = load_runtime_settings()
+    local_start = datetime.combine(
+        date.fromisoformat(plan_date), time.min, ZoneInfo(profile.timezone)
+    )
+    try:
+        result = _dashboard_tool_manager().execute(
+            "calendar", "read", days=2, now=local_start.isoformat()
+        )
+    except ToolError:
+        return None
+    events = result.data.get("events")
+    return events if isinstance(events, list) else None
+
+
 def _build_dashboard_snapshot() -> DashboardSnapshot:
     raw_profile = load_local_config().get("profile", {})
     if not isinstance(raw_profile, dict):
@@ -881,6 +914,7 @@ def _build_dashboard_server(*, host: str, port: int) -> DashboardServer:
     actions = DashboardActions(
         NexusService(JsonStore.from_env()),
         timezone=profile.timezone,
+        calendar_events=_dashboard_calendar_events,
     )
     return DashboardServer(
         _build_dashboard_snapshot(),
@@ -1123,6 +1157,23 @@ def main() -> None:
     embedding_settings = load_embedding_settings()
     retriever = build_memory_retriever(embedding_settings, nexus_home())
     service = NexusService(store, memory_retriever=retriever)
+
+    if args.command == "mcp-server":
+        unknown = set(args.approve_tool) - set(NEXUS_MCP_TOOL_NAMES)
+        if unknown:
+            parser.error(f"Unknown Nexus MCP tool: {sorted(unknown)[0]}")
+        try:
+            profile, _runtime = load_runtime_settings()
+            tools = NexusMCPTools(
+                service,
+                policies=load_nexus_mcp_server_policies(),
+                approvals=args.approve_tool,
+                timezone=profile.timezone,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        run_stdio_server(tools)
+        return
 
     if args.command == "ask":
         try:

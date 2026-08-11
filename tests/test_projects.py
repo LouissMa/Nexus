@@ -74,6 +74,23 @@ def test_explicit_progress_is_monotonic_without_correction(tmp_path: Path) -> No
     assert corrected["project"]["progress_entries"][-1]["correction"] is True
 
 
+def test_milestones_remain_authoritative_over_manual_progress(tmp_path: Path) -> None:
+    projects = service(tmp_path)
+    project = projects.add("Research", "", 2, None, (), (), now=NOW)
+    first = projects.add_milestone(project["id"], "Prototype", None, now=NOW)
+    projects.add_milestone(project["id"], "Report", None, now=NOW)
+    projects.update_milestone(
+        project["id"], first["milestone"]["id"], "completed", now=NOW
+    )
+
+    with pytest.raises(ValueError, match="correction"):
+        projects.update_progress(project["id"], 40, "manual estimate", False, now=NOW)
+    updated = projects.update_progress(project["id"], 40, "re-estimate", True, now=NOW)
+
+    assert updated["summary"]["progress_percent"] == 50
+    assert updated["summary"]["progress_source"] == "milestones"
+
+
 def test_archive_hides_project_and_legacy_state_normalizes(tmp_path: Path) -> None:
     store = JsonStore(tmp_path / "state.json")
     assert store.load()["projects"] == []

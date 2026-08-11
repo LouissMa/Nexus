@@ -29,7 +29,8 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 有预算与降级机制的 Memory、Tool、Planner、Reflection、Coach Agent 协作，以及隐私安全轨迹。
 - 按用户 IANA 时区主动运行早晨简报、晚间复盘和静默目标提醒。
 - 持久化通知收件箱、可选控制台/Webhook 投递，以及普通或跨夜免打扰时段。
-- 响应式 Loopback Dashboard：Today、Goals、Memory、Activity 和脱敏 Settings，并提供有界的 Habit/Project/Suggestion 快照与六条 CSRF 保护的生活工作区动作。
+- 响应式 Loopback Dashboard：Today、Goals、Habits、Projects、Suggestions、Memory、Activity 和脱敏 Settings；六条精确的 CSRF 保护动作支持原子习惯增量打卡、进度、建议决策以及读取实时日历的重新规划预览/应用。
+- 受权限控制的 Nexus stdio MCP Server：七个有界只读工具、五个默认需要批准的写工具、逐工具 deny/ask/allow 策略覆盖，以及不记录用户原文和秘密的摘要审计。
 - 受策略控制的命名自动化：固定网页、固定命令、GitHub 检查和 Markdown 状态报告。
 
 ## 快速开始
@@ -100,6 +101,17 @@ nexus agent runs --limit 10
 
 Tool Agent 只能自主选择已经启用且策略明确为 `allow` 的 MCP 工具。专职 Agent 失败时会降级到本地流程。
 
+通过本地 stdio 将 Nexus 自身暴露给兼容 MCP 的客户端：
+
+```bash
+pip install -e ".[mcp]"
+nexus mcp-server stdio
+# 仅为当前进程批准一个 ask 策略写工具：
+nexus mcp-server stdio --approve-tool nexus_check_in_habit
+```
+
+Server 将目标、记忆检索、习惯、项目、建议和每日任务作为有界只读工具提供。习惯打卡、项目进度和建议接受默认采用 `ask`；只有通过 `--approve-tool` 命名批准，或在 `.nexus/config.local.json` 的 `nexus_mcp_server.tool_policies` 中配置为 `allow` 时才会执行。
+
 ## 主动运行时、Dashboard 与自动化
 
 Runtime Job 默认关闭，只有显式配置后才会运行。配置三个任务、本地时间和免打扰时段：
@@ -147,7 +159,7 @@ nexus dashboard serve
 # 打开 http://127.0.0.1:8765
 ```
 
-第一版 Dashboard 是只读的。Today 展示定时任务、今日任务、提醒和最近的简报/复盘；其他视图展示活跃目标、可检索记忆、受限活动摘要和脱敏配置。
+Dashboard 现在包含八个视图。Today 展示日程、任务、提醒和最近的简报/复盘；Habits 可以打卡，Projects 可以进行带修正保护的进度更新，Suggestions 可以接受/忽略建议，Today 还提供重新规划预览/应用。Goals、可检索记忆、受限活动摘要和脱敏配置继续采用隐私过滤。
 
 自动化以命名 JSON Definition 保存。新 Definition 默认使用 `ask`，运行时必须传入一次性的 `--approve`。
 
@@ -191,13 +203,13 @@ nexus briefing --llm --model-tier simple
 - `.nexus/` 保存个人状态、凭据、向量、运行历史、通知、审计、轨迹、模型和锁文件；Git 会整体忽略该目录。
 - 共享配置更新使用操作系统级跨进程事务锁，校验本次更新的配置 Section，保留无关 Section，并通过原子替换写入。
 - 状态保存和通知投递状态转换同样使用规范化的操作系统级锁。多个进程不会覆盖调度认领，也不会同时认领同一条延迟通知；超长损坏通知行会被跳过，并在重写时移除。
-- Dashboard 只允许 Loopback 地址。它验证 `Host`、`Origin` 和 CSRF，只提供精确的读取及受限动作路由，拒绝编码别名和目录穿越，限制输入/输出，并按 Section 隔离错误。
+- Dashboard 只允许 Loopback 地址。它验证 `Host`、`Origin` 和每进程 CSRF Token，只提供精确读取路由和六条白名单动作路由，拒绝编码别名、目录穿越和通用写接口，限制输入/输出，并按 Section 隔离错误。
+- Nexus MCP Server 仅支持显式启动的 stdio。固定的 12 个工具覆盖今日上下文、记忆检索、目标、习惯、项目、建议、重新规划预览，以及添加记忆/目标、习惯打卡、项目进度和已验证的重新规划应用。只读工具和参数/结果都有边界；写工具默认采用 `ask`；审计不会记录用户原文和秘密。
 - 自动化策略为 `deny`、`ask` 和 `allow`。`ask` 每次都需要一次性批准；无人值守执行必须使用 `allow`。
 - 浏览器自动化只能打开固定 HTTP(S) URL，并且必须配置非空、匹配的 Host Allowlist。
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
 - 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
 - Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、语音/视觉、智能家居控制或机器人能力。
-- 习惯和项目领域流程已可通过 CLI 使用；它们的专用 Dashboard 面板和 AI 建议仍是后续工作。
 
 ## CLI 命令地图
 
@@ -216,6 +228,7 @@ nexus review day
 nexus briefing
 nexus tool weather|calendar|todo|github|notion|email|files|audit
 nexus mcp servers|tools|call|audit
+nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
 
 nexus config llm set|show
@@ -253,6 +266,6 @@ python -m ruff format --check src tests
 
 ## 路线概览
 
-Phase 1-10 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、只读 Dashboard 和受权限控制的命名自动化。
+Phase 1-11 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP 客户端与 Nexus MCP Server、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、交互式生活 Dashboard、受权限控制的命名自动化、习惯、项目、建议、自适应重新规划和统一对话入口。
 
-下一步可以深化 Dashboard 的习惯/项目/建议视图和科研伙伴工作流。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。
+下一步可以深化 Calendar/RAG 驱动的建议和科研伙伴工作流。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。

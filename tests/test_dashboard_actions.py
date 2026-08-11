@@ -87,6 +87,40 @@ def make_server(tmp_path: Path) -> tuple[DashboardServer, NexusService, str]:
     return server, service, habit["id"]
 
 
+def test_replan_reads_calendar_server_side_for_preview_and_apply(
+    tmp_path: Path,
+) -> None:
+    service = NexusService(JsonStore(tmp_path / "state.json"))
+    calls: list[str] = []
+
+    def calendar_events(plan_date: str) -> list[dict]:
+        calls.append(plan_date)
+        return [
+            {
+                "summary": "Research meeting",
+                "start": f"{plan_date}T09:00:00+00:00",
+                "end": f"{plan_date}T10:00:00+00:00",
+                "all_day": False,
+            }
+        ]
+
+    actions = DashboardActions(
+        service,
+        timezone="UTC",
+        clock=lambda: NOW,
+        calendar_events=calendar_events,
+    )
+    preview = actions.dispatch(
+        "/api/replan/preview",
+        {"date": "2026-08-08", "working_start": "09:00", "working_end": "18:00"},
+    )
+    result = actions.dispatch("/api/replan/apply", {"preview": preview})
+
+    assert calls == ["2026-08-08", "2026-08-08"]
+    assert preview["degradations"] == []
+    assert result["preview_id"] == preview["id"]
+
+
 def post(
     server: DashboardServer,
     path: str,
@@ -132,6 +166,17 @@ def test_post_routes_require_origin_csrf_json_and_dispatch_exact_action(
             service.list_habits(timezone="UTC", now=NOW)[0]["summary"]["today_complete"]
             is True
         )
+
+        service.check_in_habit(
+            habit_id, "2026-08-08", 2, "other client", timezone="UTC", now=NOW
+        )
+        status, result = post(
+            server,
+            f"/api/habits/{habit_id}/check-in",
+            {"date": "2026-08-08", "increment": 1},
+        )
+        assert status == 200
+        assert result["result"]["summary"]["today_count"] == 3
 
         assert (
             post(

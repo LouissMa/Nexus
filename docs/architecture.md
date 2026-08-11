@@ -55,7 +55,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/replanning.py`: Normalizes immutable calendar constraints, allocates task windows, records shortened/unscheduled work, and applies previews only when state and calendar fingerprints remain fresh.
 - `src/nexus/conversation.py`: Maps bounded Chinese/English requests to a static intent registry, validates optional strict-JSON LLM selections, previews mutations, and dispatches only registered Nexus services.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
-- `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, and runtime settings.
+- `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, runtime, and Nexus MCP Server policy settings.
 - `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.
 - `src/nexus/runtime_config.py`: Defines immutable profile/runtime settings, IANA time-zone and clock validation, job names, quiet hours, channel flags, and masked output.
 - `src/nexus/notifications.py`: Implements inbox-first JSONL persistence, quiet-hour deferral, cross-process delivery claims, console/webhook delivery, bounded records/read buffers, corrupt-line repair, and deferred flush.
@@ -63,14 +63,15 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/automation.py`: Validates named automations, enforces policies and path/host boundaries, runs fixed adapters, and stores bounded secret-safe audits.
 - `src/nexus/dashboard.py`: Builds privacy-filtered section snapshots and serves exact loopback HTTP reads plus six Origin/CSRF-protected life-workspace action routes.
 - `src/nexus/dashboard_actions.py`: Validates allowlisted Dashboard action schemas and delegates habit, project, suggestion, and replan operations to Nexus services.
-- `src/nexus/dashboard/index.html`: Dashboard shell and accessible navigation.
-- `src/nexus/dashboard/dashboard.css`: Responsive operational layout, mobile navigation, states, and stable control dimensions.
-- `src/nexus/dashboard/dashboard.js`: Fetches snapshots and renders Today, Goals, Memory, Activity, and Settings with safe DOM text assignment.
+- `src/nexus/dashboard/index.html`: Eight-view Dashboard shell, accessible navigation, confirmation dialog, and replan dialog.
+- `src/nexus/dashboard/dashboard.css`: Responsive operational layout, horizontally scrollable mobile navigation, progress states, dialogs, and stable control dimensions.
+- `src/nexus/dashboard/dashboard.js`: Safely renders all eight views and calls only the six exact CSRF-protected Dashboard actions.
 - `src/nexus/memory_lifecycle.py`: Normalization, importance, duplicates, eligibility, transitions, compression planning, expiry, and retention rules.
 - `src/nexus/memory_service.py`: Persistent memory lifecycle operations, relationships, index refresh, compression, maintenance, and purge enforcement.
 - `src/nexus/embeddings.py`, `src/nexus/vector_store.py`, `src/nexus/rag.py`: Embedding providers, Qdrant persistence, hybrid retrieval, eligibility filtering, re-ranking, metadata, re-indexing, and local fallback.
 - `src/nexus/integrations/`: Permissioned read-only weather, calendar, task, GitHub, Notion, email-header, and filesystem adapters plus tool auditing.
 - `src/nexus/mcp/`: MCP configuration, official SDK transports, deny/ask/allow enforcement, retries, normalization, Planning bindings, and audit.
+- `src/nexus/mcp_server.py`: Exposes a static bounded Nexus tool catalog over official-SDK stdio, enforces read/mutation policy, and writes redacted server-side audit events.
 - `src/nexus/agents/`: Bounded Memory, Tool, Planner, Reflection, and Coach specialists, orchestration, budgets, fallback, and privacy-safe traces.
 
 ## Persistent Data
@@ -80,7 +81,7 @@ All personal runtime data defaults to `.nexus/` or the directory selected by `NE
 - `state.json`: memories, goals, daily tasks, scheduler claims, and scheduler run history.
 - `config.local.json`: profile, runtime, LLM, embeddings, tools, MCP servers/policies, and named automation definitions.
 - `notifications.jsonl`: durable notification inbox and delivery state with bounded individual records.
-- `tool_audit.jsonl`, `mcp_audit.jsonl`, `automation_audit.jsonl`: sanitized activity records; automation audit rotation is bounded, and Dashboard reads expose bounded recent summaries.
+- `tool_audit.jsonl`, `mcp_audit.jsonl`, `mcp_server_audit.jsonl`, `automation_audit.jsonl`: sanitized activity records; automation audit rotation is bounded, and Dashboard reads expose bounded recent summaries.
 - `agent_runs.jsonl`: privacy-safe Agent step and budget summaries.
 - `qdrant/`: local semantic vector data.
 - `models/`: local embedding model cache.
@@ -169,17 +170,41 @@ Browser GET /api/snapshot
   -> build sections independently:
        Today -> tasks, reminders, scheduled jobs, latest briefing/review
        Goals -> active goal cadence and check-ins
+       Habits -> due state, check-ins, streaks, completion
+       Projects -> milestones and explicit/derived progress
+       Suggestions -> reason, confidence, sources, status
        Memory -> bounded eligible memory timeline
        Activity -> bounded notification/tool/MCP/Agent/automation summaries
        Settings -> explicit allowlisted masked fields
   -> redact secrets and omit raw prompts, arguments, output, paths, and URLs
   -> enforce bounded nesting, collections, strings, and final response bytes
-  -> return read-only JSON
+  -> return privacy-filtered JSON
+
+Browser POST exact allowlisted route
+  -> validate loopback Host + same Origin + per-process CSRF
+  -> require bounded JSON with the endpoint's strict schema
+  -> dispatch habit/project/suggestion/replan service action
+  -> return normalized result; no generic mutation route exists
 ```
 
 The server accepts only loopback binds and rejects foreign `Host` or `Origin`, query/fragment aliases, encoded routes, traversal, and unknown paths. Each section catches its own dependency failure, so one malformed optional integration does not make the remaining dashboard unavailable.
 
-The first dashboard has no mutation endpoints. State changes remain in the permissioned CLI.
+The Dashboard exposes only six purpose-built mutations: habit check-in, project progress, suggestion accept/dismiss, and replan preview/apply. Lower project progress, suggestion acceptance, and replan apply require explicit UI confirmation. Arbitrary state writes remain unavailable.
+
+## Nexus MCP Server Flow
+
+```text
+nexus mcp-server stdio [--approve-tool NAME]
+  -> load local per-tool deny / ask / allow overrides
+  -> advertise a static 12-tool JSON-schema catalog
+  -> validate and bound every argument object
+  -> allow seven read tools by default
+  -> deny or require session approval for five mutation tools
+  -> delegate only to registered Nexus services
+  -> enforce a 64 KiB serialized result ceiling and append bounded content-free audit summaries
+```
+
+The server is local stdio only; it does not start HTTP or listen on a network interface. Session approvals exist only for the launched process. External clients cannot invent tool names, schemas, service methods, or arbitrary commands.
 
 ## Automation Policy Flow
 
@@ -222,12 +247,12 @@ Path identities and roots are checked before execution and rechecked around sens
 ## Security and Scope
 
 - Local/offline behavior is the default; jobs and external integrations require explicit opt-in.
-- Read-only integrations and the dashboard do not become write APIs.
+- Read-only integrations remain read-only; Dashboard and Nexus MCP writes are limited to explicit allowlisted domain actions.
 - `ask` actions require one-shot human approval; unattended automation requires explicit `allow`.
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
-- Phase 10 is bounded automation, not an open-ended autonomous loop.
+- Phase 11 remains bounded assistance, not an open-ended autonomous loop.
 
-Current limitations include no remote dashboard, browser-authored arbitrary mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Habit and project workflows currently use the CLI; their dedicated Dashboard panels and AI suggestions remain future work.
+Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Calendar/RAG-informed suggestion enrichment and deeper research-companion workflows remain future work.
 
 ## Future Architecture
 
