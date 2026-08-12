@@ -120,4 +120,4 @@
 - [x] Run focused suites and `python -m pytest tests -q`.
 - [x] Run Ruff, touched-file format checks, `git diff --check`, and added-line secret scans.
 - [x] Verify desktop and 390px Dashboard Research views with zero browser console errors.
-- [ ] Stage only intended source/tests/docs, commit, push `main`, and verify local HEAD equals `origin/main`.
+- [x] Stage only intended source/tests/docs, commit, push `main`, and verify local HEAD equals `origin/main`.
