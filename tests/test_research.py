@@ -79,6 +79,8 @@ def test_add_research_evidence_and_validate_references(tmp_path: Path) -> None:
         "investigation_count": 0,
         "synthesis_count": 0,
         "follow_up_count": 0,
+        "document_count": 0,
+        "research_run_count": 0,
     }
     with pytest.raises(ValueError, match="Source 'missing' not found"):
         research.add_note(project["id"], "Unsupported", ["missing"], [], now=NOW)

@@ -64,16 +64,23 @@ def research_summary(project: dict[str, Any]) -> dict[str, int]:
         "investigation_count": len(project.get("investigations", [])),
         "synthesis_count": len(project.get("syntheses", [])),
         "follow_up_count": len(project.get("follow_ups", [])),
+        "document_count": len(project.get("documents", [])),
+        "research_run_count": len(project.get("research_runs", [])),
     }
 
 
 class ResearchService:
     def __init__(
-        self, store: JsonStore, retriever: Any = None, llm: Any = None
+        self,
+        store: JsonStore,
+        retriever: Any = None,
+        llm: Any = None,
+        corpus_search: Any = None,
     ) -> None:
         self.store = store
         self.retriever = retriever
         self.llm = llm
+        self.corpus_search = corpus_search
 
     def create(
         self,
@@ -366,7 +373,11 @@ class ResearchService:
         self._require_active(project)
         query = self._research_query(project)
         memories, rag_status, degradations = self._retrieve(query, now)
-        findings = self._evidence_findings(project, memories)
+        documents, corpus_status, corpus_degradations = self._retrieve_documents(
+            project_id, query
+        )
+        degradations.extend(corpus_degradations)
+        findings = self._evidence_findings(project, memories, documents)
         open_questions = [
             item.get("text", "")
             for item in project.get("questions", [])
@@ -383,7 +394,7 @@ class ResearchService:
             "id": uuid4().hex[:8],
             "research_question": project.get("objective") or project.get("title"),
             "current_findings": findings[:30],
-            "evidence": self._evidence_catalog(project, memories),
+            "evidence": self._evidence_catalog(project, memories, documents),
             "agreements_and_conflicts": [
                 "No explicit evidence conflict has been recorded."
             ],
@@ -404,6 +415,7 @@ class ResearchService:
             "next_actions": self._next_actions(project, findings),
             "context": {
                 "rag": rag_status,
+                "corpus": corpus_status,
                 "llm": "not_requested",
                 "degradations": degradations,
             },
@@ -438,7 +450,11 @@ class ResearchService:
         memories, rag_status, degradations = self._retrieve(
             f"{self._research_query(project)} {clean_question}", now
         )
-        candidates = self._evidence_findings(project, memories)
+        documents, corpus_status, corpus_degradations = self._retrieve_documents(
+            project_id, clean_question
+        )
+        degradations.extend(corpus_degradations)
+        candidates = self._evidence_findings(project, memories, documents)
         query_terms = self._terms(clean_question)
         matched = [
             item
@@ -461,6 +477,7 @@ class ResearchService:
             "uncertainty": "supported" if supported else "insufficient_evidence",
             "context": {
                 "rag": rag_status,
+                "corpus": corpus_status,
                 "llm": "not_requested",
                 "degradations": degradations,
             },
@@ -502,6 +519,21 @@ class ResearchService:
         except Exception:
             return [], "unavailable", ["rag_unavailable"]
 
+    def _retrieve_documents(
+        self, project_id: str, query: str
+    ) -> tuple[list[dict[str, Any]], str, list[str]]:
+        if self.corpus_search is None:
+            return [], "not_requested", []
+        try:
+            results = self.corpus_search(project_id, query, 8)
+            return (
+                [item for item in results[:8] if isinstance(item, dict)],
+                "available",
+                [],
+            )
+        except Exception:
+            return [], "unavailable", ["corpus_unavailable"]
+
     @staticmethod
     def _research_query(project: dict[str, Any]) -> str:
         parts = [str(project.get("title") or ""), str(project.get("objective") or "")]
@@ -514,7 +546,9 @@ class ResearchService:
 
     @staticmethod
     def _evidence_findings(
-        project: dict[str, Any], memories: list[dict[str, Any]]
+        project: dict[str, Any],
+        memories: list[dict[str, Any]],
+        documents: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         findings = []
         for source in project.get("sources", [])[:100]:
@@ -554,11 +588,21 @@ class ResearchService:
                         "references": [f"memory:{str(memory['id'])[:100]}"],
                     }
                 )
+        for document in (documents or [])[:8]:
+            if document.get("reference") and document.get("text"):
+                findings.append(
+                    {
+                        "text": str(document["text"])[:1_000],
+                        "references": [str(document["reference"])[:300]],
+                    }
+                )
         return findings
 
     @staticmethod
     def _evidence_catalog(
-        project: dict[str, Any], memories: list[dict[str, Any]]
+        project: dict[str, Any],
+        memories: list[dict[str, Any]],
+        documents: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         evidence = [
             {
@@ -578,7 +622,18 @@ class ResearchService:
             for item in memories[:5]
             if item.get("id")
         )
-        return evidence[:105]
+        evidence.extend(
+            {
+                "reference": str(item["reference"])[:300],
+                "kind": "document",
+                "label": str(item.get("document", {}).get("title") or "Document chunk")[
+                    :300
+                ],
+            }
+            for item in (documents or [])[:8]
+            if item.get("reference")
+        )
+        return evidence[:120]
 
     @staticmethod
     def _next_actions(

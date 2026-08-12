@@ -318,6 +318,47 @@ def build_parser() -> argparse.ArgumentParser:
     research_archive = research_subparsers.add_parser("archive")
     research_archive.add_argument("research_id")
     research_archive.add_argument("--now")
+    research_document_add = research_subparsers.add_parser("document-add")
+    research_document_add.add_argument("research_id")
+    research_document_add.add_argument("path")
+    research_document_list = research_subparsers.add_parser("document-list")
+    research_document_list.add_argument("research_id")
+    research_document_show = research_subparsers.add_parser("document-show")
+    research_document_show.add_argument("research_id")
+    research_document_show.add_argument("document_id")
+    research_document_remove = research_subparsers.add_parser("document-remove")
+    research_document_remove.add_argument("research_id")
+    research_document_remove.add_argument("document_id")
+    research_document_reindex = research_subparsers.add_parser("document-reindex")
+    research_document_reindex.add_argument("research_id")
+    research_document_reindex.add_argument("document_id")
+    research_document_search = research_subparsers.add_parser("document-search")
+    research_document_search.add_argument("research_id")
+    research_document_search.add_argument("query")
+    research_document_search.add_argument("--limit", type=int, default=5)
+    research_web_add = research_subparsers.add_parser("web-add")
+    research_web_add.add_argument("research_id")
+    research_web_add.add_argument("url")
+    research_repo_index = research_subparsers.add_parser("repo-index")
+    research_repo_index.add_argument("research_id")
+    research_repo_index.add_argument("path")
+    research_run = research_subparsers.add_parser("run")
+    research_run.add_argument("research_id")
+    research_run.add_argument("question")
+    research_run.add_argument("--max-cycles", type=int, default=3)
+    research_run.add_argument("--llm", action="store_true")
+    research_run.add_argument("--model-tier", choices=["simple", "complex"])
+    research_run.add_argument("--now")
+    research_experiment_run = research_subparsers.add_parser("experiment-run")
+    research_experiment_run.add_argument("research_id")
+    research_experiment_run.add_argument("--cwd", required=True)
+    research_experiment_run.add_argument("--allowed-root", required=True)
+    research_experiment_run.add_argument(
+        "--allow-executable", action="append", required=True
+    )
+    research_experiment_run.add_argument("--approve", action="store_true")
+    research_experiment_run.add_argument("--timeout", type=float, default=30)
+    research_experiment_run.add_argument("--command", nargs="+", required=True)
 
     suggestion_parser = subparsers.add_parser(
         "suggestion", help="Manage explainable suggestions."
@@ -1389,7 +1430,7 @@ def main() -> None:
                 datetime.fromisoformat(args.now) if getattr(args, "now", None) else None
             )
             command = args.research_command
-            if command in {"synthesize", "ask"} and args.llm:
+            if command in {"synthesize", "ask", "run"} and args.llm:
                 config = LLMConfig.from_env(model_tier=args.model_tier)
                 llm = OpenAICompatibleLLM(config) if config.is_configured else None
                 service = NexusService(store, llm=llm, memory_retriever=retriever)
@@ -1490,6 +1531,58 @@ def main() -> None:
                     now=now,
                 )
                 print_json({"status": "ok", "answer": result})
+            elif command == "document-add":
+                result = service.add_research_document(args.research_id, args.path)
+                print_json({"status": "ok", **result})
+            elif command == "document-list":
+                result = service.list_research_documents(args.research_id)
+                print_json({"documents": result})
+            elif command == "document-show":
+                result = service.show_research_document(
+                    args.research_id, args.document_id
+                )
+                print_json({"document": result})
+            elif command == "document-remove":
+                result = service.remove_research_document(
+                    args.research_id, args.document_id
+                )
+                print_json({"status": "ok", **result})
+            elif command == "document-reindex":
+                result = service.reindex_research_document(
+                    args.research_id, args.document_id
+                )
+                print_json({"status": "ok", **result})
+            elif command == "document-search":
+                result = service.search_research_documents(
+                    args.research_id, args.query, args.limit
+                )
+                print_json({"results": result})
+            elif command == "web-add":
+                result = service.add_research_web(args.research_id, args.url)
+                print_json({"status": "ok", **result})
+            elif command == "repo-index":
+                result = service.index_research_repository(args.research_id, args.path)
+                print_json({"status": "ok", "repository": result})
+            elif command == "run":
+                result = service.run_research_loop(
+                    args.research_id,
+                    args.question,
+                    max_cycles=args.max_cycles,
+                    use_llm=args.llm,
+                    now=now,
+                )
+                print_json({"status": "ok", "run": result})
+            elif command == "experiment-run":
+                result = service.run_research_experiment(
+                    args.research_id,
+                    args.command,
+                    args.cwd,
+                    allowed_root=args.allowed_root,
+                    allowed_executables=set(args.allow_executable),
+                    approved=args.approve,
+                    timeout_seconds=args.timeout,
+                )
+                print_json({"status": "ok", "experiment": result})
             else:
                 result = service.archive_research(args.research_id, now=now)
                 print_json({"status": "ok", "research": result})

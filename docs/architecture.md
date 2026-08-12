@@ -51,7 +51,10 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
 - `src/nexus/habits.py`: Owns bounded daily/weekday habits, idempotent local-date check-ins, derived streak/completion metrics, and archival.
 - `src/nexus/projects.py`: Owns bounded projects, goal/task links, milestones, derived or explicit progress, correction history, and archival.
-- `src/nexus/research.py`: Owns persistent research workspaces, evidence relationships, Crossref source import/deduplication, RAG-enriched deterministic synthesis, grounded follow-up matching, uncertainty, history bounds, and structure-safe optional LLM wording.
+- `src/nexus/research.py`: Owns persistent research workspaces, evidence relationships, Crossref source import/deduplication, RAG/corpus-enriched deterministic synthesis, grounded follow-up matching, uncertainty, history bounds, and structure-safe optional LLM wording.
+- `src/nexus/research_corpus.py`: Extracts PDF/Markdown/TXT, safe explicit HTTPS pages, and bounded repositories into project-scoped page/line-aware chunks; persists local sparse vectors and validates content-hash citations.
+- `src/nexus/research_experiments.py`: Runs explicitly approved argument vectors inside an allowed root with executable allowlists, `shell=False`, timeout, minimal environment, and capped output. It is a restricted runner, not an OS sandbox.
+- `src/nexus/research_loop.py`: Coordinates terminating Planner, Retriever, Analyst, Critic, and Reflection research steps with cycle/time/result bounds, exact reference validation, degradation, and sanitized persisted traces.
 - `src/nexus/suggestions.py`: Deterministically ranks local state, calendar conflicts/focus windows, and eligible RAG memories; persists bounded context/expiry/status; executes allowlisted approved actions; and constrains optional LLM rewriting to wording fields.
 - `src/nexus/replanning.py`: Normalizes immutable calendar constraints, allocates task windows, records shortened/unscheduled work, and applies previews only when state and calendar fingerprints remain fresh.
 - `src/nexus/conversation.py`: Maps bounded Chinese/English requests to a static intent registry, validates optional strict-JSON LLM selections, previews mutations, and dispatches only registered Nexus services.
@@ -79,7 +82,8 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 
 All personal runtime data defaults to `.nexus/` or the directory selected by `NEXUS_HOME`.
 
-- `state.json`: memories, goals, daily tasks, scheduler claims, and scheduler run history.
+- `state.json`: memories, goals, daily tasks, research/project metadata and histories, scheduler claims, and scheduler run history.
+- `research_corpus/<project-id>/<document-id>.json`: local full-text chunks, sparse vectors, source locations, content hashes, and stable references; never served raw by Dashboard.
 - `config.local.json`: profile, runtime, LLM, embeddings, tools, MCP servers/policies, and named automation definitions.
 - `notifications.jsonl`: durable notification inbox and delivery state with bounded individual records.
 - `tool_audit.jsonl`, `mcp_audit.jsonl`, `mcp_server_audit.jsonl`, `automation_audit.jsonl`: sanitized activity records; automation audit rotation is bounded, and Dashboard reads expose bounded recent summaries.
@@ -173,7 +177,7 @@ Browser GET /api/snapshot
        Goals -> active goal cadence and check-ins
        Habits -> due state, check-ins, streaks, completion
        Projects -> milestones and explicit/derived progress
-       Research -> bounded questions, source/experiment counts, and latest synthesis without raw RAG references or private notes
+       Research -> bounded questions, source/document/experiment counts, latest synthesis, and latest research-loop outcome without raw chunks, paths, references, traces, output, or private notes
        Suggestions -> reason, confidence, source types, Calendar/RAG status, degradation
        Memory -> bounded eligible memory timeline
        Activity -> bounded notification/tool/MCP/Agent/automation summaries
@@ -242,7 +246,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - JSONL readers skip corrupt records; notification and automation readers also enforce hostile-line size bounds, and notification rewrites remove oversized corrupt lines.
 - Dashboard sections fail independently and expose only normalized section errors.
 - RAG falls back to local sparse retrieval when embeddings or Qdrant fail.
-- Research investigation, synthesis, and follow-up isolate Literature, RAG, and LLM failures; local evidence remains usable and degradation is persisted.
+- Research acquisition, corpus retrieval, investigation, synthesis, follow-up, and bounded loops isolate extraction/network/index/RAG/LLM failures; the last valid index and available local evidence remain usable.
 - Planning and Agent workflows preserve deterministic local fallback when optional LLM, MCP, tools, or specialists fail.
 - Command timeout terminates the child process tree; output is consumed under a byte bound.
 - Audit write failure is surfaced as degraded audit health rather than silently claiming complete auditability.

@@ -133,7 +133,18 @@ Objective: give Nexus a bounded, evidence-oriented workflow for collaborative re
 - [x] Evidence-matched follow-up answers with explicit uncertainty and structure-safe optional LLM wording.
 - [x] CLI, unified conversation reads, and privacy-filtered ninth Dashboard Research view.
 
-Full-text ingestion, general web research, repository indexing, sandboxed experiment execution, and autonomous research loops remain Research Companion 2.0 work.
+## Research Companion 2.0
+
+Objective: let Nexus acquire and verify bounded research evidence, run explicitly approved validations, and coordinate a terminating research workflow.
+
+- [x] PDF, Markdown, and TXT full-text ingestion with stable page/line-aware chunks and content-hash citation validation.
+- [x] Explicit HTTPS page acquisition with private-network, credential, port, content-type, and response-size restrictions.
+- [x] Explicit local repository indexing with ignored/generated directories, extension/file/byte bounds, line-aware references, and no code execution.
+- [x] Restricted experiment runner with approval, executable allowlist, bounded root, no shell, timeout, minimal environment, and capped output. This is not an OS/container sandbox.
+- [x] Deterministic Planner/Retriever/Analyst/Critic/Reflection research loop with cycle/time/result budgets, verified references, degradation, persistence, and terminal outcomes.
+- [x] CLI, read-only unified-conversation corpus access, corpus-enriched synthesis/answers, and privacy-filtered Dashboard document/run summaries.
+
+OCR, JavaScript-rendered or authenticated crawling, arbitrary shell execution, container isolation, and unbounded background research remain out of scope.
 
 ## Phase 13: Multimodal and Embodied Interfaces
 

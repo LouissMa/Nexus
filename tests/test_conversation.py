@@ -97,3 +97,22 @@ def test_conversation_lists_and_shows_research(tmp_path: Path) -> None:
 
     assert listed["result"]["research"][0]["id"] == project["id"]
     assert shown["result"]["research"]["title"] == "RAG"
+
+
+def test_conversation_reads_research_documents_and_searches_corpus(
+    tmp_path: Path,
+) -> None:
+    nexus = NexusService(JsonStore(tmp_path / "state.json"))
+    project = nexus.create_research("Corpus", "Read papers.", "", now=NOW)
+    path = tmp_path / "paper.md"
+    path.write_text("Hybrid retrieval improves recall.", encoding="utf-8")
+    nexus.add_research_document(project["id"], path)
+    conversation = ConversationService(nexus)
+
+    listed = conversation.handle(f"list research documents {project['id']}", now=NOW)
+    searched = conversation.handle(
+        f"search research {project['id']} hybrid recall", now=NOW
+    )
+
+    assert listed["result"]["documents"][0]["kind"] == "markdown"
+    assert searched["result"]["results"][0]["reference"].startswith("document:")

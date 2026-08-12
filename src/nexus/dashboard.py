@@ -798,6 +798,33 @@ class DashboardSnapshot:
                     )
                 )
             ]
+            public["documents"] = [
+                bounded
+                for item in _bounded_records(project.get("documents", []), 20)
+                if (
+                    bounded := _public_record(
+                        item,
+                        ("id", "kind", "title", "chunk_count", "updated_at"),
+                    )
+                )
+            ]
+            runs = _bounded_records(project.get("research_runs", []), 50)
+            public["latest_run"] = None
+            if runs:
+                latest_run = runs[-1]
+                if isinstance(latest_run, Mapping):
+                    public["latest_run"] = _public_record(
+                        latest_run,
+                        (
+                            "id",
+                            "status",
+                            "terminal_reason",
+                            "cycles",
+                            "open_questions",
+                            "next_actions",
+                            "created_at",
+                        ),
+                    )
             syntheses = _bounded_records(project.get("syntheses", []), 50)
             public["latest_synthesis"] = None
             if syntheses:

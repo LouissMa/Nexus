@@ -16,7 +16,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
 - `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, atomic increments, derived streak/completion summaries, archival, and cross-process-safe store mutation.
 - `src/nexus/projects.py`: Project validation, goal/task links, authoritative milestone-derived progress with explicit progress for milestone-free projects, correction history, archival, and cross-process-safe store mutation.
-- `src/nexus/research.py`: Research project validation and persistence; question/source/note/experiment relationships; permissioned literature import deduplication; RAG synthesis; evidence-grounded follow-ups; uncertainty; history bounds; and optional structure-safe LLM wording.
+- `src/nexus/research.py`: Research project validation and persistence; question/source/note/experiment relationships; permissioned literature import deduplication; RAG/corpus synthesis; evidence-grounded follow-ups; uncertainty; history bounds; and optional structure-safe LLM wording.
+- `src/nexus/research_corpus.py`: PDF/Markdown/TXT extraction, explicit safe HTTPS acquisition, bounded repository indexing, project-scoped sparse chunk indexes, search, atomic replacement, removal, and page/line-aware citation validation.
+- `src/nexus/research_experiments.py`: Explicitly approved restricted process execution with allowed roots/executables, no shell, timeout, minimal environment, capped output, and research experiment persistence.
+- `src/nexus/research_loop.py`: Terminating Planner/Retriever/Analyst/Critic/Reflection research workflow, verified findings, degradation, budgets, terminal outcomes, and bounded trace persistence.
 - `src/nexus/suggestions.py`: Deterministic local/calendar/RAG suggestion ranking, stable evidence IDs and source types, bounded context/degradation persistence, expiry/status lifecycle, allowlisted approved actions, and structure-safe optional LLM wording.
 - `src/nexus/replanning.py`: Time-zone-aware calendar interval normalization, free-window allocation, preview integrity/freshness checks, and scheduling-field-only apply transactions.
 - `src/nexus/conversation.py`: Static intent schemas, Chinese/English local parsing, strict optional LLM selection, approval previews, and registered service dispatch.
@@ -84,7 +87,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `docs/product_vision.md`: Product direction and long-term Personal AI Operating System vision.
 - `docs/architecture.md`: Current component boundaries, persistence, configuration transactions, runtime, Dashboard, automation, failure isolation, and future adapters.
-- `docs/roadmap.md`: Phase 1-11 implementation status and Phase 12 research direction.
+- `docs/roadmap.md`: Phase 1-12 and Research Companion 2.0 implementation status plus Phase 13 multimodal direction.
 - `docs/aios_task_checklist.md`: Detailed progress tracker, including completed Phase 11 adaptive workspace work.
 - `docs/file_inventory.md`: This responsibility index.
 - `docs/superpowers/specs/2026-07-17-mcp-client-design.md`: Phase 7 MCP design and safety contract.
@@ -111,6 +114,12 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `docs/superpowers/plans/2026-08-12-research-companion-mvp.md`: Test-driven Research Companion implementation and release checklist.
 - `tests/test_research.py`: Research domain, persistence, evidence relations, investigation, RAG synthesis, follow-up uncertainty, degradation, and LLM structure protection.
 - `tests/test_research_cli.py`: End-to-end Research Companion CLI, live-tool degradation, errors, archive, and masked literature configuration.
+- `tests/test_research_corpus.py`: Full-text extraction, stable chunks, sparse search, re-index rollback, removal, and citation integrity.
+- `tests/test_research_acquisition.py`: HTTPS safety policy, bounded HTML extraction, repository limits/ignores, and line references.
+- `tests/test_research_experiments.py`: Approval, allowlist/root enforcement, argument safety, timeout, output caps, and persistence.
+- `tests/test_research_loop.py`: Verified evidence, deterministic specialist traces, terminal outcomes, degradation, and persistence.
+- `docs/superpowers/specs/2026-08-12-research-companion-2-design.md`: Research Companion 2.0 corpus, acquisition, execution, Agent, privacy, and failure contract.
+- `docs/superpowers/plans/2026-08-12-research-companion-2.md`: Test-driven Research Companion 2.0 implementation and release checklist.
 - `tests/test_replanning.py`: Calendar constraints, overlap/all-day handling, priorities, status preservation, shortening, degradation, and stale apply rejection.
 - `tests/test_replanning_cli.py`: Replan preview/apply CLI workflow and persisted schedule verification.
 - `tests/test_conversation.py`: Local and LLM intent parsing, schema rejection, mutation previews, low-risk check-ins, and approved dispatch.

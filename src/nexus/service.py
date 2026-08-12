@@ -13,6 +13,9 @@ from .memory_service import UNSET, MemoryManager, ManagedMemory
 from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .projects import ProjectService
 from .research import ResearchService
+from .research_corpus import ResearchCorpus
+from .research_experiments import RestrictedExperimentRunner
+from .research_loop import ResearchLoop
 from .rag import MemoryRetriever
 from .replanning import ReplanningService
 from .store import JsonStore
@@ -133,11 +136,18 @@ class NexusService:
         return self._project_service().archive(project_id, now=now)
 
     def _research_service(self) -> ResearchService:
+        corpus = self._research_corpus()
         return ResearchService(
             self.store,
             retriever=self.retrieve_memories_result,
             llm=self.llm,
+            corpus_search=lambda project_id, query, limit: corpus.search(
+                project_id, query, limit
+            ),
         )
+
+    def _research_corpus(self) -> ResearchCorpus:
+        return ResearchCorpus(self.store)
 
     def create_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._research_service().create(*args, **kwargs)
@@ -171,6 +181,69 @@ class NexusService:
 
     def archive_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._research_service().archive(*args, **kwargs)
+
+    def add_research_document(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().ingest_file(*args, **kwargs)
+
+    def add_research_web(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().ingest_web(*args, **kwargs)
+
+    def index_research_repository(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().index_repository(*args, **kwargs)
+
+    def list_research_documents(
+        self, *args: Any, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        return self._research_corpus().list_documents(*args, **kwargs)
+
+    def show_research_document(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().show_document(*args, **kwargs)
+
+    def remove_research_document(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().remove_document(*args, **kwargs)
+
+    def reindex_research_document(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_corpus().reindex_document(*args, **kwargs)
+
+    def search_research_documents(
+        self, *args: Any, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        return self._research_corpus().search(*args, **kwargs)
+
+    def run_research_loop(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        corpus = self._research_corpus()
+        return ResearchLoop(
+            self.store,
+            self._research_service(),
+            corpus,
+            memory_search=self.retrieve_memories_result,
+            llm=self.llm,
+        ).run(*args, **kwargs)
+
+    def run_research_experiment(
+        self,
+        project_id: str,
+        argv: list[str],
+        cwd: str,
+        *,
+        allowed_root: str,
+        allowed_executables: set[str],
+        approved: bool = False,
+        timeout_seconds: float = 30,
+    ) -> dict[str, Any]:
+        from pathlib import Path
+
+        return RestrictedExperimentRunner(
+            self._research_service(),
+            allowed_root=Path(allowed_root),
+            allowed_executables=allowed_executables,
+        ).run(
+            project_id,
+            argv,
+            cwd,
+            approved=approved,
+            timeout_seconds=timeout_seconds,
+        )
 
     def _suggestion_service(self, timezone: str = "UTC") -> SuggestionService:
         return SuggestionService(self.store, timezone=timezone)

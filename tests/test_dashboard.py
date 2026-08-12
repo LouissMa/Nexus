@@ -245,6 +245,33 @@ def test_research_section_is_bounded_and_hides_private_context() -> None:
                 }
             ],
             "follow_ups": [{"answer": "private follow-up"}],
+            "documents": [
+                {
+                    "id": "doc123456789",
+                    "kind": "pdf",
+                    "title": "Grounded Study",
+                    "locator": "D:/private/paper.pdf",
+                    "chunk_count": 12,
+                    "content_hash": "private-hash",
+                    "metadata": {"source_path": "D:/private/paper.pdf"},
+                    "updated_at": "2026-08-12T10:10:00+00:00",
+                }
+            ],
+            "research_runs": [
+                {
+                    "id": "run123",
+                    "status": "completed",
+                    "terminal_reason": "complete",
+                    "cycles": 1,
+                    "findings": [
+                        {"text": "Verified finding", "references": ["document:private"]}
+                    ],
+                    "open_questions": [],
+                    "next_actions": ["Validate the result."],
+                    "trace": [{"prompt": "private loop prompt"}],
+                    "created_at": "2026-08-12T10:20:00+00:00",
+                }
+            ],
             "created_at": "2026-08-12T09:00:00+00:00",
             "updated_at": "2026-08-12T10:00:00+00:00",
         }
@@ -262,6 +289,17 @@ def test_research_section_is_bounded_and_hides_private_context() -> None:
     assert "private notebook text" not in serialized
     assert "memory:private" not in serialized
     assert "hidden prompt" not in serialized
+    assert section["data"]["items"][0]["documents"][0] == {
+        "id": "doc123456789",
+        "kind": "pdf",
+        "title": "Grounded Study",
+        "chunk_count": 12,
+        "updated_at": "2026-08-12T10:10:00+00:00",
+    }
+    assert section["data"]["items"][0]["latest_run"]["terminal_reason"] == "complete"
+    assert "D:/private" not in serialized
+    assert "private loop prompt" not in serialized
+    assert "document:private" not in serialized
 
 
 def test_snapshot_builds_all_views_and_filters_private_data() -> None:

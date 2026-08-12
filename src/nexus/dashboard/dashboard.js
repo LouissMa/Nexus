@@ -312,10 +312,13 @@ function renderResearch(section) {
 
   projects.forEach((project, index) => {
     const summary = project.summary || {};
-    const detail = `${summary.question_count || 0} questions / ${summary.source_count || 0} sources / ${summary.experiment_count || 0} experiments`;
+    const detail = `${summary.question_count || 0} questions / ${summary.source_count || 0} sources / ${summary.document_count || 0} documents / ${summary.experiment_count || 0} experiments`;
     const row = detailRow(index, safeValue(project.title), detail, project.status);
     const copy = row.querySelector(".row-copy");
     if (project.objective) copy.append(element("p", "row-detail", project.objective));
+    if (project.latest_run) {
+      copy.append(element("p", "row-detail", `Research loop: ${safeValue(project.latest_run.terminal_reason)} / ${safeValue(project.latest_run.cycles, 0)} cycle(s)`));
+    }
     const synthesis = project.latest_synthesis;
     if (synthesis) {
       const findings = (synthesis.current_findings || []).map((item) => item.text).filter(Boolean).join(" ");

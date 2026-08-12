@@ -180,7 +180,7 @@ Current status: `[x]` Phase 11 adaptive life workspace completed.
 
 ## 11. Research Companion
 
-Current status: `[x]` Evidence-oriented Research Companion MVP completed.
+Current status: `[x]` Research Companion 2.0 completed with bounded acquisition, verified corpora, restricted experiments, and terminating research loops.
 
 - [x] Persistent research projects, questions, scholarly sources, notes, experiments, investigation history, syntheses, and follow-ups.
 - [x] Explicitly enabled read-only Crossref scholarly metadata search through existing permission and audit controls.
@@ -190,10 +190,11 @@ Current status: `[x]` Evidence-oriented Research Companion MVP completed.
 - [x] Full CLI workflow plus bounded English/Chinese unified-conversation reads.
 - [x] Privacy-filtered ninth Dashboard Research view.
 - [x] Independent Literature/RAG/LLM degradation without losing local research state.
-- [ ] Full-text PDF/document ingestion and chunk-level citation verification.
-- [ ] General web research and browser-assisted source acquisition.
-- [ ] Repository indexing and sandboxed experiment execution.
-- [ ] Autonomous multi-Agent research loops.
+- [x] Full-text PDF/Markdown/TXT ingestion and page/line-aware chunk citation verification.
+- [x] Explicit HTTPS web-page acquisition with SSRF-oriented destination checks and bounded extraction.
+- [x] Repository indexing without code execution and explicitly approved restricted experiment execution. The runner is not an OS/container sandbox.
+- [x] Terminating Planner/Retriever/Analyst/Critic/Reflection research loops with shared bounds, verified references, degradation, and persisted traces.
+- [x] Corpus-aware synthesis/follow-up answers, CLI lifecycle, read-only unified-conversation access, and privacy-filtered Dashboard document/run summaries.
 
 ## 12. Long-Term Multimodal and Embodied Interfaces
 

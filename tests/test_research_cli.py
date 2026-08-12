@@ -144,3 +144,49 @@ def test_literature_tool_cli_configuration_masks_mailto(tmp_path: Path) -> None:
 
     assert configured["tools"]["literature"]["enabled"] is True
     assert configured["tools"]["literature"]["mailto"] == "***configured***"
+
+
+def test_research_2_cli_document_repository_and_loop(tmp_path: Path) -> None:
+    env = env_for(tmp_path)
+    project_id = run_cli(
+        "research",
+        "create",
+        "Research 2",
+        "--question",
+        "Does hybrid retrieval improve recall?",
+        env=env,
+    )["research"]["id"]
+    document = tmp_path / "paper.md"
+    document.write_text(
+        "Hybrid retrieval improved recall in the controlled evaluation.",
+        encoding="utf-8",
+    )
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    (repository / "evaluation.py").write_text(
+        "METRIC = 'recall improvement'\n", encoding="utf-8"
+    )
+
+    added = run_cli("research", "document-add", project_id, str(document), env=env)
+    indexed = run_cli("research", "repo-index", project_id, str(repository), env=env)
+    searched = run_cli(
+        "research",
+        "document-search",
+        project_id,
+        "hybrid recall",
+        env=env,
+    )
+    loop = run_cli(
+        "research",
+        "run",
+        project_id,
+        "Does hybrid retrieval improve recall?",
+        env=env,
+    )
+    listed = run_cli("research", "document-list", project_id, env=env)
+
+    assert added["document"]["kind"] == "markdown"
+    assert indexed["repository"]["indexed_files"] == 1
+    assert searched["results"][0]["reference"].startswith("document:")
+    assert loop["run"]["terminal_reason"] == "complete"
+    assert len(listed["documents"]) == 2

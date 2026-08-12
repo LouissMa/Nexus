@@ -20,7 +20,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。
 - 习惯追踪：每日/指定星期周期、同日幂等打卡、连续完成天数、完成率和归档。
 - 项目追踪：关联目标与任务、里程碑、推导或显式进度、纠正历史和归档。
-- Research Companion 研究伙伴 MVP：持久化研究问题、学术来源、笔记和实验，通过受权限控制的 Crossref 检索与 RAG 记忆生成可追溯的证据综合，并回答带不确定性说明的后续问题。
+- Research Companion 2.0 研究伙伴：持久化研究项目，摄取 PDF/Markdown/TXT 全文，验证 Chunk 级引用，获取显式 HTTPS 网页，索引代码仓库，执行受限实验，并通过有预算的多 Agent 研究循环结合 RAG 生成带不确定性说明的结论。
 - 可解释 Suggestions 2.0：综合静默目标、阻塞/待办任务、习惯风险、里程碑期限、实时日历冲突/专注窗口和任务相关 RAG 记忆，并提供过期快照与需批准的受限动作。
 - 日历感知重排：基于只读实时 iCalendar 约束生成预览，按优先级分配、缩短或说明无法安排，并通过状态版本安全应用。
 - 统一 `nexus ask` 入口：识别常用中英文本地意图，写操作先预览并批准，习惯打卡可低风险执行，并可选用严格 JSON 的 LLM 意图选择。
@@ -104,6 +104,29 @@ nexus research ask <research-id> "混合检索是否提升了召回率？"
 nexus research list
 nexus ask "查看研究项目"
 ```
+
+安装可选 PDF 依赖，然后从用户明确指定的本地文件、HTTPS 页面或代码仓库建立研究语料库：
+
+```bash
+python -m pip install -e ".[research]"
+nexus research document-add <research-id> ./paper.pdf
+nexus research document-add <research-id> ./notes.md
+nexus research web-add <research-id> https://example.org/article
+nexus research repo-index <research-id> ./my-repository
+nexus research document-list <research-id>
+nexus research document-search <research-id> "混合检索 召回率"
+nexus research run <research-id> "混合检索是否提升召回率？" --max-cycles 3
+```
+
+PDF 引用保留页码，文本、网页和仓库引用保留行号。`document-show`、`document-remove` 和 `document-reindex` 管理语料库。相同内容不会重复索引，重建失败会保留上一个有效索引，每条文档引用都会根据 Chunk 内容哈希验证。
+
+实验必须显式批准，并使用参数数组、程序白名单、允许的工作目录、超时、最小环境、`shell=False` 和输出上限：
+
+```bash
+nexus research experiment-run <research-id> --cwd ./experiment --allowed-root ./experiment --allow-executable python --approve --command python evaluate.py
+```
+
+它是受限进程运行器，不是内核或容器沙箱；研究循环不会隐式联网或执行命令。
 
 需要检索学术元数据时，再显式启用工具：
 
@@ -244,7 +267,7 @@ nexus briefing --llm --model-tier simple
 - 浏览器自动化只能打开固定 HTTP(S) URL，并且必须配置非空、匹配的 Host Allowlist。
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
 - 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
-- Research Companion 当前不会下载或解析论文全文、验证引用、执行通用网页搜索、运行研究代码或启动自治研究循环。
+- Research Companion 不执行 OCR、JavaScript 渲染浏览、登录态爬取、任意 Shell、容器隔离或无边界后台研究。网页摄取必须提供明确 HTTPS URL；受限实验运行器不等于操作系统沙箱。
 - Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、语音/视觉、智能家居控制或机器人能力。
 
 ## CLI 命令地图
@@ -254,7 +277,7 @@ nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|
 nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
 nexus project add|list|milestone-add|milestone-update|progress|archive
-nexus research create|list|show|question-add|source-add|note-add|experiment-add|investigate|synthesize|ask|archive
+nexus research create|list|show|question-add|source-add|note-add|experiment-add|investigate|synthesize|ask|archive|document-add|document-list|document-show|document-remove|document-reindex|document-search|web-add|repo-index|experiment-run|run
 nexus suggestion list|refresh|accept|dismiss
 nexus replan preview|apply
 nexus ask TEXT [--approve] [--llm] [--show-intent]
@@ -303,6 +326,6 @@ python -m ruff format --check src tests
 
 ## 路线概览
 
-Phase 1-12 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP 客户端与 Nexus MCP Server、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、交互式生活 Dashboard、受权限控制的命名自动化、习惯、项目、建议、自适应重新规划、统一对话入口和 Research Companion MVP。
+Phase 1-12 与 Research Companion 2.0 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP 客户端与 Nexus MCP Server、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、交互式生活 Dashboard、受权限控制的命名自动化、习惯、项目、建议、自适应重新规划、统一对话入口，以及可验证语料与研究循环。
 
-Research Companion 2.0 可以继续加入受权限控制的全文摄取、通用网页研究、代码仓库索引和沙箱实验执行。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。
+语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。

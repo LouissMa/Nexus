@@ -20,7 +20,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
 - Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
 - Project tracking with linked goals/tasks, milestones, derived or explicit progress, correction history, and archival.
-- Research Companion MVP with persistent questions, scholarly sources, notes, experiments, permissioned Crossref search, RAG-enriched evidence synthesis, grounded follow-up answers, and explicit uncertainty.
+- Research Companion 2.0 with persistent projects, PDF/Markdown/TXT full-text corpora, chunk-level verified citations, HTTPS page acquisition, repository indexing, restricted experiments, bounded multi-Agent research loops, RAG-enriched synthesis, and explicit uncertainty.
 - Explainable Suggestions 2.0 from quiet goals, blocked/pending tasks, habit risk, milestone deadlines, live calendar conflicts/focus windows, and task-relevant RAG memories, with expiring snapshots and approval-gated actions.
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
@@ -104,6 +104,29 @@ nexus research ask <research-id> "Did hybrid retrieval improve recall?"
 nexus research list
 nexus ask "list research"
 ```
+
+Install optional PDF support, then build a project corpus from explicit local files, HTTPS pages, or repositories:
+
+```bash
+python -m pip install -e ".[research]"
+nexus research document-add <research-id> ./paper.pdf
+nexus research document-add <research-id> ./notes.md
+nexus research web-add <research-id> https://example.org/article
+nexus research repo-index <research-id> ./my-repository
+nexus research document-list <research-id>
+nexus research document-search <research-id> "hybrid retrieval recall"
+nexus research run <research-id> "Does hybrid retrieval improve recall?" --max-cycles 3
+```
+
+PDF references preserve page numbers; text, web, and repository references preserve line ranges. `document-show`, `document-remove`, and `document-reindex` manage the corpus. Identical content is not indexed twice, failed re-indexing preserves the last valid index, and every returned document reference is checked against its stored chunk hash.
+
+Explicitly approved experiments use an argument vector, executable allowlist, allowed working root, timeout, minimal environment, `shell=False`, and capped output:
+
+```bash
+nexus research experiment-run <research-id> --cwd ./experiment --allowed-root ./experiment --allow-executable python --approve --command python evaluate.py
+```
+
+This is a restricted process runner, not a kernel or container sandbox. Research loops never fetch pages or execute commands implicitly.
 
 Enable bounded scholarly metadata search explicitly when needed:
 
@@ -244,7 +267,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - Browser automation opens only a fixed HTTP(S) URL covered by a mandatory non-empty host allowlist.
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
-- Research Companion does not download or parse full papers, verify citations, perform general web search, execute research code, or run autonomous research loops.
+- Research Companion does not perform OCR, JavaScript-rendered browsing, authenticated crawling, arbitrary shell execution, container isolation, or unbounded background research. Web acquisition requires an explicit HTTPS URL; the restricted experiment runner is not an OS sandbox.
 - Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
 
 ## CLI Command Map
@@ -254,7 +277,7 @@ nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|
 nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
 nexus project add|list|milestone-add|milestone-update|progress|archive
-nexus research create|list|show|question-add|source-add|note-add|experiment-add|investigate|synthesize|ask|archive
+nexus research create|list|show|question-add|source-add|note-add|experiment-add|investigate|synthesize|ask|archive|document-add|document-list|document-show|document-remove|document-reindex|document-search|web-add|repo-index|experiment-run|run
 nexus suggestion list|refresh|accept|dismiss
 nexus replan preview|apply
 nexus ask TEXT [--approve] [--llm] [--show-intent]
@@ -303,6 +326,6 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 ## Roadmap Summary
 
-Phases 1-12 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, unified conversation, and the Research Companion MVP.
+Phases 1-12 and Research Companion 2.0 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, unified conversation, and evidence-grounded research corpora and loops.
 
-Research Companion 2.0 may add permissioned full-text ingestion, general web research, repository indexing, and sandboxed experiment execution. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
+Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.

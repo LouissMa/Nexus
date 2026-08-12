@@ -25,6 +25,8 @@ INTENT_SCHEMAS: dict[str, dict[str, type]] = {
     "list_suggestions": {},
     "list_research": {},
     "show_research": {"research_id": str},
+    "list_research_documents": {"research_id": str},
+    "search_research_documents": {"research_id": str, "query": str},
     "add_memory": {"text": str},
     "add_goal": {"title": str},
     "add_habit": {"name": str},
@@ -116,6 +118,16 @@ class IntentRegistry:
                 return self._intent(name, {})
 
         patterns: list[tuple[str, str, Any]] = [
+            (
+                r"^(?:list research documents|列出研究文档)\s+([\w-]+)$",
+                "list_research_documents",
+                lambda m: {"research_id": m.group(1)},
+            ),
+            (
+                r"^(?:search research|搜索研究)\s+([\w-]+)\s+(.+)$",
+                "search_research_documents",
+                lambda m: {"research_id": m.group(1), "query": m.group(2).strip()},
+            ),
             (
                 r"^(?:remember(?: that)?|记住(?:我)?)[：:]?\s*(.+)$",
                 "add_memory",
@@ -306,6 +318,16 @@ class ConversationService:
             return {"research": self.nexus.list_research()}
         if intent.name == "show_research":
             return {"research": self.nexus.show_research(args["research_id"])}
+        if intent.name == "list_research_documents":
+            return {
+                "documents": self.nexus.list_research_documents(args["research_id"])
+            }
+        if intent.name == "search_research_documents":
+            return {
+                "results": self.nexus.search_research_documents(
+                    args["research_id"], args["query"]
+                )
+            }
         if intent.name == "add_memory":
             memory = self.nexus.add_memory(args["text"], [], now=now)
             return {"memory": memory.__dict__}
