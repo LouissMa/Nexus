@@ -274,7 +274,11 @@ function renderSuggestions(section) {
   if (!suggestions.length) return target.append(stateMessage("empty", "No active suggestions"));
 
   suggestions.forEach((suggestion, index) => {
-    const detail = `${safeValue(suggestion.kind)} / ${Math.round(Number(suggestion.confidence || 0) * 100)}% confidence / sources: ${safeValue(suggestion.source_ids, "local state")}`;
+    const context = suggestion.context || {};
+    const sourceTypes = (suggestion.source_types || []).join(" + ") || "local state";
+    const degradations = (context.degradations || []).join(", ");
+    const contextStatus = `calendar ${safeValue(context.calendar, "not requested")} / RAG ${safeValue(context.rag, "unavailable")}`;
+    const detail = `${safeValue(suggestion.kind)} / ${Math.round(Number(suggestion.confidence || 0) * 100)}% confidence / ${sourceTypes} / ${contextStatus}${degradations ? ` / degraded: ${degradations}` : ""}`;
     const row = detailRow(index, safeValue(suggestion.title), detail, suggestion.status);
     row.classList.add("workspace-row");
     const reason = element("p", "row-detail suggestion-reason", safeValue(suggestion.reason, "No reason provided"));

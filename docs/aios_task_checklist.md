@@ -142,7 +142,7 @@ Current status: `[x]` Interactive local life-management Dashboard completed.
 - [x] Loopback-only HTTP, exact routes, Host/Origin/CSRF validation, bounded snapshots, and six allowlisted actions.
 - [x] Habit tracking panel with check-ins, streaks, and completion status.
 - [x] Dedicated project-progress panel with progress bars and correction confirmation.
-- [x] AI-suggestion panel with reasons, confidence, sources, accept, and dismiss.
+- [x] AI-suggestion panel with reasons, confidence, Calendar/RAG source types and degradation, accept, and dismiss.
 - [x] Replan preview/apply dialog with explicit confirmation.
 
 Generic browser-authored state mutation and remote Dashboard hosting are intentionally outside the current version.
@@ -170,7 +170,7 @@ Current status: `[x]` Phase 11 adaptive life workspace completed.
 
 - [x] Habit model, CLI, atomic Dashboard increment check-ins, streaks, completion rates, and archive.
 - [x] Project model, milestones, explicit/derived progress, correction history, links, archive, CLI, and Dashboard panel.
-- [x] Explainable deterministic AI suggestions, optional structure-safe LLM wording, CLI lifecycle, approved allowlisted actions, and Dashboard panel.
+- [x] Explainable deterministic AI Suggestions 2.0 using local state, live read-only calendar conflicts/focus windows, and eligible RAG memories, with independent degradation, optional structure-safe LLM wording, CLI lifecycle, approved allowlisted actions, and Dashboard panel.
 - [x] Calendar-aware replan preview and conflict-safe apply with state revision, calendar fingerprint, integrity check, and read-only live-calendar fallback.
 - [x] Unified `nexus ask` deterministic Chinese/English router with mutation previews, low-risk check-ins, static schemas, and optional strict-JSON LLM parsing.
 - [x] Allowlisted loopback Dashboard mutation endpoints with exact routes, Origin/CSRF protection, strict JSON schemas, and a 16 KiB body limit.

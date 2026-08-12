@@ -725,6 +725,8 @@ class DashboardSnapshot:
                     "reason",
                     "confidence",
                     "source_ids",
+                    "source_types",
+                    "context",
                     "created_at",
                     "expires_at",
                     "status",

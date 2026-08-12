@@ -41,6 +41,8 @@ def test_workspace_script_uses_safe_dom_and_allowlisted_mutations() -> None:
     assert "{ increment: 1 }" in script
     assert "events: []" not in script
     assert 'summary.progress_source === "milestones"' in script
+    assert "source_types || []" in script
+    assert "context.degradations || []" in script
 
 
 def test_workspace_css_has_stable_controls_progress_and_mobile_layout() -> None:

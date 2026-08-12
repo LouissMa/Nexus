@@ -115,7 +115,7 @@ Objective: make Nexus easier to use every day while preserving local-first and p
 
 - [x] Habit cadence, check-ins, streaks, completion rates, archive, CLI, and Dashboard controls.
 - [x] Project milestones, explicit/derived progress history, linked goals/tasks, archive, CLI, and dedicated Dashboard view.
-- [~] Explainable suggestions from goals, tasks, habits, and project milestones, with structure-safe LLM wording, CLI actions, and Dashboard view completed; calendar/RAG enrichment remains future work.
+- [x] Explainable Suggestions 2.0 from goals, tasks, habits, project milestones, live calendar conflicts/focus windows, and eligible RAG memories, with independent degradation, structure-safe LLM wording, CLI actions, and Dashboard source status.
 - [x] Calendar-aware replan preview and stale-safe apply without calendar writes, including live read-only iCalendar constraints and explicit degradation.
 - [x] Unified local-first `nexus ask` entry point with common Chinese/English intents, approval previews, and optional strict-JSON LLM intent parsing.
 - [x] Allowlisted loopback Dashboard mutations protected by exact routes, Origin, CSRF, strict schemas, and request bounds.

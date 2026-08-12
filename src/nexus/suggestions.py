@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -92,7 +92,6 @@ class SuggestionEngine:
         memories: list[dict[str, Any]] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
-        del calendar, memories
         if (
             not isinstance(limit, int)
             or isinstance(limit, bool)
@@ -106,8 +105,153 @@ class SuggestionEngine:
         self._goal_candidates(state, current, candidates)
         self._habit_candidates(state, current, today, candidates)
         self._milestone_candidates(state, current, today, candidates)
+        self._calendar_candidates(state, current, today, calendar or [], candidates)
+        self._memory_candidates(current, memories or [], candidates)
         candidates.sort(key=lambda item: (-item[0], item[1]["id"]))
         return [item for _, item in candidates[:limit]]
+
+    def _calendar_candidates(
+        self,
+        state: dict[str, Any],
+        now: datetime,
+        today: date,
+        calendar: list[dict[str, Any]],
+        candidates: list[tuple[int, dict[str, Any]]],
+    ) -> None:
+        day_start = datetime.combine(today, time(9), self.timezone)
+        day_end = datetime.combine(today, time(18), self.timezone)
+        events: list[tuple[datetime, datetime, str, str]] = []
+        for raw in calendar[:100] if isinstance(calendar, list) else []:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                start = _aware(
+                    datetime.fromisoformat(str(raw.get("start")))
+                ).astimezone(self.timezone)
+                end = _aware(datetime.fromisoformat(str(raw.get("end")))).astimezone(
+                    self.timezone
+                )
+            except ValueError:
+                continue
+            if raw.get("all_day") and start.date() <= today < end.date():
+                start, end = day_start, day_end
+            clipped = (max(start, day_start), min(end, day_end))
+            if clipped[1] <= clipped[0]:
+                continue
+            title = str(raw.get("summary") or "calendar event")[:300]
+            source = self._calendar_source(raw)
+            events.append((clipped[0], clipped[1], title, source))
+        events.sort(key=lambda item: (item[0], item[1], item[3]))
+        if not events:
+            return
+
+        for task in state.get("daily_tasks", []):
+            if not isinstance(task, dict) or task.get("status") == "completed":
+                continue
+            try:
+                task_start = _aware(
+                    datetime.fromisoformat(str(task.get("scheduled_start")))
+                ).astimezone(self.timezone)
+                task_end = _aware(
+                    datetime.fromisoformat(str(task.get("scheduled_end")))
+                ).astimezone(self.timezone)
+            except ValueError:
+                continue
+            for event_start, event_end, event_title, event_source in events:
+                if task_start < event_end and task_end > event_start and task.get("id"):
+                    task_id = str(task["id"])
+                    candidates.append(
+                        (
+                            95,
+                            self._item(
+                                "calendar_conflict",
+                                f"Replan {task.get('title') or 'scheduled task'}",
+                                f"This task overlaps the calendar event '{event_title}'.",
+                                {"type": "acknowledge"},
+                                0.92,
+                                [f"task:{task_id}", event_source],
+                                now,
+                            ),
+                        )
+                    )
+                    break
+
+        merged: list[list[datetime]] = []
+        for start, end, _title, _source in events:
+            if merged and start <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], end)
+            else:
+                merged.append([start, end])
+        windows: list[tuple[datetime, datetime]] = []
+        cursor = day_start
+        for start, end in merged:
+            if start > cursor:
+                windows.append((cursor, start))
+            cursor = max(cursor, end)
+        if cursor < day_end:
+            windows.append((cursor, day_end))
+        windows = [
+            window
+            for window in windows
+            if (window[1] - window[0]).total_seconds() >= 30 * 60
+        ]
+        if windows:
+            start, end = max(windows, key=lambda item: item[1] - item[0])
+            source = f"calendar:{hashlib.sha256(f'{today}|{start.isoformat()}|{end.isoformat()}'.encode()).hexdigest()[:12]}"
+            candidates.append(
+                (
+                    55,
+                    self._item(
+                        "calendar_focus_window",
+                        f"Use the {start:%H:%M}-{end:%H:%M} focus window",
+                        "Your calendar leaves this as today's longest working-hours focus window.",
+                        {"type": "acknowledge"},
+                        0.78,
+                        [source],
+                        now,
+                    ),
+                )
+            )
+
+    def _memory_candidates(
+        self,
+        now: datetime,
+        memories: list[dict[str, Any]],
+        candidates: list[tuple[int, dict[str, Any]]],
+    ) -> None:
+        for memory in memories[:3] if isinstance(memories, list) else []:
+            if not isinstance(memory, dict) or not memory.get("id"):
+                continue
+            text = str(memory.get("text") or "").strip()
+            if not text:
+                continue
+            try:
+                score = float(memory.get("retrieval_score", 0.5))
+            except (TypeError, ValueError):
+                score = 0.5
+            score = max(0.0, min(1.0, score))
+            memory_id = str(memory["id"])[:100]
+            candidates.append(
+                (
+                    50 + round(score * 20),
+                    self._item(
+                        "relevant_memory",
+                        "Reconnect a relevant memory",
+                        f"Relevant context from long-term memory: {text[:500]}",
+                        {"type": "acknowledge"},
+                        0.6 + score * 0.3,
+                        [f"memory:{memory_id}"],
+                        now,
+                    ),
+                )
+            )
+
+    @staticmethod
+    def _calendar_source(event: dict[str, Any]) -> str:
+        payload = "|".join(
+            str(event.get(field) or "") for field in ("summary", "start", "end")
+        )
+        return f"calendar:{hashlib.sha256(payload.encode()).hexdigest()[:12]}"
 
     def _task_candidates(
         self,
@@ -292,6 +436,9 @@ class SuggestionEngine:
             "action": deepcopy(action),
             "confidence": round(max(0.0, min(1.0, confidence)), 4),
             "source_ids": source_ids[:20],
+            "source_types": sorted(
+                {source.split(":", 1)[0] for source in source_ids if ":" in source}
+            )[:10],
             "created_at": _timestamp(now),
             "expires_at": _timestamp(now + timedelta(days=2)),
             "status": "open",
@@ -305,11 +452,27 @@ class SuggestionService:
         self.timezone = self.engine.timezone
 
     def list(
-        self, *, now: datetime | None = None, refresh: bool = False, limit: int = 10
+        self,
+        *,
+        now: datetime | None = None,
+        refresh: bool = False,
+        limit: int = 10,
+        calendar: list[dict[str, Any]] | None = None,
+        memories: list[dict[str, Any]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         current = _aware(now or datetime.now(UTC))
         if refresh:
-            generated = self.engine.generate(self.store.load(), current, limit=limit)
+            safe_context = self._context(context)
+            generated = self.engine.generate(
+                self.store.load(),
+                current,
+                calendar=calendar,
+                memories=memories,
+                limit=limit,
+            )
+            for item in generated:
+                item["context"] = deepcopy(safe_context)
 
             def mutation(state: dict[str, Any]) -> list[dict[str, Any]]:
                 existing = {
@@ -325,6 +488,7 @@ class SuggestionService:
                             if previous.get(field):
                                 item[field] = previous[field]
                 state["suggestions"] = deepcopy(generated[-MAX_SUGGESTIONS:])
+                state["suggestion_context"] = deepcopy(safe_context)
                 return deepcopy(state["suggestions"])
 
             suggestions = self.store.mutate(mutation)
@@ -336,6 +500,27 @@ class SuggestionService:
             if isinstance(item, dict)
             and (_parse_timestamp(item.get("expires_at")) or current) > current
         ][:limit]
+
+    def context(self) -> dict[str, Any]:
+        return self._context(self.store.load().get("suggestion_context"))
+
+    @staticmethod
+    def _context(value: dict[str, Any] | None) -> dict[str, Any]:
+        raw = value if isinstance(value, dict) else {}
+        allowed = {"available", "unavailable", "not_requested"}
+        calendar = str(raw.get("calendar", "not_requested"))
+        rag = str(raw.get("rag", "unavailable"))
+        degradations = raw.get("degradations", [])
+        return {
+            "calendar": calendar if calendar in allowed else "unavailable",
+            "rag": rag if rag in allowed else "unavailable",
+            "degradations": [
+                str(item)[:100]
+                for item in (degradations if isinstance(degradations, list) else [])[
+                    :10
+                ]
+            ],
+        }
 
     def accept(
         self, suggestion_id: str, *, approved: bool, now: datetime | None = None

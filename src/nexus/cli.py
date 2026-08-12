@@ -266,6 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggestion_list.add_argument("--limit", type=int, default=10)
     suggestion_list.add_argument("--llm", action="store_true")
     suggestion_list.add_argument("--model-tier", choices=["simple", "complex"])
+    suggestion_list.add_argument("--live-tools", action="store_true")
     suggestion_refresh = suggestion_subparsers.add_parser(
         "refresh", help="Regenerate suggestions."
     )
@@ -273,6 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggestion_refresh.add_argument("--limit", type=int, default=10)
     suggestion_refresh.add_argument("--llm", action="store_true")
     suggestion_refresh.add_argument("--model-tier", choices=["simple", "complex"])
+    suggestion_refresh.add_argument("--live-tools", action="store_true")
     suggestion_accept = suggestion_subparsers.add_parser(
         "accept", help="Accept a suggestion action."
     )
@@ -1320,14 +1322,39 @@ def main() -> None:
                     config = LLMConfig.from_env(model_tier=args.model_tier)
                     llm = OpenAICompatibleLLM(config) if config.is_configured else None
                     service = NexusService(store, llm=llm, memory_retriever=retriever)
+                calendar = None
+                calendar_requested = bool(
+                    args.live_tools and args.suggestion_command == "refresh"
+                )
+                if calendar_requested:
+                    try:
+                        calendar_result = build_tool_manager(
+                            load_tool_settings(), nexus_home()
+                        ).execute(
+                            "calendar",
+                            "read",
+                            days=1,
+                            now=now.isoformat() if now else None,
+                        )
+                        raw_events = calendar_result.data.get("events")
+                        calendar = raw_events if isinstance(raw_events, list) else None
+                    except ToolError:
+                        calendar = None
                 suggestions = service.list_suggestions(
                     timezone=profile.timezone,
                     now=now,
                     refresh=args.suggestion_command == "refresh",
                     limit=args.limit,
                     use_llm=args.llm,
+                    calendar=calendar,
+                    calendar_requested=calendar_requested,
                 )
-                print_json({"suggestions": suggestions})
+                print_json(
+                    {
+                        "suggestions": suggestions,
+                        "context": service.suggestion_context(),
+                    }
+                )
             elif args.suggestion_command == "accept":
                 result = service.accept_suggestion(
                     args.suggestion_id,

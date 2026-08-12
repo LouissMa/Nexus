@@ -53,6 +53,12 @@ def test_snapshot_adds_isolated_bounded_life_sections() -> None:
                 "reason": "Due today",
                 "confidence": 0.8,
                 "source_ids": ["habit:h1"],
+                "source_types": ["habit", "memory"],
+                "context": {
+                    "calendar": "unavailable",
+                    "rag": "available",
+                    "degradations": ["calendar_unavailable"],
+                },
                 "action": {"type": "acknowledge", "secret": "hide"},
                 "status": "open",
                 "created_at": "2026-08-08T08:00:00+00:00",
@@ -73,6 +79,12 @@ def test_snapshot_adds_isolated_bounded_life_sections() -> None:
     )
     suggestion = snapshot["sections"]["suggestions"]["data"]["items"][0]
     assert suggestion["action"] == {"type": "acknowledge"}
+    assert suggestion["source_types"] == ["habit", "memory"]
+    assert suggestion["context"] == {
+        "calendar": "unavailable",
+        "rag": "available",
+        "degradations": ["calendar_unavailable"],
+    }
     assert "secret" not in json.dumps(snapshot)
 
 

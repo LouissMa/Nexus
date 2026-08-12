@@ -66,3 +66,27 @@ def test_suggestion_refresh_list_accept_and_dismiss(tmp_path: Path) -> None:
         run_cli(home, "suggestion", "list", "--now", "2030-08-08T10:00:00+00:00")
     )
     assert listed["suggestions"][0]["status"] == "accepted"
+
+
+def test_suggestion_refresh_live_tools_degrades_when_calendar_is_disabled(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    run_cli(home, "goal", "add", "Nexus", "--cadence-days", "1")
+    run_cli(home, "memory", "add", "Nexus needs a retrieval benchmark")
+
+    result = payload(
+        run_cli(
+            home,
+            "suggestion",
+            "refresh",
+            "--live-tools",
+            "--now",
+            "2030-08-08T09:00:00+00:00",
+        )
+    )
+
+    assert result["suggestions"]
+    assert result["context"]["calendar"] == "unavailable"
+    assert result["context"]["rag"] == "available"
+    assert result["context"]["degradations"] == ["calendar_unavailable"]

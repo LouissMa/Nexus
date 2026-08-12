@@ -51,7 +51,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
 - `src/nexus/habits.py`: Owns bounded daily/weekday habits, idempotent local-date check-ins, derived streak/completion metrics, and archival.
 - `src/nexus/projects.py`: Owns bounded projects, goal/task links, milestones, derived or explicit progress, correction history, and archival.
-- `src/nexus/suggestions.py`: Ranks explainable offline suggestions, persists expiry/status, executes allowlisted approved actions, and constrains optional LLM rewriting to wording fields.
+- `src/nexus/suggestions.py`: Deterministically ranks local state, calendar conflicts/focus windows, and eligible RAG memories; persists bounded context/expiry/status; executes allowlisted approved actions; and constrains optional LLM rewriting to wording fields.
 - `src/nexus/replanning.py`: Normalizes immutable calendar constraints, allocates task windows, records shortened/unscheduled work, and applies previews only when state and calendar fingerprints remain fresh.
 - `src/nexus/conversation.py`: Maps bounded Chinese/English requests to a static intent registry, validates optional strict-JSON LLM selections, previews mutations, and dispatches only registered Nexus services.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
@@ -172,7 +172,7 @@ Browser GET /api/snapshot
        Goals -> active goal cadence and check-ins
        Habits -> due state, check-ins, streaks, completion
        Projects -> milestones and explicit/derived progress
-       Suggestions -> reason, confidence, sources, status
+       Suggestions -> reason, confidence, source types, Calendar/RAG status, degradation
        Memory -> bounded eligible memory timeline
        Activity -> bounded notification/tool/MCP/Agent/automation summaries
        Settings -> explicit allowlisted masked fields
@@ -252,7 +252,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
 - Phase 11 remains bounded assistance, not an open-ended autonomous loop.
 
-Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Calendar/RAG-informed suggestion enrichment and deeper research-companion workflows remain future work.
+Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events; deeper research-companion workflows remain future work.
 
 ## Future Architecture
 

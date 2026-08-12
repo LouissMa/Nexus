@@ -20,7 +20,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
 - Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
 - Project tracking with linked goals/tasks, milestones, derived or explicit progress, correction history, and archival.
-- Explainable offline suggestions from quiet goals, blocked/pending tasks, habit risk, and milestone deadlines, with expiring snapshots and approval-gated actions.
+- Explainable Suggestions 2.0 from quiet goals, blocked/pending tasks, habit risk, milestone deadlines, live calendar conflicts/focus windows, and task-relevant RAG memories, with expiring snapshots and approval-gated actions.
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
@@ -77,8 +77,12 @@ nexus config tool set github --repo "example/project"
 nexus config tool set filesystem --root "/path/to/project"
 nexus config tool show
 nexus briefing --name Alex --live-tools
+nexus suggestion refresh --live-tools
+nexus suggestion list
 nexus tool audit --limit 20
 ```
+
+Suggestion refresh always uses the configured RAG pipeline. `--live-tools` additionally reads the configured calendar; either dependency can degrade independently while local goal/task/habit/project suggestions remain available. The optional LLM may rewrite wording only.
 
 Configure MCP servers and approve tools explicitly:
 
@@ -159,7 +163,7 @@ nexus dashboard serve
 # Open http://127.0.0.1:8765
 ```
 
-The Dashboard has eight views. Today shows schedules, tasks, reminders, and the latest briefing/review; Habits supports check-ins, Projects supports correction-aware progress updates, Suggestions supports accept/dismiss, and Today offers replan preview/apply. Goals, eligible memory, bounded activity, and masked settings remain privacy-filtered views.
+The Dashboard has eight views. Today shows schedules, tasks, reminders, and the latest briefing/review; Habits supports check-ins, Projects supports correction-aware progress updates, Suggestions shows Calendar/RAG source types and degradation status before accept/dismiss, and Today offers replan preview/apply. Goals, eligible memory, bounded activity, and masked settings remain privacy-filtered views.
 
 Automations are named JSON definitions. New definitions default to `ask`, which requires one-shot `--approve`.
 
@@ -268,4 +272,4 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 Phases 1-11 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, and unified conversation.
 
-Next work can deepen calendar/RAG-informed suggestions and research-companion workflows. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
+The next product phase is the research-companion workflow for literature, code, and experiments. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.

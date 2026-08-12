@@ -138,15 +138,80 @@ class NexusService:
         *,
         timezone: str = "UTC",
         use_llm: bool = False,
+        now: datetime | None = None,
+        refresh: bool = False,
+        limit: int = 10,
+        calendar: list[dict[str, Any]] | None = None,
+        calendar_requested: bool = False,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        suggestions = self._suggestion_service(timezone).list(**kwargs)
+        context = None
+        memories = None
+        if refresh:
+            state = self.store.load()
+            degradations: list[str] = []
+            if calendar is not None:
+                calendar_status = "available"
+            elif calendar_requested:
+                calendar_status = "unavailable"
+                degradations.append("calendar_unavailable")
+            else:
+                calendar_status = "not_requested"
+            try:
+                retrieval = self.retrieve_memories_result(
+                    self._suggestion_memory_query(state),
+                    3,
+                    task_context="Generate relevant proactive life suggestions.",
+                    now=now,
+                )
+                memories = retrieval["results"]
+                rag_status = "available"
+            except Exception:
+                memories = []
+                rag_status = "unavailable"
+                degradations.append("rag_unavailable")
+            context = {
+                "calendar": calendar_status,
+                "rag": rag_status,
+                "degradations": degradations,
+            }
+        suggestions = self._suggestion_service(timezone).list(
+            now=now,
+            refresh=refresh,
+            limit=limit,
+            calendar=calendar,
+            memories=memories,
+            context=context,
+            **kwargs,
+        )
         if use_llm and self.llm is not None:
             try:
                 return SuggestionWordingAdapter.rewrite(suggestions, self.llm)
             except (LLMError, ValueError):
                 pass
         return suggestions
+
+    def suggestion_context(self) -> dict[str, Any]:
+        return self._suggestion_service().context()
+
+    @staticmethod
+    def _suggestion_memory_query(state: dict[str, Any]) -> str:
+        parts = ["proactive suggestion"]
+        for collection, fields in (
+            ("goals", ("title", "description")),
+            ("daily_tasks", ("title", "blocker")),
+            ("habits", ("name", "description")),
+            ("projects", ("name", "description")),
+        ):
+            for item in state.get(collection, [])[:20]:
+                if not isinstance(item, dict):
+                    continue
+                parts.extend(
+                    str(item.get(field) or "").strip()[:300]
+                    for field in fields
+                    if item.get(field)
+                )
+        return " ".join(parts)[:4_000]
 
     def accept_suggestion(
         self,

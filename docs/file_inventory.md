@@ -16,7 +16,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
 - `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, atomic increments, derived streak/completion summaries, archival, and cross-process-safe store mutation.
 - `src/nexus/projects.py`: Project validation, goal/task links, authoritative milestone-derived progress with explicit progress for milestone-free projects, correction history, archival, and cross-process-safe store mutation.
-- `src/nexus/suggestions.py`: Deterministic suggestion ranking, stable IDs, expiry/status persistence, allowlisted approved actions, and structure-safe optional LLM wording.
+- `src/nexus/suggestions.py`: Deterministic local/calendar/RAG suggestion ranking, stable evidence IDs and source types, bounded context/degradation persistence, expiry/status lifecycle, allowlisted approved actions, and structure-safe optional LLM wording.
 - `src/nexus/replanning.py`: Time-zone-aware calendar interval normalization, free-window allocation, preview integrity/freshness checks, and scheduling-field-only apply transactions.
 - `src/nexus/conversation.py`: Static intent schemas, Chinese/English local parsing, strict optional LLM selection, approval previews, and registered service dispatch.
 - `src/nexus/store.py`: Cross-process-safe JSON persistence for memories, goals, daily tasks, scheduler occurrence claims, and bounded scheduler run history; revision checks and atomic replacement prevent lost updates.
@@ -103,8 +103,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_habit_cli.py`: Habit add/list/check-in/archive CLI workflows and validation errors.
 - `tests/test_projects.py`: Project validation, milestones, progress derivation, correction rules, archival, and legacy-state normalization.
 - `tests/test_project_cli.py`: Project add/list/milestone/progress/archive CLI workflows and validation errors.
-- `tests/test_suggestions.py`: Suggestion ranking, stable IDs, sources, expiry, approval, allowlisted actions, dismissal, and LLM structure protection.
-- `tests/test_suggestion_cli.py`: Suggestion refresh/list/accept CLI workflows and approval errors.
+- `tests/test_suggestions.py`: Local/calendar/RAG suggestion ranking, stable IDs, sources, context degradation, expiry, approval, allowlisted actions, dismissal, and LLM structure protection.
+- `tests/test_suggestion_cli.py`: Suggestion refresh/list/accept workflows, live-calendar opt-in/degradation, and approval errors.
+- `docs/superpowers/plans/2026-08-12-ai-suggestions-2.md`: Test-driven AI Suggestions 2.0 implementation and release checklist.
 - `tests/test_replanning.py`: Calendar constraints, overlap/all-day handling, priorities, status preservation, shortening, degradation, and stale apply rejection.
 - `tests/test_replanning_cli.py`: Replan preview/apply CLI workflow and persisted schedule verification.
 - `tests/test_conversation.py`: Local and LLM intent parsing, schema rejection, mutation previews, low-risk check-ins, and approved dispatch.

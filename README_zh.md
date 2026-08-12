@@ -20,7 +20,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。
 - 习惯追踪：每日/指定星期周期、同日幂等打卡、连续完成天数、完成率和归档。
 - 项目追踪：关联目标与任务、里程碑、推导或显式进度、纠正历史和归档。
-- 可解释离线建议：从静默目标、阻塞/待办任务、习惯风险和里程碑期限生成，并提供过期快照与需批准的受限动作。
+- 可解释 Suggestions 2.0：综合静默目标、阻塞/待办任务、习惯风险、里程碑期限、实时日历冲突/专注窗口和任务相关 RAG 记忆，并提供过期快照与需批准的受限动作。
 - 日历感知重排：基于只读实时 iCalendar 约束生成预览，按优先级分配、缩短或说明无法安排，并通过状态版本安全应用。
 - 统一 `nexus ask` 入口：识别常用中英文本地意图，写操作先预览并批准，习惯打卡可低风险执行，并可选用严格 JSON 的 LLM 意图选择。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
@@ -77,8 +77,12 @@ nexus config tool set github --repo "example/project"
 nexus config tool set filesystem --root "/path/to/project"
 nexus config tool show
 nexus briefing --name Alex --live-tools
+nexus suggestion refresh --live-tools
+nexus suggestion list
 nexus tool audit --limit 20
 ```
+
+建议刷新始终使用已配置的 RAG 管线；`--live-tools` 会额外读取已配置的日历。任一依赖失败时都会独立降级，同时保留本地目标、任务、习惯和项目建议。可选 LLM 只能润色措辞。
 
 配置 MCP Server，并显式批准工具：
 
@@ -159,7 +163,7 @@ nexus dashboard serve
 # 打开 http://127.0.0.1:8765
 ```
 
-Dashboard 现在包含八个视图。Today 展示日程、任务、提醒和最近的简报/复盘；Habits 可以打卡，Projects 可以进行带修正保护的进度更新，Suggestions 可以接受/忽略建议，Today 还提供重新规划预览/应用。Goals、可检索记忆、受限活动摘要和脱敏配置继续采用隐私过滤。
+Dashboard 现在包含八个视图。Today 展示日程、任务、提醒和最近的简报/复盘；Habits 可以打卡，Projects 可以进行带修正保护的进度更新，Suggestions 会在接受/忽略前展示 Calendar/RAG 来源类型和降级状态，Today 还提供重新规划预览/应用。Goals、可检索记忆、受限活动摘要和脱敏配置继续采用隐私过滤。
 
 自动化以命名 JSON Definition 保存。新 Definition 默认使用 `ask`，运行时必须传入一次性的 `--approve`。
 
@@ -268,4 +272,4 @@ python -m ruff format --check src tests
 
 Phase 1-11 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP 客户端与 Nexus MCP Server、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、交互式生活 Dashboard、受权限控制的命名自动化、习惯、项目、建议、自适应重新规划和统一对话入口。
 
-下一步可以深化 Calendar/RAG 驱动的建议和科研伙伴工作流。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。
+下一产品阶段是面向文献、代码和实验的科研伙伴工作流。语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。
