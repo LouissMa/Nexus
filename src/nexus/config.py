@@ -57,7 +57,16 @@ EMBEDDING_PRESETS = {
     },
 }
 
-TOOL_NAMES = ("weather", "calendar", "todo", "github", "notion", "email", "filesystem")
+TOOL_NAMES = (
+    "weather",
+    "calendar",
+    "todo",
+    "github",
+    "notion",
+    "email",
+    "filesystem",
+    "literature",
+)
 TOOL_ALLOWED_OPERATIONS = {
     "weather": ["read"],
     "calendar": ["read"],
@@ -66,8 +75,9 @@ TOOL_ALLOWED_OPERATIONS = {
     "notion": ["read"],
     "email": ["read"],
     "filesystem": ["list", "read", "search"],
+    "literature": ["read"],
 }
-TOOL_SECRET_FIELDS = {"token", "password", "calendar_url"}
+TOOL_SECRET_FIELDS = {"token", "password", "calendar_url", "mailto"}
 MCP_SERVER_POLICY_VALUES = {"deny", "ask", "allow"}
 
 
@@ -450,6 +460,7 @@ def load_tool_settings(
                 else None
             ),
         },
+        "literature": {"mailto": values.get("NEXUS_CROSSREF_MAILTO")},
     }
     for name, tool_values in overlays.items():
         configured_by_env = False
@@ -491,6 +502,7 @@ def update_tool_settings(
             "notion": ["token"],
             "email": ["host", "username", "password"],
             "filesystem": ["roots"],
+            "literature": [],
         }[tool]
         missing = [field for field in required_fields if not current.get(field)]
         if enabled and missing:
@@ -513,7 +525,7 @@ def masked_tool_settings(
             if public.get(key):
                 public[key] = (
                     "***configured***"
-                    if key == "calendar_url"
+                    if key in {"calendar_url", "mailto"}
                     else mask_secret(str(public[key]))
                 )
         masked[name] = public

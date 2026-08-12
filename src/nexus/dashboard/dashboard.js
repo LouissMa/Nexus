@@ -301,6 +301,34 @@ function renderSuggestions(section) {
   });
 }
 
+function renderResearch(section) {
+  const target = document.getElementById("research-content");
+  if (section.status !== "ok") return renderSectionError(target, section);
+  clearNode(target);
+  const projects = section.data.items;
+  const activeCount = projects.filter((project) => project.status === "active").length;
+  document.getElementById("research-count").textContent = `${activeCount} active`;
+  if (!projects.length) return target.append(stateMessage("empty", "No research workspaces recorded"));
+
+  projects.forEach((project, index) => {
+    const summary = project.summary || {};
+    const detail = `${summary.question_count || 0} questions / ${summary.source_count || 0} sources / ${summary.experiment_count || 0} experiments`;
+    const row = detailRow(index, safeValue(project.title), detail, project.status);
+    const copy = row.querySelector(".row-copy");
+    if (project.objective) copy.append(element("p", "row-detail", project.objective));
+    const synthesis = project.latest_synthesis;
+    if (synthesis) {
+      const findings = (synthesis.current_findings || []).map((item) => item.text).filter(Boolean).join(" ");
+      if (findings) copy.append(element("p", "row-detail suggestion-reason", findings));
+      const next = (synthesis.next_actions || [])[0];
+      if (next) copy.append(element("p", "row-detail", `Next: ${next}`));
+    } else {
+      copy.append(element("p", "row-detail", "No synthesis yet"));
+    }
+    target.append(row);
+  });
+}
+
 function renderMemory(section) {
   const target = document.getElementById("memory-content");
   if (section.status !== "ok") return renderSectionError(target, section);
@@ -388,6 +416,7 @@ function renderSnapshot(snapshot) {
   renderGoals(sections.goals || { status: "error", error: "goals_unavailable" });
   renderHabits(sections.habits || { status: "error", error: "habits_unavailable" });
   renderProjects(sections.projects || { status: "error", error: "projects_unavailable" });
+  renderResearch(sections.research || { status: "error", error: "research_unavailable" });
   renderSuggestions(sections.suggestions || { status: "error", error: "suggestions_unavailable" });
   renderMemory(sections.memory || { status: "error", error: "memory_unavailable" });
   renderActivity(sections.activity || { status: "error", error: "activity_unavailable" });
@@ -404,7 +433,7 @@ function setLoading() {
   systemStatus.textContent = "Refreshing";
   systemDot.className = "status-dot";
   if (!dashboardState.snapshot) {
-    ["today-content", "goals-content", "habits-content", "projects-content", "suggestions-content", "memory-content", "activity-content", "settings-content"].forEach((id) => {
+    ["today-content", "goals-content", "habits-content", "projects-content", "research-content", "suggestions-content", "memory-content", "activity-content", "settings-content"].forEach((id) => {
       const target = document.getElementById(id);
       clearNode(target);
       target.append(stateMessage("loading", "Loading Nexus state"));

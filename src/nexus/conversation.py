@@ -23,6 +23,8 @@ INTENT_SCHEMAS: dict[str, dict[str, type]] = {
     "list_habits": {},
     "list_projects": {},
     "list_suggestions": {},
+    "list_research": {},
+    "show_research": {"research_id": str},
     "add_memory": {"text": str},
     "add_goal": {"title": str},
     "add_habit": {"name": str},
@@ -83,6 +85,15 @@ class IntentRegistry:
             ),
             (
                 (
+                    "list research",
+                    "show research projects",
+                    "查看研究项目",
+                    "列出研究项目",
+                ),
+                "list_research",
+            ),
+            (
+                (
                     "show today",
                     "today",
                     "today's plan",
@@ -139,6 +150,11 @@ class IntentRegistry:
                 r"^(?:project|项目)\s+([\w-]+)\s+(?:progress|进度)\s+(\d{1,3})%?$",
                 "update_project_progress",
                 lambda m: {"project_id": m.group(1), "percent": int(m.group(2))},
+            ),
+            (
+                r"^(?:show research|查看研究)\s+([\w-]+)$",
+                "show_research",
+                lambda m: {"research_id": m.group(1)},
             ),
         ]
         for pattern, name, arguments in patterns:
@@ -286,6 +302,10 @@ class ConversationService:
                     timezone=self.timezone, now=now
                 )
             }
+        if intent.name == "list_research":
+            return {"research": self.nexus.list_research()}
+        if intent.name == "show_research":
+            return {"research": self.nexus.show_research(args["research_id"])}
         if intent.name == "add_memory":
             memory = self.nexus.add_memory(args["text"], [], now=now)
             return {"memory": memory.__dict__}

@@ -123,7 +123,19 @@ Objective: make Nexus easier to use every day while preserving local-first and p
 
 The proposed safety and architecture contract is documented in `docs/superpowers/specs/2026-08-08-adaptive-life-workspace-design.md`.
 
-## Phase 12: Multimodal and Embodied Interfaces
+## Phase 12: Research Companion MVP
+
+Objective: give Nexus a bounded, evidence-oriented workflow for collaborative research.
+
+- [x] Persistent research workspaces with questions, sources, notes, experiments, investigations, syntheses, and follow-ups.
+- [x] Explicitly enabled read-only Crossref scholarly metadata search under ToolManager permission and audit.
+- [x] RAG-enriched deterministic synthesis with stable evidence references, open questions, next actions, and independent degradation.
+- [x] Evidence-matched follow-up answers with explicit uncertainty and structure-safe optional LLM wording.
+- [x] CLI, unified conversation reads, and privacy-filtered ninth Dashboard Research view.
+
+Full-text ingestion, general web research, repository indexing, sandboxed experiment execution, and autonomous research loops remain Research Companion 2.0 work.
+
+## Phase 13: Multimodal and Embodied Interfaces
 
 Objective: explore additional interfaces around the stable Nexus core.
 
@@ -131,6 +143,6 @@ Objective: explore additional interfaces around the stable Nexus core.
 - [ ] Permissioned visual context.
 - [ ] Smart-home adapters and family profiles.
 - [ ] Robotics adapter with simulation-first safety testing.
-- [ ] Deeper research-companion workflows for literature, code, and experiments.
+- [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
 This is a long-term research direction. It does not imply that Nexus is AGI or that the current project can autonomously control a home or robot.

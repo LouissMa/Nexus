@@ -201,6 +201,69 @@ def make_snapshot(**overrides: Any) -> DashboardSnapshot:
     return DashboardSnapshot(**values)
 
 
+def test_research_section_is_bounded_and_hides_private_context() -> None:
+    state = state_payload()
+    state["research_projects"] = [
+        {
+            "id": "research-1",
+            "title": "RAG evaluation",
+            "objective": "Compare dense and hybrid retrieval.",
+            "status": "active",
+            "questions": [
+                {"id": "q1", "text": "What improves recall?", "status": "open"}
+            ],
+            "sources": [
+                {
+                    "id": "s1",
+                    "source_type": "paper",
+                    "title": "Hybrid retrieval study",
+                    "locator": "https://doi.org/10.1000/example",
+                    "note": "private source annotation",
+                    "metadata": {"doi": "10.1000/example"},
+                }
+            ],
+            "notes": [{"id": "n1", "text": "private notebook text"}],
+            "experiments": [
+                {"id": "e1", "title": "Local comparison", "status": "completed"}
+            ],
+            "investigations": [{"id": "i1", "memory_refs": ["memory:private"]}],
+            "syntheses": [
+                {
+                    "id": "y1",
+                    "research_question": "Compare retrieval.",
+                    "current_findings": [
+                        {
+                            "text": "Hybrid improved recall.",
+                            "references": ["memory:private"],
+                        }
+                    ],
+                    "open_questions": ["Does it generalize?"],
+                    "next_actions": ["Run a larger evaluation."],
+                    "generation": "deterministic",
+                    "created_at": "2026-08-12T10:00:00+00:00",
+                    "prompt": "hidden prompt",
+                }
+            ],
+            "follow_ups": [{"answer": "private follow-up"}],
+            "created_at": "2026-08-12T09:00:00+00:00",
+            "updated_at": "2026-08-12T10:00:00+00:00",
+        }
+    ]
+
+    section = make_snapshot(state_source=lambda: state).build()["sections"]["research"]
+    serialized = json.dumps(section)
+
+    assert section["status"] == "ok"
+    assert section["data"]["items"][0]["summary"]["source_count"] == 1
+    assert (
+        section["data"]["items"][0]["latest_synthesis"]["current_findings"][0]["text"]
+        == "Hybrid improved recall."
+    )
+    assert "private notebook text" not in serialized
+    assert "memory:private" not in serialized
+    assert "hidden prompt" not in serialized
+
+
 def test_snapshot_builds_all_views_and_filters_private_data() -> None:
     result = make_snapshot().build()
 
@@ -210,6 +273,7 @@ def test_snapshot_builds_all_views_and_filters_private_data() -> None:
         "goals",
         "habits",
         "projects",
+        "research",
         "suggestions",
         "memory",
         "activity",
@@ -353,7 +417,7 @@ def test_packaged_index_references_local_accessible_assets() -> None:
     assert 'href="https://deerflow.tech"' in html
     assert 'target="_blank"' in html
     assert 'role="tablist"' in html
-    assert html.count('role="tab"') == 8
+    assert html.count('role="tab"') == 9
     assert "innerHTML" not in script
     assert "textContent" in script
 

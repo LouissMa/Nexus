@@ -122,7 +122,14 @@ class PermissionPolicy:
 
 
 class AuditLogger:
-    SECRET_KEYS = {"token", "password", "api_key", "calendar_url", "url"}
+    SECRET_KEYS = {
+        "token",
+        "password",
+        "api_key",
+        "calendar_url",
+        "url",
+        "query",
+    }
 
     def __init__(self, path: Path):
         self.path = path

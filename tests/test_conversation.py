@@ -23,6 +23,8 @@ def test_local_registry_handles_chinese_and_english_reads() -> None:
     assert registry.parse_local("查看我的习惯").name == "list_habits"
     assert registry.parse_local("列出项目").name == "list_projects"
     assert registry.parse_local("something ambiguous") is None
+    assert registry.parse_local("list research").name == "list_research"
+    assert registry.parse_local("查看研究项目").name == "list_research"
 
 
 def test_mutation_previews_before_approval_and_then_executes(tmp_path: Path) -> None:
@@ -83,3 +85,15 @@ def test_project_progress_requires_approval(tmp_path: Path) -> None:
     )
     result = conversation.handle(text, approved=True, now=NOW)
     assert result["result"]["summary"]["progress_percent"] == 40
+
+
+def test_conversation_lists_and_shows_research(tmp_path: Path) -> None:
+    nexus = NexusService(JsonStore(tmp_path / "state.json"))
+    project = nexus.create_research("RAG", "Evaluate retrieval.", "", now=NOW)
+    conversation = ConversationService(nexus)
+
+    listed = conversation.handle("list research", now=NOW)
+    shown = conversation.handle(f"show research {project['id']}", now=NOW)
+
+    assert listed["result"]["research"][0]["id"] == project["id"]
+    assert shown["result"]["research"]["title"] == "RAG"

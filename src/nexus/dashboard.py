@@ -19,6 +19,7 @@ from .dashboard_actions import DashboardActions
 from .habits import habit_summary
 from .memory_lifecycle import is_memory_eligible, normalize_memory
 from .projects import project_summary
+from .research import research_summary
 
 
 class RecentStore(Protocol):
@@ -33,6 +34,7 @@ _SECTION_NAMES = (
     "goals",
     "habits",
     "projects",
+    "research",
     "suggestions",
     "memory",
     "activity",
@@ -436,6 +438,7 @@ class DashboardSnapshot:
             "goals": self._build_goals,
             "habits": lambda: self._build_habits(now),
             "projects": self._build_projects,
+            "research": self._build_research,
             "suggestions": lambda: self._build_suggestions(now),
             "memory": lambda: self._build_memory(now),
             "activity": self._build_activity,
@@ -745,6 +748,88 @@ class DashboardSnapshot:
             items.append(public)
             if len(items) >= self.MAX_SECTION_ITEMS:
                 break
+        return {"items": items, "total": len(items)}
+
+    def _build_research(self) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        for project in _bounded_records(
+            self._state().get("research_projects", []), _MAX_STATE_SCAN
+        ):
+            if not isinstance(project, Mapping):
+                continue
+            public = _public_record(
+                project,
+                (
+                    "id",
+                    "title",
+                    "objective",
+                    "status",
+                    "created_at",
+                    "updated_at",
+                    "archived_at",
+                ),
+            )
+            if public is None:
+                continue
+            public["questions"] = [
+                bounded
+                for item in _bounded_records(project.get("questions", []), 20)
+                if (
+                    bounded := _public_record(
+                        item, ("id", "text", "status", "updated_at")
+                    )
+                )
+            ]
+            public["sources"] = [
+                bounded
+                for item in _bounded_records(project.get("sources", []), 20)
+                if (
+                    bounded := _public_record(
+                        item, ("id", "source_type", "title", "locator")
+                    )
+                )
+            ]
+            public["experiments"] = [
+                bounded
+                for item in _bounded_records(project.get("experiments", []), 20)
+                if (
+                    bounded := _public_record(
+                        item, ("id", "title", "status", "updated_at")
+                    )
+                )
+            ]
+            syntheses = _bounded_records(project.get("syntheses", []), 50)
+            public["latest_synthesis"] = None
+            if syntheses:
+                latest = syntheses[-1]
+                if isinstance(latest, Mapping):
+                    public["latest_synthesis"] = {
+                        "id": _sanitize_mapping(latest.get("id")),
+                        "research_question": _sanitize_mapping(
+                            latest.get("research_question")
+                        ),
+                        "current_findings": [
+                            {"text": _sanitize_mapping(item.get("text"))}
+                            for item in _bounded_records(
+                                latest.get("current_findings", []), 10
+                            )
+                            if isinstance(item, Mapping) and item.get("text")
+                        ],
+                        "open_questions": _sanitize_mapping(
+                            list(latest.get("open_questions", []))[:10]
+                        ),
+                        "next_actions": _sanitize_mapping(
+                            list(latest.get("next_actions", []))[:10]
+                        ),
+                        "generation": _sanitize_mapping(latest.get("generation")),
+                        "created_at": _sanitize_mapping(latest.get("created_at")),
+                    }
+            public["summary"] = research_summary(dict(project))
+            items.append(public)
+            if len(items) >= self.MAX_SECTION_ITEMS:
+                break
+        items.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
+        items.sort(key=lambda item: item.get("status") == "archived")
         return {"items": items, "total": len(items)}
 
     def _build_memory(self, now: datetime) -> dict[str, Any]:
@@ -1068,6 +1153,7 @@ class DashboardServer:
 
             def do_POST(self) -> None:
                 if not self._trusted_request(require_origin=True):
+                    self._discard_bounded_body()
                     self._send_error(403, "forbidden")
                     return
                 parsed = urlsplit(self.path)
@@ -1080,6 +1166,7 @@ class DashboardServer:
                     or "%" in raw_path
                     or unquote(raw_path, errors="replace") != raw_path
                 ):
+                    self._discard_bounded_body()
                     self._send_error(404, "not_found")
                     return
                 content_types = self.headers.get_all("Content-Type", failobj=[])
@@ -1088,12 +1175,14 @@ class DashboardServer:
                     or content_types[0].split(";", 1)[0].strip().casefold()
                     != "application/json"
                 ):
+                    self._discard_bounded_body()
                     self._send_error(415, "unsupported_media_type")
                     return
                 csrf_headers = self.headers.get_all("X-Nexus-CSRF", failobj=[])
                 if len(csrf_headers) != 1 or not secrets.compare_digest(
                     csrf_headers[0], owner.csrf_token
                 ):
+                    self._discard_bounded_body()
                     self._send_error(403, "invalid_csrf")
                     return
                 lengths = self.headers.get_all("Content-Length", failobj=[])
@@ -1170,6 +1259,15 @@ class DashboardServer:
                     self._send(503, payload, "application/json; charset=utf-8")
                     return
                 self._send(200, payload, "application/json; charset=utf-8")
+
+            def _discard_bounded_body(self) -> None:
+                lengths = self.headers.get_all("Content-Length", failobj=[])
+                try:
+                    length = int(lengths[0]) if len(lengths) == 1 else -1
+                except ValueError:
+                    length = -1
+                if 0 < length <= owner._max_request_bytes:
+                    self.rfile.read(length)
 
             def _send_json(self, status: int, value: Any) -> None:
                 try:

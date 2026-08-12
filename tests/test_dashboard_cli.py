@@ -62,6 +62,7 @@ def test_dashboard_snapshot_is_privacy_safe(tmp_path: Path) -> None:
         "goals",
         "habits",
         "projects",
+        "research",
         "suggestions",
         "memory",
         "activity",

@@ -4,7 +4,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
-- `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Phase 11 Dashboard/MCP Server usage, security boundaries, and limitations.
+- `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Dashboard/MCP Server/Research Companion usage, security boundaries, and limitations.
 - `README_zh.md`: Chinese version of the same user-facing structure and commands.
 - `pyproject.toml`: Package metadata, `nexus` CLI entry point, core and optional dependency groups, and packaged Dashboard HTML/CSS/JavaScript assets.
 - `.gitignore`: Excludes Python/build/test output plus the complete local `.nexus/` personal runtime directory.
@@ -16,6 +16,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
 - `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, atomic increments, derived streak/completion summaries, archival, and cross-process-safe store mutation.
 - `src/nexus/projects.py`: Project validation, goal/task links, authoritative milestone-derived progress with explicit progress for milestone-free projects, correction history, archival, and cross-process-safe store mutation.
+- `src/nexus/research.py`: Research project validation and persistence; question/source/note/experiment relationships; permissioned literature import deduplication; RAG synthesis; evidence-grounded follow-ups; uncertainty; history bounds; and optional structure-safe LLM wording.
 - `src/nexus/suggestions.py`: Deterministic local/calendar/RAG suggestion ranking, stable evidence IDs and source types, bounded context/degradation persistence, expiry/status lifecycle, allowlisted approved actions, and structure-safe optional LLM wording.
 - `src/nexus/replanning.py`: Time-zone-aware calendar interval normalization, free-window allocation, preview integrity/freshness checks, and scheduling-field-only apply transactions.
 - `src/nexus/conversation.py`: Static intent schemas, Chinese/English local parsing, strict optional LLM selection, approval previews, and registered service dispatch.
@@ -37,9 +38,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Dashboard
 
-- `src/nexus/dashboard.py`: Privacy-filtered `DashboardSnapshot` aggregation and standard-library `DashboardServer`. Builds eight isolated sections; bounds data; allows only loopback hosts and exact routes; enforces Host, Origin, CSRF, content type, and request limits.
+- `src/nexus/dashboard.py`: Privacy-filtered `DashboardSnapshot` aggregation and standard-library `DashboardServer`. Builds nine isolated sections including bounded Research summaries; bounds data; allows only loopback hosts and exact routes; enforces Host, Origin, CSRF, content type, and request limits.
 - `src/nexus/dashboard_actions.py`: Strict allowlisted schemas and service delegation for habit check-in, project progress, suggestion accept/dismiss, and replan preview/apply.
-- `src/nexus/dashboard/index.html`: Packaged eight-view Dashboard shell, semantic sections, accessible navigation, confirmation/replan dialogs, loading/empty/error containers, and viewport metadata.
+- `src/nexus/dashboard/index.html`: Packaged nine-view Dashboard shell, semantic Research section, accessible navigation, confirmation/replan dialogs, loading/empty/error containers, and viewport metadata.
 - `src/nexus/dashboard/dashboard.css`: Responsive desktop/mobile operational layout, stable action controls and progress bars, accessible focus/contrast, dialogs, section states, and eight-tab mobile scrolling.
 - `src/nexus/dashboard/dashboard.js`: Safe `textContent` rendering for all views plus CSRF-protected habit, project, suggestion, and replan interactions with busy/error/confirmation states.
 - `pyproject.toml` package data: Includes all three Dashboard assets in wheel and source distributions.
@@ -56,7 +57,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `src/nexus/integrations/__init__.py`: Public integration package exports.
 - `src/nexus/integrations/core.py`: Tool contracts, HTTP normalization, permission checks, structured results, and secret-safe JSONL audit.
-- `src/nexus/integrations/web_tools.py`: Open-Meteo, Todoist, GitHub, and Notion read-only adapters.
+- `src/nexus/integrations/web_tools.py`: Open-Meteo, Todoist, GitHub, Notion, and fixed-origin Crossref literature read-only adapters.
 - `src/nexus/integrations/personal_tools.py`: Recurring iCalendar, read-only IMAP headers, and allowed-root filesystem adapters.
 - `src/nexus/integrations/manager.py`: Adapter registry, permissioned execution, audit orchestration, and live briefing context.
 
@@ -106,6 +107,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_suggestions.py`: Local/calendar/RAG suggestion ranking, stable IDs, sources, context degradation, expiry, approval, allowlisted actions, dismissal, and LLM structure protection.
 - `tests/test_suggestion_cli.py`: Suggestion refresh/list/accept workflows, live-calendar opt-in/degradation, and approval errors.
 - `docs/superpowers/plans/2026-08-12-ai-suggestions-2.md`: Test-driven AI Suggestions 2.0 implementation and release checklist.
+- `docs/superpowers/specs/2026-08-12-research-companion-mvp-design.md`: Research Companion evidence, retrieval, privacy, degradation, and product-surface contract.
+- `docs/superpowers/plans/2026-08-12-research-companion-mvp.md`: Test-driven Research Companion implementation and release checklist.
+- `tests/test_research.py`: Research domain, persistence, evidence relations, investigation, RAG synthesis, follow-up uncertainty, degradation, and LLM structure protection.
+- `tests/test_research_cli.py`: End-to-end Research Companion CLI, live-tool degradation, errors, archive, and masked literature configuration.
 - `tests/test_replanning.py`: Calendar constraints, overlap/all-day handling, priorities, status preservation, shortening, degradation, and stale apply rejection.
 - `tests/test_replanning_cli.py`: Replan preview/apply CLI workflow and persisted schedule verification.
 - `tests/test_conversation.py`: Local and LLM intent parsing, schema rejection, mutation previews, low-risk check-ins, and approved dispatch.

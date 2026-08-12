@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+import re
 from typing import Any
 
 from .core import JsonHttpClient, ToolError
@@ -28,6 +30,96 @@ WEATHER_CODES = {
     96: "雷暴伴小冰雹",
     99: "雷暴伴强冰雹",
 }
+
+
+class LiteratureTool:
+    name = "literature"
+    endpoint = "https://api.crossref.org/works"
+
+    def __init__(self, config: dict[str, Any], http: JsonHttpClient):
+        self.config = config
+        self.http = http
+
+    def execute(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if operation != "read":
+            raise ToolError("Literature currently supports read-only search.")
+        query = str(arguments.get("query") or "").strip()
+        if not query:
+            raise ToolError("Literature query is required.")
+        if len(query) > 500:
+            raise ToolError("Literature query must be at most 500 characters.")
+        try:
+            limit = int(arguments.get("limit", 5))
+        except (TypeError, ValueError) as exc:
+            raise ToolError("Literature limit must be an integer.") from exc
+        limit = min(max(limit, 1), 20)
+        payload = self.http.request_json(
+            "GET",
+            self.endpoint,
+            params={
+                "query.bibliographic": query,
+                "rows": limit,
+                "mailto": self.config.get("mailto"),
+            },
+        )
+        message = payload.get("message", {}) if isinstance(payload, dict) else {}
+        items = message.get("items", []) if isinstance(message, dict) else []
+        works = []
+        for raw in items[:limit] if isinstance(items, list) else []:
+            work = self._work(raw)
+            if work is not None:
+                works.append(work)
+        return {"works": works, "count": len(works)}
+
+    @classmethod
+    def _work(cls, raw: Any) -> dict[str, Any] | None:
+        if not isinstance(raw, dict):
+            return None
+        titles = raw.get("title")
+        title = str(titles[0]).strip() if isinstance(titles, list) and titles else ""
+        if not title:
+            return None
+        authors = []
+        for author in raw.get("author", [])[:20]:
+            if not isinstance(author, dict):
+                continue
+            name = " ".join(
+                part
+                for part in (
+                    str(author.get("given") or "").strip(),
+                    str(author.get("family") or "").strip(),
+                )
+                if part
+            )
+            if name:
+                authors.append(name[:200])
+        year = None
+        published = (
+            raw.get("published")
+            or raw.get("published-print")
+            or raw.get("published-online")
+        )
+        if isinstance(published, dict):
+            parts = published.get("date-parts")
+            if (
+                isinstance(parts, list)
+                and parts
+                and isinstance(parts[0], list)
+                and parts[0]
+            ):
+                year = parts[0][0]
+        abstract = re.sub(r"<[^>]+>", " ", str(raw.get("abstract") or ""))
+        abstract = " ".join(html.unescape(abstract).split())[:1_000]
+        return {
+            "doi": str(raw.get("DOI") or "")[:300],
+            "title": title[:1_000],
+            "authors": authors,
+            "year": year if isinstance(year, int) else None,
+            "type": str(raw.get("type") or "")[:100],
+            "publisher": str(raw.get("publisher") or "")[:300],
+            "abstract": abstract,
+            "url": str(raw.get("URL") or "")[:2_000],
+        }
 
 
 class WeatherTool:
@@ -68,7 +160,11 @@ class WeatherTool:
         daily = forecast.get("daily", {})
         code = int(current.get("weather_code", 0))
         result = {
-            "location": ", ".join(filter(None, [place.get("name"), place.get("admin1"), place.get("country")])),
+            "location": ", ".join(
+                filter(
+                    None, [place.get("name"), place.get("admin1"), place.get("country")]
+                )
+            ),
             "timezone": forecast.get("timezone") or place.get("timezone"),
             "condition": WEATHER_CODES.get(code, f"天气代码 {code}"),
             "temperature_c": current.get("temperature_2m"),
@@ -76,7 +172,9 @@ class WeatherTool:
             "wind_speed_kmh": current.get("wind_speed_10m"),
             "today_high_c": self._first(daily.get("temperature_2m_max")),
             "today_low_c": self._first(daily.get("temperature_2m_min")),
-            "precipitation_probability": self._first(daily.get("precipitation_probability_max")),
+            "precipitation_probability": self._first(
+                daily.get("precipitation_probability_max")
+            ),
         }
         result["summary"] = (
             f"{result['location']}：{result['condition']}，当前 {result['temperature_c']}℃，"
@@ -114,15 +212,23 @@ class TodoistTool:
         tasks = []
         for task in (raw_tasks or [])[:limit]:
             due = task.get("due") or {}
-            tasks.append({
-                "id": str(task.get("id")),
-                "content": task.get("content", ""),
-                "description": task.get("description", ""),
-                "priority": task.get("priority", 1),
-                "due": due.get("datetime") or due.get("date"),
-                "labels": task.get("labels", []),
-            })
-        tasks.sort(key=lambda item: (item["due"] is None, item["due"] or "", -int(item["priority"])))
+            tasks.append(
+                {
+                    "id": str(task.get("id")),
+                    "content": task.get("content", ""),
+                    "description": task.get("description", ""),
+                    "priority": task.get("priority", 1),
+                    "due": due.get("datetime") or due.get("date"),
+                    "labels": task.get("labels", []),
+                }
+            )
+        tasks.sort(
+            key=lambda item: (
+                item["due"] is None,
+                item["due"] or "",
+                -int(item["priority"]),
+            )
+        )
         return {"tasks": tasks, "count": len(tasks)}
 
 
@@ -135,7 +241,9 @@ class GitHubTool:
 
     def execute(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if operation != "read":
-            raise ToolError("GitHub currently supports read-only repository inspection.")
+            raise ToolError(
+                "GitHub currently supports read-only repository inspection."
+            )
         repo = arguments.get("repo") or self.config.get("repo")
         if not repo or "/" not in repo:
             raise ToolError("GitHub repository must use OWNER/REPO format.")
@@ -149,7 +257,10 @@ class GitHubTool:
         repository = self.http.request_json("GET", base, headers=headers)
         limit = min(max(int(arguments.get("limit", 10)), 1), 100)
         raw_issues = self.http.request_json(
-            "GET", f"{base}/issues", params={"state": "open", "per_page": limit}, headers=headers
+            "GET",
+            f"{base}/issues",
+            params={"state": "open", "per_page": limit},
+            headers=headers,
         )
         issues = [
             {
@@ -204,13 +315,19 @@ class NotionTool:
         )
         pages = []
         for page in payload.get("results", []):
-            pages.append({
-                "id": page.get("id"),
-                "title": self._title(page.get("properties", {})),
-                "last_edited_time": page.get("last_edited_time"),
-                "url": page.get("url"),
-            })
-        return {"pages": pages, "count": len(pages), "has_more": payload.get("has_more", False)}
+            pages.append(
+                {
+                    "id": page.get("id"),
+                    "title": self._title(page.get("properties", {})),
+                    "last_edited_time": page.get("last_edited_time"),
+                    "url": page.get("url"),
+                }
+            )
+        return {
+            "pages": pages,
+            "count": len(pages),
+            "has_more": payload.get("has_more", False),
+        }
 
     @staticmethod
     def _title(properties: dict[str, Any]) -> str:

@@ -253,6 +253,72 @@ def build_parser() -> argparse.ArgumentParser:
     project_archive.add_argument("project_id")
     project_archive.add_argument("--now")
 
+    research_parser = subparsers.add_parser(
+        "research", help="Work with the evidence-oriented research companion."
+    )
+    research_subparsers = research_parser.add_subparsers(
+        dest="research_command", required=True
+    )
+    research_create = research_subparsers.add_parser("create")
+    research_create.add_argument("title")
+    research_create.add_argument("--objective", default="")
+    research_create.add_argument("--question", default="")
+    research_create.add_argument("--now")
+    research_list = research_subparsers.add_parser("list")
+    research_list.add_argument("--include-archived", action="store_true")
+    research_show = research_subparsers.add_parser("show")
+    research_show.add_argument("research_id")
+    research_question = research_subparsers.add_parser("question-add")
+    research_question.add_argument("research_id")
+    research_question.add_argument("question")
+    research_question.add_argument("--now")
+    research_source = research_subparsers.add_parser("source-add")
+    research_source.add_argument("research_id")
+    research_source.add_argument(
+        "--type",
+        choices=["paper", "web", "book", "code", "dataset", "other"],
+        required=True,
+    )
+    research_source.add_argument("--title", required=True)
+    research_source.add_argument("--locator", default="")
+    research_source.add_argument("--note", default="")
+    research_source.add_argument("--now")
+    research_note = research_subparsers.add_parser("note-add")
+    research_note.add_argument("research_id")
+    research_note.add_argument("text")
+    research_note.add_argument("--source-id", action="append", default=[])
+    research_note.add_argument("--tag", action="append", default=[])
+    research_note.add_argument("--now")
+    research_experiment = research_subparsers.add_parser("experiment-add")
+    research_experiment.add_argument("research_id")
+    research_experiment.add_argument("title")
+    research_experiment.add_argument("--hypothesis", default="")
+    research_experiment.add_argument("--method", default="")
+    research_experiment.add_argument("--result", default="")
+    research_experiment.add_argument(
+        "--status",
+        choices=["planned", "running", "completed", "blocked"],
+        default="planned",
+    )
+    research_experiment.add_argument("--source-id", action="append", default=[])
+    research_experiment.add_argument("--now")
+    research_investigate = research_subparsers.add_parser("investigate")
+    research_investigate.add_argument("research_id")
+    research_investigate.add_argument("query")
+    research_investigate.add_argument("--live-tools", action="store_true")
+    research_investigate.add_argument("--now")
+    for command_name in ("synthesize", "ask"):
+        command = research_subparsers.add_parser(command_name)
+        command.add_argument("research_id")
+        if command_name == "ask":
+            command.add_argument("question")
+        command.add_argument("--llm", action="store_true")
+        command.add_argument("--model-tier", choices=["simple", "complex"])
+        command.add_argument("--now")
+    research_archive = research_subparsers.add_parser("archive")
+    research_archive.add_argument("research_id")
+    research_archive.add_argument("--now")
+
     suggestion_parser = subparsers.add_parser(
         "suggestion", help="Manage explainable suggestions."
     )
@@ -435,6 +501,9 @@ def build_parser() -> argparse.ArgumentParser:
     notion_tool = tool_subparsers.add_parser("notion")
     notion_tool.add_argument("--query", default="")
     notion_tool.add_argument("--limit", type=int, default=10)
+    literature_tool = tool_subparsers.add_parser("literature")
+    literature_tool.add_argument("--query", required=True)
+    literature_tool.add_argument("--limit", type=int, default=5)
     email_tool = tool_subparsers.add_parser("email")
     email_tool.add_argument("--limit", type=int, default=10)
     email_tool.add_argument(
@@ -572,6 +641,7 @@ def build_parser() -> argparse.ArgumentParser:
             "notion",
             "email",
             "filesystem",
+            "literature",
         ],
     )
     tool_set.add_argument("--location")
@@ -585,6 +655,7 @@ def build_parser() -> argparse.ArgumentParser:
     tool_set.add_argument("--mailbox")
     tool_set.add_argument("--root", action="append", dest="roots")
     tool_set.add_argument("--timeout-seconds", type=int)
+    tool_set.add_argument("--mailto")
     tool_disable = tool_config_subparsers.add_parser(
         "disable", help="Disable a configured tool."
     )
@@ -598,6 +669,7 @@ def build_parser() -> argparse.ArgumentParser:
             "notion",
             "email",
             "filesystem",
+            "literature",
         ],
     )
     tool_config_subparsers.add_parser(
@@ -1311,6 +1383,120 @@ def main() -> None:
             _error_exit("invalid_project", str(exc), 2)
         return
 
+    if args.command == "research":
+        try:
+            now = (
+                datetime.fromisoformat(args.now) if getattr(args, "now", None) else None
+            )
+            command = args.research_command
+            if command in {"synthesize", "ask"} and args.llm:
+                config = LLMConfig.from_env(model_tier=args.model_tier)
+                llm = OpenAICompatibleLLM(config) if config.is_configured else None
+                service = NexusService(store, llm=llm, memory_retriever=retriever)
+            if command == "create":
+                result = service.create_research(
+                    args.title, args.objective, args.question, now=now
+                )
+                print_json({"status": "ok", "research": result})
+            elif command == "list":
+                print_json(
+                    {
+                        "research": service.list_research(
+                            include_archived=args.include_archived
+                        )
+                    }
+                )
+            elif command == "show":
+                print_json({"research": service.show_research(args.research_id)})
+            elif command == "question-add":
+                print_json(
+                    {
+                        "status": "ok",
+                        **service.add_research_question(
+                            args.research_id, args.question, now=now
+                        ),
+                    }
+                )
+            elif command == "source-add":
+                print_json(
+                    {
+                        "status": "ok",
+                        **service.add_research_source(
+                            args.research_id,
+                            args.type,
+                            args.title,
+                            args.locator,
+                            args.note,
+                            now=now,
+                        ),
+                    }
+                )
+            elif command == "note-add":
+                print_json(
+                    {
+                        "status": "ok",
+                        **service.add_research_note(
+                            args.research_id,
+                            args.text,
+                            args.source_id,
+                            args.tag,
+                            now=now,
+                        ),
+                    }
+                )
+            elif command == "experiment-add":
+                print_json(
+                    {
+                        "status": "ok",
+                        **service.add_research_experiment(
+                            args.research_id,
+                            args.title,
+                            args.hypothesis,
+                            args.method,
+                            args.result,
+                            args.status,
+                            args.source_id,
+                            now=now,
+                        ),
+                    }
+                )
+            elif command == "investigate":
+                literature_search = None
+                if args.live_tools:
+                    manager = build_tool_manager(load_tool_settings(), nexus_home())
+
+                    def literature_search(query: str, limit: int) -> dict[str, Any]:
+                        return manager.execute(
+                            "literature", "read", query=query, limit=limit
+                        ).data
+
+                result = service.investigate_research(
+                    args.research_id,
+                    args.query,
+                    literature_search=literature_search,
+                    now=now,
+                )
+                print_json({"status": "ok", "investigation": result})
+            elif command == "synthesize":
+                result = service.synthesize_research(
+                    args.research_id, use_llm=args.llm, now=now
+                )
+                print_json({"status": "ok", "synthesis": result})
+            elif command == "ask":
+                result = service.ask_research(
+                    args.research_id,
+                    args.question,
+                    use_llm=args.llm,
+                    now=now,
+                )
+                print_json({"status": "ok", "answer": result})
+            else:
+                result = service.archive_research(args.research_id, now=now)
+                print_json({"status": "ok", "research": result})
+        except (TypeError, ValueError) as exc:
+            _error_exit("invalid_research", str(exc), 2)
+        return
+
     if args.command == "suggestion":
         try:
             now = (
@@ -1575,6 +1761,10 @@ def main() -> None:
                 result = tool_manager.execute(
                     "notion", "read", query=args.query, limit=args.limit
                 )
+            elif args.tool_command == "literature":
+                result = tool_manager.execute(
+                    "literature", "read", query=args.query, limit=args.limit
+                )
             elif args.tool_command == "email":
                 result = tool_manager.execute(
                     "email", "read", limit=args.limit, unread_only=not args.all
@@ -1812,6 +2002,7 @@ def main() -> None:
                     "timeout_seconds": args.timeout_seconds,
                 },
                 "filesystem": {"roots": args.roots},
+                "literature": {"mailto": args.mailto},
             }
             try:
                 settings, path = update_tool_settings(

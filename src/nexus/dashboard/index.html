@@ -33,10 +33,11 @@
           <button class="nav-tab" id="tab-goals" role="tab" aria-selected="false" aria-controls="panel-goals" tabindex="-1" data-view="goals" type="button"><span class="tab-index">02</span><span>Goals</span></button>
           <button class="nav-tab" id="tab-habits" role="tab" aria-selected="false" aria-controls="panel-habits" tabindex="-1" data-view="habits" type="button"><span class="tab-index">03</span><span>Habits</span></button>
           <button class="nav-tab" id="tab-projects" role="tab" aria-selected="false" aria-controls="panel-projects" tabindex="-1" data-view="projects" type="button"><span class="tab-index">04</span><span>Projects</span></button>
-          <button class="nav-tab" id="tab-suggestions" role="tab" aria-selected="false" aria-controls="panel-suggestions" tabindex="-1" data-view="suggestions" type="button"><span class="tab-index">05</span><span>Suggestions</span></button>
-          <button class="nav-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-view="memory" type="button"><span class="tab-index">06</span><span>Memory</span></button>
-          <button class="nav-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-view="activity" type="button"><span class="tab-index">07</span><span>Activity</span></button>
-          <button class="nav-tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1" data-view="settings" type="button"><span class="tab-index">08</span><span>Settings</span></button>
+          <button class="nav-tab" id="tab-research" role="tab" aria-selected="false" aria-controls="panel-research" tabindex="-1" data-view="research" type="button"><span class="tab-index">05</span><span>Research</span></button>
+          <button class="nav-tab" id="tab-suggestions" role="tab" aria-selected="false" aria-controls="panel-suggestions" tabindex="-1" data-view="suggestions" type="button"><span class="tab-index">06</span><span>Suggestions</span></button>
+          <button class="nav-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-view="memory" type="button"><span class="tab-index">07</span><span>Memory</span></button>
+          <button class="nav-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-view="activity" type="button"><span class="tab-index">08</span><span>Activity</span></button>
+          <button class="nav-tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1" data-view="settings" type="button"><span class="tab-index">09</span><span>Settings</span></button>
         </div>
         <div class="nav-footer"><span>LOCAL</span><span class="local-indicator" aria-label="Loopback connection"></span></div>
       </nav>
@@ -63,6 +64,11 @@
         <section class="view-panel" id="panel-projects" role="tabpanel" aria-labelledby="tab-projects" tabindex="0" hidden>
           <header class="view-heading"><div><p class="eyebrow">DELIVERY CONTROL</p><h2>Projects</h2></div><p class="view-meta" id="projects-count">0 active</p></header>
           <div class="data-surface" id="projects-content" aria-live="polite"></div>
+        </section>
+
+        <section class="view-panel" id="panel-research" role="tabpanel" aria-labelledby="tab-research" tabindex="0" hidden>
+          <header class="view-heading"><div><p class="eyebrow">EVIDENCE WORKSPACE</p><h2>Research</h2></div><p class="view-meta" id="research-count">0 active</p></header>
+          <div class="data-surface" id="research-content" aria-live="polite"></div>
         </section>
 
         <section class="view-panel" id="panel-suggestions" role="tabpanel" aria-labelledby="tab-suggestions" tabindex="0" hidden>

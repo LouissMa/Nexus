@@ -20,6 +20,7 @@ DEFAULT_STATE = {
     "daily_tasks": [],
     "habits": [],
     "projects": [],
+    "research_projects": [],
     "suggestions": [],
     "rag_index": None,
     "runtime": {

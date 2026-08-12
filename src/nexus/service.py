@@ -12,6 +12,7 @@ from .memory_lifecycle import is_memory_eligible, normalize_memory
 from .memory_service import UNSET, MemoryManager, ManagedMemory
 from .planning import TASK_STATUSES, build_daily_tasks, coach_profile
 from .projects import ProjectService
+from .research import ResearchService
 from .rag import MemoryRetriever
 from .replanning import ReplanningService
 from .store import JsonStore
@@ -19,8 +20,7 @@ from .suggestions import SuggestionService, SuggestionWordingAdapter
 
 
 class BriefingLLM(Protocol):
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
-        ...
+    def generate(self, system_prompt: str, user_prompt: str) -> str: ...
 
 
 def utc_now() -> datetime:
@@ -127,8 +127,50 @@ class NexusService:
     def update_project_progress(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._project_service().update_progress(*args, **kwargs)
 
-    def archive_project(self, project_id: str, *, now: datetime | None = None) -> dict[str, Any]:
+    def archive_project(
+        self, project_id: str, *, now: datetime | None = None
+    ) -> dict[str, Any]:
         return self._project_service().archive(project_id, now=now)
+
+    def _research_service(self) -> ResearchService:
+        return ResearchService(
+            self.store,
+            retriever=self.retrieve_memories_result,
+            llm=self.llm,
+        )
+
+    def create_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().create(*args, **kwargs)
+
+    def list_research(self, **kwargs: Any) -> list[dict[str, Any]]:
+        return self._research_service().list(**kwargs)
+
+    def show_research(self, project_id: str) -> dict[str, Any]:
+        return self._research_service().show(project_id)
+
+    def add_research_question(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().add_question(*args, **kwargs)
+
+    def add_research_source(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().add_source(*args, **kwargs)
+
+    def add_research_note(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().add_note(*args, **kwargs)
+
+    def add_research_experiment(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().add_experiment(*args, **kwargs)
+
+    def investigate_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().investigate(*args, **kwargs)
+
+    def synthesize_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().synthesize(*args, **kwargs)
+
+    def ask_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().ask(*args, **kwargs)
+
+    def archive_research(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._research_service().archive(*args, **kwargs)
 
     def _suggestion_service(self, timezone: str = "UTC") -> SuggestionService:
         return SuggestionService(self.store, timezone=timezone)
@@ -246,6 +288,7 @@ class NexusService:
         self, *args: Any, timezone: str = "UTC", **kwargs: Any
     ) -> dict[str, Any]:
         return self._replanning_service(timezone).apply(*args, **kwargs)
+
     def ask(
         self,
         text: str,
@@ -258,15 +301,14 @@ class NexusService:
     ) -> dict[str, Any]:
         from .conversation import ConversationService
 
-        return ConversationService(
-            self, timezone=timezone, llm=self.llm
-        ).handle(
+        return ConversationService(self, timezone=timezone, llm=self.llm).handle(
             text,
             approved=approved,
             use_llm=use_llm,
             show_intent=show_intent,
             now=now,
         )
+
     def add_memory(
         self,
         text: str,
@@ -374,9 +416,7 @@ class NexusService:
         *,
         now: datetime | None = None,
     ) -> dict[str, Any]:
-        return self._memory_manager().relate(
-            memory_id, relation, target_id, now=now
-        )
+        return self._memory_manager().relate(memory_id, relation, target_id, now=now)
 
     def archive_memory(
         self, memory_id: str, *, now: datetime | None = None
@@ -424,6 +464,7 @@ class NexusService:
 
     def rag_status(self) -> dict[str, Any]:
         return self._memory_manager().status()
+
     def add_goal(self, title: str, description: str, cadence_days: int) -> Goal:
         goal = Goal(
             id=str(uuid4())[:8],
@@ -431,6 +472,7 @@ class NexusService:
             description=description.strip(),
             cadence_days=cadence_days,
         )
+
         def mutation(state: dict[str, Any]) -> Goal:
             state.setdefault("goals", []).append(self._goal_to_dict(goal))
             return goal
@@ -448,7 +490,9 @@ class NexusService:
                 continue
             timestamp = isoformat(utc_now())
             goal["last_check_in"] = timestamp
-            goal.setdefault("check_ins", []).append({"at": timestamp, "note": note.strip()})
+            goal.setdefault("check_ins", []).append(
+                {"at": timestamp, "note": note.strip()}
+            )
             self.store.save(state)
             return goal
         raise ValueError(f"Goal '{goal_id}' not found.")
@@ -457,7 +501,10 @@ class NexusService:
         tasks = self.store.load().get("daily_tasks", [])
         if plan_date:
             tasks = [task for task in tasks if task.get("plan_date") == plan_date]
-        return sorted(tasks, key=lambda task: (task.get("plan_date", ""), task.get("priority", 99)))
+        return sorted(
+            tasks,
+            key=lambda task: (task.get("plan_date", ""), task.get("priority", 99)),
+        )
 
     def update_daily_task(
         self,
@@ -483,7 +530,9 @@ class NexusService:
                 elif task.get("status") == "blocked":
                     task["status"] = status or "pending"
             if unresolved:
-                task.setdefault("unresolved", []).extend(item.strip() for item in unresolved if item.strip())
+                task.setdefault("unresolved", []).extend(
+                    item.strip() for item in unresolved if item.strip()
+                )
             if note:
                 task.setdefault("notes", []).append(note.strip())
             if task.get("status") == "completed":
@@ -507,20 +556,42 @@ class NexusService:
         profile = coach_profile(coach_mode)
         state = self.store.load()
         plan_date = now.date().isoformat()
-        tasks = [task for task in state.get("daily_tasks", []) if task.get("plan_date") == plan_date]
+        tasks = [
+            task
+            for task in state.get("daily_tasks", [])
+            if task.get("plan_date") == plan_date
+        ]
         if not tasks:
-            goals = [goal for goal in state.get("goals", []) if goal.get("status") == "active"]
-            goals.sort(key=lambda goal: parse_timestamp(goal.get("last_check_in")) or parse_timestamp(goal.get("created_at")) or now)
+            goals = [
+                goal
+                for goal in state.get("goals", [])
+                if goal.get("status") == "active"
+            ]
+            goals.sort(
+                key=lambda goal: (
+                    parse_timestamp(goal.get("last_check_in"))
+                    or parse_timestamp(goal.get("created_at"))
+                    or now
+                )
+            )
             tasks = build_daily_tasks(goals, plan_date, isoformat(now))
             state.setdefault("daily_tasks", []).extend(tasks)
             self.store.save(state)
 
-        query = " ".join([user_name, "daily plan"] + [f"{task['goal_title']} {task['title']}" for task in tasks])
+        query = " ".join(
+            [user_name, "daily plan"]
+            + [f"{task['goal_title']} {task['title']}" for task in tasks]
+        )
         memories, retrieval_metadata = self._resolve_memory_context(
             state, query, 6, memory_context, now
         )
 
-        task_text = self._format_items(tasks, lambda task: f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)")
+        task_text = self._format_items(
+            tasks,
+            lambda task: (
+                f"{task['priority']}. {task['title']} ({task['estimated_minutes']} min)"
+            ),
+        )
         memory_text = self._format_items(memories, lambda memory: f"- {memory['text']}")
         mcp_context = mcp_context or {"results": [], "errors": []}
         mcp_text = self._format_mcp_context(mcp_context)
@@ -541,7 +612,14 @@ Approved MCP tool context:
 {mcp_text}
 
 Keep the tasks concrete and preserve their priority order."""
-        plan_text = "\n".join([f"Daily plan for {user_name} ({plan_date}, {coach_mode} mode):", task_text, "", profile.closing])
+        plan_text = "\n".join(
+            [
+                f"Daily plan for {user_name} ({plan_date}, {coach_mode} mode):",
+                task_text,
+                "",
+                profile.closing,
+            ]
+        )
         if mcp_context.get("results") or mcp_context.get("errors"):
             plan_text = "\n".join([plan_text, "", "MCP context:", mcp_text])
         llm_info = self._empty_llm_info(use_llm)
@@ -585,7 +663,11 @@ Keep the tasks concrete and preserve their priority order."""
             metadata.setdefault("query", query)
         else:
             retrieval = self.memory_retriever.retrieve_result(
-                state.get("memories", []), query, limit=limit, task_context=query, now=now
+                state.get("memories", []),
+                query,
+                limit=limit,
+                task_context=query,
+                now=now,
             )
             memories = retrieval.memories
             metadata = retrieval.metadata
@@ -612,6 +694,7 @@ Keep the tasks concrete and preserve their priority order."""
                 f"- {error.get('server')}/{error.get('tool')}: {error.get('error')}"
             )
         return "\n".join(lines) if lines else "- No MCP context requested."
+
     def proactive_review(self, now: datetime | None = None) -> dict[str, Any]:
         now = now or utc_now()
         state = self.store.load()
@@ -621,7 +704,9 @@ Keep the tasks concrete and preserve their priority order."""
             if goal.get("status") != "active":
                 continue
 
-            reference_time = parse_timestamp(goal.get("last_check_in")) or parse_timestamp(goal["created_at"])
+            reference_time = parse_timestamp(
+                goal.get("last_check_in")
+            ) or parse_timestamp(goal["created_at"])
             if reference_time is None:
                 continue
 
@@ -656,7 +741,9 @@ Keep the tasks concrete and preserve their priority order."""
         memory_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = now or utc_now()
-        context = self._build_daily_review_context(user_name, now, coach_mode, memory_context)
+        context = self._build_daily_review_context(
+            user_name, now, coach_mode, memory_context
+        )
         template_review = self._render_template_daily_review(context)
         system_prompt, user_prompt = self._build_daily_review_prompt(context)
         llm_info = self._empty_llm_info(use_llm)
@@ -765,13 +852,27 @@ Keep the tasks concrete and preserve their priority order."""
         memory_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         state = self.store.load()
-        active_goals = [goal for goal in state.get("goals", []) if goal.get("status") == "active"]
+        active_goals = [
+            goal for goal in state.get("goals", []) if goal.get("status") == "active"
+        ]
         profile = coach_profile(coach_mode)
         plan_date = now.date().isoformat()
-        daily_tasks = [task for task in state.get("daily_tasks", []) if task.get("plan_date") == plan_date]
-        completed_tasks = [task for task in daily_tasks if task.get("status") == "completed"]
-        blocked_tasks = [task for task in daily_tasks if task.get("status") == "blocked"]
-        unresolved_tasks = [{"task_id": task["id"], "task_title": task["title"], "item": item} for task in daily_tasks for item in task.get("unresolved", [])]
+        daily_tasks = [
+            task
+            for task in state.get("daily_tasks", [])
+            if task.get("plan_date") == plan_date
+        ]
+        completed_tasks = [
+            task for task in daily_tasks if task.get("status") == "completed"
+        ]
+        blocked_tasks = [
+            task for task in daily_tasks if task.get("status") == "blocked"
+        ]
+        unresolved_tasks = [
+            {"task_id": task["id"], "task_title": task["title"], "item": item}
+            for task in daily_tasks
+            for item in task.get("unresolved", [])
+        ]
         today_check_ins: list[dict[str, Any]] = []
         completed_goals: list[dict[str, Any]] = []
         pending_goals: list[dict[str, Any]] = []
@@ -783,24 +884,34 @@ Keep the tasks concrete and preserve their priority order."""
                 goal_summary["today_check_ins"] = check_ins
                 completed_goals.append(goal_summary)
                 for check_in in check_ins:
-                    today_check_ins.append({
-                        "goal_id": goal["id"],
-                        "goal_title": goal["title"],
-                        "at": check_in["at"],
-                        "note": check_in["note"],
-                    })
+                    today_check_ins.append(
+                        {
+                            "goal_id": goal["id"],
+                            "goal_title": goal["title"],
+                            "at": check_in["at"],
+                            "note": check_in["note"],
+                        }
+                    )
             else:
                 pending_goals.append(goal)
 
         reminders = self.proactive_review(now)["reminders"]
-        memory_query = self._build_review_memory_query(user_name, completed_goals, pending_goals, today_check_ins, reminders)
+        memory_query = self._build_review_memory_query(
+            user_name, completed_goals, pending_goals, today_check_ins, reminders
+        )
         relevant_memories, retrieval_metadata = self._resolve_memory_context(
             state, memory_query, 8, memory_context, now
         )
 
         tomorrow_priorities = self._tomorrow_priorities(pending_goals, completed_goals)
-        task_priorities = [f"Resolve blocker for '{task['title']}': {task.get('blocker')}" for task in blocked_tasks]
-        task_priorities.extend(f"Carry forward '{item['item']}' from '{item['task_title']}'" for item in unresolved_tasks)
+        task_priorities = [
+            f"Resolve blocker for '{task['title']}': {task.get('blocker')}"
+            for task in blocked_tasks
+        ]
+        task_priorities.extend(
+            f"Carry forward '{item['item']}' from '{item['task_title']}'"
+            for item in unresolved_tasks
+        )
         tomorrow_priorities = (task_priorities + tomorrow_priorities)[:3]
         return {
             "user_name": user_name,
@@ -830,7 +941,9 @@ Keep the tasks concrete and preserve their priority order."""
         if context["completed_goals"]:
             lines.append("今天有推进的目标：")
             for goal in context["completed_goals"]:
-                notes = "；".join(check_in["note"] for check_in in goal.get("today_check_ins", []))
+                notes = "；".join(
+                    check_in["note"] for check_in in goal.get("today_check_ins", [])
+                )
                 lines.append(f"- {goal['title']}：{notes}")
         else:
             lines.append("今天还没有记录目标打卡。")
@@ -846,7 +959,9 @@ Keep the tasks concrete and preserve their priority order."""
         if context["blocked_tasks"]:
             lines.extend(["", "Blocked tasks:"])
             for task in context["blocked_tasks"]:
-                lines.append(f"- {task['title']}: {task.get('blocker') or 'reason not recorded'}")
+                lines.append(
+                    f"- {task['title']}: {task.get('blocker') or 'reason not recorded'}"
+                )
 
         if context["unresolved_tasks"]:
             lines.extend(["", "Unresolved items:"])
@@ -877,8 +992,7 @@ Keep the tasks concrete and preserve their priority order."""
     ) -> dict[str, Any]:
         state = self.store.load()
         active_goals = [
-            goal for goal in state.get("goals", [])
-            if goal.get("status") == "active"
+            goal for goal in state.get("goals", []) if goal.get("status") == "active"
         ]
         active_goals.sort(
             key=lambda goal: (
@@ -899,7 +1013,9 @@ Keep the tasks concrete and preserve their priority order."""
         live_weather = live_context.get("weather") or {}
         weather_text = weather or live_weather.get("summary") or "天气信息暂未接入"
         date_text = f"{now.month}月{now.day}日"
-        memory_query = self._build_memory_query(user_name, weather_text, important_goals, reminders)
+        memory_query = self._build_memory_query(
+            user_name, weather_text, important_goals, reminders
+        )
         relevant_memories, retrieval_metadata = self._resolve_memory_context(
             state, memory_query, 8, memory_context, now
         )
@@ -954,7 +1070,9 @@ Keep the tasks concrete and preserve their priority order."""
         if calendar_events:
             lines.extend(["", "今日日程："])
             for event in calendar_events[:5]:
-                lines.append(f"- {event.get('start', '')} {event.get('summary', 'Untitled event')}")
+                lines.append(
+                    f"- {event.get('start', '')} {event.get('summary', 'Untitled event')}"
+                )
 
         todos = context["live_context"].get("todos", [])
         if todos:
@@ -970,7 +1088,9 @@ Keep the tasks concrete and preserve their priority order."""
             lines.append("另外，我注意到：")
             lines.extend(f"- {reminder}" for reminder in context["reminders"])
 
-        if context["mcp_context"].get("results") or context["mcp_context"].get("errors"):
+        if context["mcp_context"].get("results") or context["mcp_context"].get(
+            "errors"
+        ):
             lines.extend(["", "Approved MCP context:"])
             lines.extend(self._format_mcp_context(context["mcp_context"]).splitlines())
 
@@ -994,24 +1114,38 @@ Keep the tasks concrete and preserve their priority order."""
         )
         completed = self._format_items(
             context["completed_goals"],
-            lambda goal: f"- {goal['title']} | check-ins: {self._format_check_in_notes(goal.get('today_check_ins', []))}",
+            lambda goal: (
+                f"- {goal['title']} | check-ins: {self._format_check_in_notes(goal.get('today_check_ins', []))}"
+            ),
         )
         pending = self._format_items(
             context["pending_goals"],
-            lambda goal: f"- {goal['title']} | description: {goal.get('description') or 'none'}",
+            lambda goal: (
+                f"- {goal['title']} | description: {goal.get('description') or 'none'}"
+            ),
         )
         reminders = self._format_items(context["reminders"], lambda item: f"- {item}")
-        priorities = self._format_items(context["tomorrow_priorities"], lambda item: f"- {item}")
-        task_state = self._format_items(context["daily_tasks"], lambda task: f"- {task['title']} | status: {task['status']} | blocker: {task.get('blocker') or 'none'}")
-        unresolved = self._format_items(context["unresolved_tasks"], lambda item: f"- {item['task_title']}: {item['item']}")
+        priorities = self._format_items(
+            context["tomorrow_priorities"], lambda item: f"- {item}"
+        )
+        task_state = self._format_items(
+            context["daily_tasks"],
+            lambda task: (
+                f"- {task['title']} | status: {task['status']} | blocker: {task.get('blocker') or 'none'}"
+            ),
+        )
+        unresolved = self._format_items(
+            context["unresolved_tasks"],
+            lambda item: f"- {item['task_title']}: {item['item']}",
+        )
 
-        user_prompt = f"""Generate an evening daily review for {context['user_name']}.
+        user_prompt = f"""Generate an evening daily review for {context["user_name"]}.
 
-Date: {context['date_text']}
+Date: {context["date_text"]}
 
 Memory retrieval:
-- Strategy: {context['memory_retrieval']['strategy']}
-- Query: {context['memory_retrieval'].get('query', 'agent-provided context')}
+- Strategy: {context["memory_retrieval"]["strategy"]}
+- Query: {context["memory_retrieval"].get("query", "agent-provided context")}
 
 Relevant long-term memories:
 {memories}
@@ -1067,11 +1201,15 @@ Output format:
         reminders = self._format_items(context["reminders"], lambda item: f"- {item}")
         calendar_events = self._format_items(
             context["live_context"].get("calendar", []),
-            lambda item: f"- {item.get('start')} | {item.get('summary')} | {item.get('location') or 'no location'}",
+            lambda item: (
+                f"- {item.get('start')} | {item.get('summary')} | {item.get('location') or 'no location'}"
+            ),
         )
         todos = self._format_items(
             context["live_context"].get("todos", []),
-            lambda item: f"- {item.get('content')} | due: {item.get('due') or 'none'} | priority: {item.get('priority')}",
+            lambda item: (
+                f"- {item.get('content')} | due: {item.get('due') or 'none'} | priority: {item.get('priority')}"
+            ),
         )
         mcp_text = self._format_mcp_context(context["mcp_context"])
         tool_errors = self._format_items(
@@ -1079,15 +1217,15 @@ Output format:
             lambda item: f"- {item.get('tool')}: {item.get('error')}",
         )
 
-        user_prompt = f"""Generate a morning briefing for {context['user_name']}.
+        user_prompt = f"""Generate a morning briefing for {context["user_name"]}.
 
 Today:
-- Date: {context['date_text']}
-- Weather: {context['weather_text']}
+- Date: {context["date_text"]}
+- Weather: {context["weather_text"]}
 
 Memory retrieval:
-- Strategy: {context['memory_retrieval']['strategy']}
-- Query: {context['memory_retrieval'].get('query', 'agent-provided context')}
+- Strategy: {context["memory_retrieval"]["strategy"]}
+- Query: {context["memory_retrieval"].get("query", "agent-provided context")}
 
 Relevant long-term memories:
 {memories}
@@ -1111,7 +1249,7 @@ Proactive reminders:
 {reminders}
 
 Baseline suggestion:
-- {context['suggestion']}
+- {context["suggestion"]}
 
 Output format:
 1. Greeting
@@ -1158,7 +1296,9 @@ Output format:
     ) -> str:
         completed_text = " ".join(goal.get("title", "") for goal in completed_goals)
         pending_text = " ".join(goal.get("title", "") for goal in pending_goals)
-        check_in_text = " ".join(check_in.get("note", "") for check_in in today_check_ins)
+        check_in_text = " ".join(
+            check_in.get("note", "") for check_in in today_check_ins
+        )
         reminder_text = " ".join(reminders)
         return f"{user_name} evening review reflection {completed_text} {pending_text} {check_in_text} {reminder_text}".strip()
 
@@ -1167,7 +1307,10 @@ Output format:
         check_ins = []
         for check_in in goal.get("check_ins", []):
             check_in_time = parse_timestamp(check_in.get("at"))
-            if check_in_time and check_in_time.astimezone(UTC).date() == now.astimezone(UTC).date():
+            if (
+                check_in_time
+                and check_in_time.astimezone(UTC).date() == now.astimezone(UTC).date()
+            ):
                 check_ins.append(check_in)
         return check_ins
 
@@ -1176,9 +1319,15 @@ Output format:
         pending_goals: list[dict[str, Any]],
         completed_goals: list[dict[str, Any]],
     ) -> list[str]:
-        priorities = [f"继续推进「{goal['title']}」，先完成一个 30 分钟的小任务。" for goal in pending_goals[:3]]
+        priorities = [
+            f"继续推进「{goal['title']}」，先完成一个 30 分钟的小任务。"
+            for goal in pending_goals[:3]
+        ]
         if not priorities:
-            priorities = [f"巩固今天已经推进的「{goal['title']}」，记录下一步。" for goal in completed_goals[:3]]
+            priorities = [
+                f"巩固今天已经推进的「{goal['title']}」，记录下一步。"
+                for goal in completed_goals[:3]
+            ]
         if not priorities:
             priorities = ["明天先添加一个明确目标，让 Nexus 开始帮你追踪。"]
         return priorities

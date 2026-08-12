@@ -20,16 +20,17 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.
 - Habit tracking with daily/weekday cadence, idempotent check-ins, streaks, completion rates, and archival.
 - Project tracking with linked goals/tasks, milestones, derived or explicit progress, correction history, and archival.
+- Research Companion MVP with persistent questions, scholarly sources, notes, experiments, permissioned Crossref search, RAG-enriched evidence synthesis, grounded follow-up answers, and explicit uncertainty.
 - Explainable Suggestions 2.0 from quiet goals, blocked/pending tasks, habit risk, milestone deadlines, live calendar conflicts/focus windows, and task-relevant RAG memories, with expiring snapshots and approval-gated actions.
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
-- Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, and bounded filesystem integrations.
+- Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, scholarly metadata, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
 - Bounded Memory, Tool, Planner, Reflection, and Coach Agent coordination with budgets, fallback, and privacy-safe traces.
 - Proactive morning briefing, evening review, and stale-goal reminder jobs in the user's IANA time zone.
 - Durable inbox notifications, optional console/webhook delivery, and normal or overnight quiet hours.
-- Responsive loopback Dashboard with Today, Goals, Habits, Projects, Suggestions, Memory, Activity, and masked Settings; six exact CSRF-protected actions cover atomic habit increments, progress, suggestion decisions, and live-calendar replan preview/apply.
+- Responsive loopback Dashboard with Today, Goals, Habits, Projects, Research, Suggestions, Memory, Activity, and masked Settings; six exact CSRF-protected actions cover atomic habit increments, progress, suggestion decisions, and live-calendar replan preview/apply.
 - Permissioned Nexus stdio MCP Server with seven bounded read tools, five approval-gated mutation tools, per-tool deny/ask/allow policy overrides, and content-free secret-safe audit summaries.
 - Named browser, command, GitHub-inspection, and Markdown status-report automations under explicit policies.
 
@@ -83,6 +84,36 @@ nexus tool audit --limit 20
 ```
 
 Suggestion refresh always uses the configured RAG pipeline. `--live-tools` additionally reads the configured calendar; either dependency can degrade independently while local goal/task/habit/project suggestions remain available. The optional LLM may rewrite wording only.
+
+## Research Companion
+
+Create an evidence-oriented research workspace and record sources, notes, and experiments:
+
+```bash
+nexus research create "RAG evaluation" --objective "Compare dense and hybrid retrieval" --question "What improves recall?"
+nexus research source-add <research-id> --type paper --title "Hybrid retrieval study" --locator "https://doi.org/..." --note "Reported a recall improvement"
+nexus research note-add <research-id> "The benchmark gain needs replication" --source-id <source-id> --tag evaluation
+nexus research experiment-add <research-id> "Dense versus hybrid" --hypothesis "Hybrid improves recall" --method "Compare twenty queries" --result "Hybrid recovered two more memories" --status completed
+```
+
+Local synthesis and follow-up answers use eligible RAG memory and do not require an API key:
+
+```bash
+nexus research synthesize <research-id>
+nexus research ask <research-id> "Did hybrid retrieval improve recall?"
+nexus research list
+nexus ask "list research"
+```
+
+Enable bounded scholarly metadata search explicitly when needed:
+
+```bash
+nexus config tool set literature --mailto "researcher@example.com"
+nexus tool literature --query "retrieval augmented generation evaluation" --limit 5
+nexus research investigate <research-id> --query "hybrid retrieval evaluation" --live-tools
+```
+
+The `literature` adapter uses only Crossref's fixed read-only `/works` endpoint and imports bounded bibliographic metadata; it does not download or read full papers. `--llm --model-tier complex` can rewrite synthesis or follow-up wording, but exact evidence references and uncertainty remain deterministic. Literature, RAG, and LLM failures degrade independently.
 
 Configure MCP servers and approve tools explicitly:
 
@@ -163,7 +194,7 @@ nexus dashboard serve
 # Open http://127.0.0.1:8765
 ```
 
-The Dashboard has eight views. Today shows schedules, tasks, reminders, and the latest briefing/review; Habits supports check-ins, Projects supports correction-aware progress updates, Suggestions shows Calendar/RAG source types and degradation status before accept/dismiss, and Today offers replan preview/apply. Goals, eligible memory, bounded activity, and masked settings remain privacy-filtered views.
+The Dashboard has nine views. Today shows schedules, tasks, reminders, and the latest briefing/review; Habits supports check-ins, Projects supports correction-aware progress updates, Research shows bounded questions, source/experiment counts, and the latest synthesis, Suggestions shows Calendar/RAG source types and degradation status before accept/dismiss, and Today offers replan preview/apply. Goals, eligible memory, bounded activity, and masked settings remain privacy-filtered views.
 
 Automations are named JSON definitions. New definitions default to `ask`, which requires one-shot `--approve`.
 
@@ -213,6 +244,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - Browser automation opens only a fixed HTTP(S) URL covered by a mandatory non-empty host allowlist.
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
+- Research Companion does not download or parse full papers, verify citations, perform general web search, execute research code, or run autonomous research loops.
 - Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
 
 ## CLI Command Map
@@ -222,6 +254,7 @@ nexus memory add|list|show|search|retrieve|update|relate|archive|restore|forget|
 nexus goal add|list|check-in
 nexus habit add|list|check-in|archive
 nexus project add|list|milestone-add|milestone-update|progress|archive
+nexus research create|list|show|question-add|source-add|note-add|experiment-add|investigate|synthesize|ask|archive
 nexus suggestion list|refresh|accept|dismiss
 nexus replan preview|apply
 nexus ask TEXT [--approve] [--llm] [--show-intent]
@@ -230,7 +263,7 @@ nexus task list|update
 nexus review
 nexus review day
 nexus briefing
-nexus tool weather|calendar|todo|github|notion|email|files|audit
+nexus tool weather|calendar|todo|github|notion|literature|email|files|audit
 nexus mcp servers|tools|call|audit
 nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
@@ -270,6 +303,6 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 ## Roadmap Summary
 
-Phases 1-11 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, and unified conversation.
+Phases 1-12 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, unified conversation, and the Research Companion MVP.
 
-The next product phase is the research-companion workflow for literature, code, and experiments. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
+Research Companion 2.0 may add permissioned full-text ingestion, general web research, repository indexing, and sandboxed experiment execution. Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.

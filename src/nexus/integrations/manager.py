@@ -4,9 +4,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from .core import AuditLogger, JsonHttpClient, PermissionPolicy, ToolAdapter, ToolError, ToolResult
+from .core import (
+    AuditLogger,
+    JsonHttpClient,
+    PermissionPolicy,
+    ToolAdapter,
+    ToolError,
+    ToolResult,
+)
 from .personal_tools import CalendarTool, EmailTool, FilesystemTool
-from .web_tools import GitHubTool, NotionTool, TodoistTool, WeatherTool
+from .web_tools import GitHubTool, LiteratureTool, NotionTool, TodoistTool, WeatherTool
 
 
 class ToolManager:
@@ -21,7 +28,9 @@ class ToolManager:
         self.policy = PermissionPolicy(settings)
         self.audit_logger = audit_logger
 
-    def execute(self, tool: str, operation: str = "read", **arguments: Any) -> ToolResult:
+    def execute(
+        self, tool: str, operation: str = "read", **arguments: Any
+    ) -> ToolResult:
         try:
             self.policy.require(tool, operation)
             adapter = self.adapters.get(tool)
@@ -62,7 +71,12 @@ class ToolManager:
 
     def briefing_context(self, now: datetime | None = None) -> dict[str, Any]:
         now = now or datetime.now(UTC)
-        context: dict[str, Any] = {"weather": None, "calendar": [], "todos": [], "errors": []}
+        context: dict[str, Any] = {
+            "weather": None,
+            "calendar": [],
+            "todos": [],
+            "errors": [],
+        }
         requests = [
             ("weather", "read", {}),
             ("calendar", "read", {"days": 2, "now": now.isoformat()}),
@@ -103,5 +117,6 @@ def build_tool_manager(
         "notion": NotionTool(settings.get("notion", {}), http),
         "email": EmailTool(settings.get("email", {}), imap_factory=imap_factory),
         "filesystem": FilesystemTool(settings.get("filesystem", {})),
+        "literature": LiteratureTool(settings.get("literature", {}), http),
     }
     return ToolManager(settings, adapters, AuditLogger(home / "tool_audit.jsonl"))

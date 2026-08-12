@@ -23,18 +23,118 @@ from nexus.store import JsonStore
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class FakeCrossrefHttp:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict[str, object]]] = []
+
+    def request_json(self, method: str, url: str, **kwargs: object) -> object:
+        self.calls.append((method, url, kwargs))
+        return {
+            "message": {
+                "items": [
+                    {
+                        "DOI": "10.1000/example",
+                        "title": ["Hybrid retrieval evaluation"],
+                        "author": [
+                            {"given": "Ada", "family": "Lovelace"},
+                            {"family": "Turing"},
+                        ],
+                        "published": {"date-parts": [[2026, 3, 4]]},
+                        "type": "journal-article",
+                        "publisher": "Example Press",
+                        "abstract": "<jats:p>Evidence for hybrid retrieval.</jats:p>",
+                        "URL": "https://doi.org/10.1000/example",
+                    },
+                    {"title": []},
+                ]
+            }
+        }
+
+
+def test_literature_tool_uses_fixed_crossref_origin_and_normalizes_works(
+    tmp_path: Path,
+) -> None:
+    http = FakeCrossrefHttp()
+    settings = {
+        "literature": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "mailto": "researcher@example.com",
+        }
+    }
+    manager = build_tool_manager(settings, tmp_path / "home", http_client=http)
+
+    result = manager.execute(
+        "literature", "read", query="hybrid retrieval", limit=50
+    ).data
+
+    method, url, kwargs = http.calls[0]
+    assert method == "GET"
+    assert url == "https://api.crossref.org/works"
+    assert kwargs["params"] == {
+        "query.bibliographic": "hybrid retrieval",
+        "rows": 20,
+        "mailto": "researcher@example.com",
+    }
+    assert result == {
+        "works": [
+            {
+                "doi": "10.1000/example",
+                "title": "Hybrid retrieval evaluation",
+                "authors": ["Ada Lovelace", "Turing"],
+                "year": 2026,
+                "type": "journal-article",
+                "publisher": "Example Press",
+                "abstract": "Evidence for hybrid retrieval.",
+                "url": "https://doi.org/10.1000/example",
+            }
+        ],
+        "count": 1,
+    }
+    assert manager.audit_events(1)[0]["arguments"]["query"] == "***"
+
+
+def test_literature_tool_is_read_only_and_requires_a_query(tmp_path: Path) -> None:
+    settings = {"literature": {"enabled": True, "allowed_operations": ["read"]}}
+    manager = build_tool_manager(
+        settings, tmp_path / "home", http_client=FakeCrossrefHttp()
+    )
+
+    with pytest.raises(ToolError, match="query is required"):
+        manager.execute("literature", "read", query="")
+    with pytest.raises(ToolPermissionError, match="not permitted"):
+        manager.execute("literature", "write", query="RAG")
+
+
+def test_literature_config_is_explicit_and_masks_mailto(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+
+    settings, _ = update_tool_settings(
+        "literature", {"mailto": "researcher@example.com"}, path=path
+    )
+
+    assert settings["literature"]["enabled"] is True
+    assert settings["literature"]["allowed_operations"] == ["read"]
+    assert (
+        masked_tool_settings(settings)["literature"]["mailto"]
+        != "researcher@example.com"
+    )
+
+
 class FakeHttp:
     def request_json(self, method: str, url: str, **kwargs: object) -> object:
         if "geocoding-api" in url:
             return {
-                "results": [{
-                    "name": "Shanghai",
-                    "admin1": "Shanghai",
-                    "country": "China",
-                    "latitude": 31.23,
-                    "longitude": 121.47,
-                    "timezone": "Asia/Shanghai",
-                }]
+                "results": [
+                    {
+                        "name": "Shanghai",
+                        "admin1": "Shanghai",
+                        "country": "China",
+                        "latitude": 31.23,
+                        "longitude": 121.47,
+                        "timezone": "Asia/Shanghai",
+                    }
+                ]
             }
         if "open-meteo.com/v1/forecast" in url:
             return {
@@ -53,20 +153,32 @@ class FakeHttp:
             }
         if "todoist.com" in url:
             return {
-                "results": [{
-                    "id": "todo-1",
-                    "content": "Complete IELTS listening",
-                    "description": "One practice set",
-                    "priority": 4,
-                    "due": {"date": "2030-01-03"},
-                    "labels": ["study"],
-                }],
+                "results": [
+                    {
+                        "id": "todo-1",
+                        "content": "Complete IELTS listening",
+                        "description": "One practice set",
+                        "priority": 4,
+                        "due": {"date": "2030-01-03"},
+                        "labels": ["study"],
+                    }
+                ],
                 "next_cursor": None,
             }
         if url.endswith("/issues"):
             return [
-                {"number": 7, "title": "Add tools", "updated_at": "2030-01-02T00:00:00Z", "html_url": "https://example/7"},
-                {"number": 8, "title": "A pull request", "pull_request": {}, "updated_at": "2030-01-02T00:00:00Z"},
+                {
+                    "number": 7,
+                    "title": "Add tools",
+                    "updated_at": "2030-01-02T00:00:00Z",
+                    "html_url": "https://example/7",
+                },
+                {
+                    "number": 8,
+                    "title": "A pull request",
+                    "pull_request": {},
+                    "updated_at": "2030-01-02T00:00:00Z",
+                },
             ]
         if "api.github.com/repos/" in url:
             return {
@@ -78,14 +190,16 @@ class FakeHttp:
             }
         if "api.notion.com" in url:
             return {
-                "results": [{
-                    "id": "page-1",
-                    "last_edited_time": "2030-01-02T00:00:00Z",
-                    "url": "https://notion.example/page-1",
-                    "properties": {
-                        "Name": {"title": [{"plain_text": "Research Notes"}]}
-                    },
-                }],
+                "results": [
+                    {
+                        "id": "page-1",
+                        "last_edited_time": "2030-01-02T00:00:00Z",
+                        "url": "https://notion.example/page-1",
+                        "properties": {
+                            "Name": {"title": [{"plain_text": "Research Notes"}]}
+                        },
+                    }
+                ],
                 "has_more": False,
             }
         raise AssertionError(f"Unexpected URL: {url}")
@@ -148,11 +262,32 @@ def enabled_settings(tmp_path: Path) -> dict[str, dict[str, object]]:
     root = tmp_path / "allowed"
     root.mkdir()
     return {
-        "weather": {"enabled": True, "allowed_operations": ["read"], "location": "Shanghai"},
-        "calendar": {"enabled": True, "allowed_operations": ["read"], "calendar_url": "https://calendar.example/private.ics"},
-        "todo": {"enabled": True, "allowed_operations": ["read"], "token": "todo-secret"},
-        "github": {"enabled": True, "allowed_operations": ["read"], "token": "github-secret", "repo": "LouissMa/Nexus"},
-        "notion": {"enabled": True, "allowed_operations": ["read"], "token": "notion-secret"},
+        "weather": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "location": "Shanghai",
+        },
+        "calendar": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "calendar_url": "https://calendar.example/private.ics",
+        },
+        "todo": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "token": "todo-secret",
+        },
+        "github": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "token": "github-secret",
+            "repo": "LouissMa/Nexus",
+        },
+        "notion": {
+            "enabled": True,
+            "allowed_operations": ["read"],
+            "token": "notion-secret",
+        },
         "email": {
             "enabled": True,
             "allowed_operations": ["read"],
@@ -172,13 +307,17 @@ def enabled_settings(tmp_path: Path) -> dict[str, dict[str, object]]:
 
 def test_web_personal_tools_permissions_and_audit(tmp_path: Path) -> None:
     settings = enabled_settings(tmp_path)
-    manager = build_tool_manager(settings, tmp_path / "home", http_client=FakeHttp(), imap_factory=FakeIMAP)
+    manager = build_tool_manager(
+        settings, tmp_path / "home", http_client=FakeHttp(), imap_factory=FakeIMAP
+    )
 
     weather = manager.execute("weather", "read").data
     assert weather["temperature_c"] == 25
     assert "Shanghai" in weather["summary"]
 
-    calendar = manager.execute("calendar", "read", days=2, now="2030-01-03T00:00:00+00:00").data
+    calendar = manager.execute(
+        "calendar", "read", days=2, now="2030-01-03T00:00:00+00:00"
+    ).data
     assert calendar["events"][0]["summary"] == "Operating Systems Review"
     assert [event["summary"] for event in calendar["events"]] == [
         "Operating Systems Review",
@@ -199,7 +338,9 @@ def test_web_personal_tools_permissions_and_audit(tmp_path: Path) -> None:
     assert email["messages"][0]["subject"] == "Nexus research update"
 
     settings["github"]["enabled"] = False
-    blocked = build_tool_manager(settings, tmp_path / "blocked-home", http_client=FakeHttp())
+    blocked = build_tool_manager(
+        settings, tmp_path / "blocked-home", http_client=FakeHttp()
+    )
     with pytest.raises(ToolPermissionError):
         blocked.execute("github", "read")
     events = blocked.audit_events()
@@ -246,6 +387,7 @@ def test_http_response_limit_and_required_tool_config(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="location"):
         update_tool_settings("weather", path=tmp_path / "config.local.json")
 
+
 def test_tool_config_masking_cli_and_live_briefing(tmp_path: Path) -> None:
     config_path = tmp_path / "config.local.json"
     settings, _ = update_tool_settings(
@@ -265,12 +407,30 @@ def test_tool_config_masking_cli_and_live_briefing(tmp_path: Path) -> None:
     env["PYTHONPATH"] = str(ROOT / "src")
     env["NEXUS_HOME"] = str(tmp_path / "nexus-home")
     subprocess.run(
-        [sys.executable, "-m", "nexus.cli", "config", "tool", "set", "filesystem", "--root", str(allowed)],
-        cwd=ROOT, env=env, check=True, capture_output=True, text=True,
+        [
+            sys.executable,
+            "-m",
+            "nexus.cli",
+            "config",
+            "tool",
+            "set",
+            "filesystem",
+            "--root",
+            str(allowed),
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     result = subprocess.run(
         [sys.executable, "-m", "nexus.cli", "tool", "files", "read", "readme.txt"],
-        cwd=ROOT, env=env, check=True, capture_output=True, text=True,
+        cwd=ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     output = json.loads(result.stdout)
     assert output["result"]["data"]["content"] == "Nexus CLI tool"
@@ -281,8 +441,16 @@ def test_tool_config_masking_cli_and_live_briefing(tmp_path: Path) -> None:
         now=datetime(2030, 1, 3, 8, tzinfo=UTC),
         external_context={
             "weather": {"summary": "上海：晴，最高 29℃"},
-            "calendar": [{"start": "2030-01-03T10:00:00+08:00", "summary": "OS Review", "location": "Library"}],
-            "todos": [{"content": "IELTS listening", "due": "2030-01-03", "priority": 4}],
+            "calendar": [
+                {
+                    "start": "2030-01-03T10:00:00+08:00",
+                    "summary": "OS Review",
+                    "location": "Library",
+                }
+            ],
+            "todos": [
+                {"content": "IELTS listening", "due": "2030-01-03", "priority": 4}
+            ],
             "errors": [],
         },
         include_prompt=True,

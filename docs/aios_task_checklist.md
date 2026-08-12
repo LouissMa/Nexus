@@ -18,7 +18,8 @@ Status legend:
 6. Advanced memory importance, compression, privacy, and retention. Completed.
 7. Proactive runtime, local Dashboard, and permissioned named automation. Completed.
 8. Adaptive life workspace: Dashboard 2.0, calendar replanning, conversation, and Nexus MCP Server. Completed.
-9. Long-term multimodal/embodied interfaces. Future.
+9. Research Companion MVP. Completed.
+10. Long-term multimodal/embodied interfaces. Future.
 
 ## Completed Foundation
 
@@ -177,7 +178,24 @@ Current status: `[x]` Phase 11 adaptive life workspace completed.
 - [x] Permissioned Nexus MCP stdio server with seven bounded read tools, five approval-gated mutation tools, policy overrides, and content-free secret-safe audit summaries.
 - [x] Phase 11 audits, focused tests, English/Chinese documentation, and desktop/mobile browser verification.
 
-## 11. Long-Term Multimodal and Embodied Interfaces
+## 11. Research Companion
+
+Current status: `[x]` Evidence-oriented Research Companion MVP completed.
+
+- [x] Persistent research projects, questions, scholarly sources, notes, experiments, investigation history, syntheses, and follow-ups.
+- [x] Explicitly enabled read-only Crossref scholarly metadata search through existing permission and audit controls.
+- [x] RAG-enriched investigation and synthesis with eligible memory only.
+- [x] Stable evidence references, open questions, experiment summaries, next actions, and explicit insufficient-evidence outcomes.
+- [x] Evidence-grounded follow-up questions with structure-safe optional LLM wording.
+- [x] Full CLI workflow plus bounded English/Chinese unified-conversation reads.
+- [x] Privacy-filtered ninth Dashboard Research view.
+- [x] Independent Literature/RAG/LLM degradation without losing local research state.
+- [ ] Full-text PDF/document ingestion and chunk-level citation verification.
+- [ ] General web research and browser-assisted source acquisition.
+- [ ] Repository indexing and sandboxed experiment execution.
+- [ ] Autonomous multi-Agent research loops.
+
+## 12. Long-Term Multimodal and Embodied Interfaces
 
 Current status: `[ ]` Research direction, not started.
 
@@ -185,7 +203,7 @@ Current status: `[ ]` Research direction, not started.
 - [ ] Permissioned visual context.
 - [ ] Smart-home adapters and family profiles.
 - [ ] Robotics adapter with simulation-first safety controls.
-- [ ] Deeper research-companion workflows for literature, code, and experiments.
+- [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
 These interfaces should reuse the existing memory, planning, runtime, permission, configuration-transaction, and audit layers. They are not current AGI capabilities.
 
