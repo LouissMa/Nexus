@@ -118,4 +118,4 @@
 - [x] Run focused research/integration/surface tests, then `python -m pytest tests -q`.
 - [x] Run Ruff checks, touched-file format checks, `git diff --check`, generic secret scans, and compare README command coverage.
 - [x] Start an isolated local Dashboard, seed research evidence through public service APIs, and verify desktop plus 390px mobile Research views and zero browser console errors with Playwright CLI.
-- [ ] Review the exact diff, stage only Research Companion source/tests/docs, commit intentionally, push `main`, and verify local HEAD equals `origin/main`.
+- [x] Review the exact diff, stage only Research Companion source/tests/docs, commit intentionally, push `main`, and verify local HEAD equals `origin/main`.
