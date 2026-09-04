@@ -137,6 +137,120 @@ class EmbeddingSettings:
         return data
 
 
+@dataclass(frozen=True)
+class VoiceSettings:
+    enabled: bool = False
+    transcription_provider: str = "faster_whisper"
+    transcription_model: str = "small"
+    synthesis_provider: str = "system"
+    voice: str | None = None
+    language: str = "auto"
+    sample_rate: int = 16_000
+    max_record_seconds: int = 30
+    max_audio_bytes: int = 25 * 1024 * 1024
+    play_audio: bool = True
+
+    def masked(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+_VOICE_ENV_FIELDS = {
+    "NEXUS_VOICE_ENABLED": "enabled",
+    "NEXUS_VOICE_TRANSCRIPTION_PROVIDER": "transcription_provider",
+    "NEXUS_VOICE_TRANSCRIPTION_MODEL": "transcription_model",
+    "NEXUS_VOICE_SYNTHESIS_PROVIDER": "synthesis_provider",
+    "NEXUS_VOICE_VOICE": "voice",
+    "NEXUS_VOICE_LANGUAGE": "language",
+    "NEXUS_VOICE_SAMPLE_RATE": "sample_rate",
+    "NEXUS_VOICE_MAX_RECORD_SECONDS": "max_record_seconds",
+    "NEXUS_VOICE_MAX_AUDIO_BYTES": "max_audio_bytes",
+    "NEXUS_VOICE_PLAY_AUDIO": "play_audio",
+}
+
+
+def _voice_bool(value: Any, field: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{field} must be a boolean.")
+
+
+def _voice_int(value: Any, field: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            pass
+    raise ValueError(f"{field} must be an integer.")
+
+
+def _voice_string(value: Any, field: str, maximum: int) -> str:
+    if not isinstance(value, str) or not 1 <= len(value) <= maximum:
+        raise ValueError(f"{field} must contain 1-{maximum} characters.")
+    return value
+
+
+def _voice_settings_from_mapping(values: Mapping[str, Any]) -> VoiceSettings:
+    defaults = asdict(VoiceSettings())
+    unknown = set(values).difference(defaults)
+    if unknown:
+        raise ValueError(f"Unknown voice setting: {sorted(unknown)[0]}.")
+    merged = {**defaults, **values}
+
+    transcription_provider = _voice_string(
+        merged["transcription_provider"], "transcription_provider", 100
+    )
+    if transcription_provider != "faster_whisper":
+        raise ValueError("transcription_provider must be 'faster_whisper'.")
+    synthesis_provider = _voice_string(
+        merged["synthesis_provider"], "synthesis_provider", 100
+    )
+    if synthesis_provider != "system":
+        raise ValueError("synthesis_provider must be 'system'.")
+
+    voice = merged["voice"]
+    if voice is not None:
+        voice = _voice_string(voice, "voice", 200)
+
+    sample_rate = _voice_int(merged["sample_rate"], "sample_rate")
+    if not 8_000 <= sample_rate <= 48_000:
+        raise ValueError("sample_rate must be between 8000 and 48000.")
+    max_record_seconds = _voice_int(
+        merged["max_record_seconds"], "max_record_seconds"
+    )
+    if not 1 <= max_record_seconds <= 120:
+        raise ValueError("max_record_seconds must be between 1 and 120.")
+    max_audio_bytes = _voice_int(merged["max_audio_bytes"], "max_audio_bytes")
+    if not 1024 * 1024 <= max_audio_bytes <= 100 * 1024 * 1024:
+        raise ValueError(
+            "max_audio_bytes must be between 1048576 and 104857600."
+        )
+
+    return VoiceSettings(
+        enabled=_voice_bool(merged["enabled"], "enabled"),
+        transcription_provider=transcription_provider,
+        transcription_model=_voice_string(
+            merged["transcription_model"], "transcription_model", 100
+        ),
+        synthesis_provider=synthesis_provider,
+        voice=voice,
+        language=_voice_string(merged["language"], "language", 32),
+        sample_rate=sample_rate,
+        max_record_seconds=max_record_seconds,
+        max_audio_bytes=max_audio_bytes,
+        play_audio=_voice_bool(merged["play_audio"], "play_audio"),
+    )
+
+
 def nexus_home() -> Path:
     return Path(os.environ.get("NEXUS_HOME", ".nexus"))
 
@@ -284,6 +398,69 @@ def save_local_config(config: dict[str, Any], path: Path | None = None) -> Path:
     with _local_config_transaction(requested_path) as config_path:
         _atomic_write_local_config_unlocked(config_path, config)
     return requested_path
+
+
+def load_voice_settings(
+    env: Mapping[str, str] | None = None,
+    path: Path | None = None,
+) -> VoiceSettings:
+    values = os.environ if env is None else env
+    stored = load_local_config(path).get("voice", {})
+    if not isinstance(stored, Mapping):
+        raise ValueError("Voice configuration must be an object.")
+    merged = dict(stored)
+    for environment_name, field_name in _VOICE_ENV_FIELDS.items():
+        if environment_name in values:
+            merged[field_name] = values[environment_name]
+    return _voice_settings_from_mapping(merged)
+
+
+def update_voice_settings(
+    enabled: bool = False,
+    transcription_provider: str = "faster_whisper",
+    transcription_model: str = "small",
+    synthesis_provider: str = "system",
+    voice: str | None = None,
+    language: str = "auto",
+    sample_rate: int = 16_000,
+    max_record_seconds: int = 30,
+    max_audio_bytes: int = 25 * 1024 * 1024,
+    play_audio: bool = True,
+    path: Path | None = None,
+) -> tuple[VoiceSettings, Path]:
+    values = {
+        "enabled": enabled,
+        "transcription_provider": transcription_provider,
+        "transcription_model": transcription_model,
+        "synthesis_provider": synthesis_provider,
+        "voice": voice,
+        "language": language,
+        "sample_rate": sample_rate,
+        "max_record_seconds": max_record_seconds,
+        "max_audio_bytes": max_audio_bytes,
+        "play_audio": play_audio,
+    }
+
+    def mutation(config: dict[str, Any]) -> VoiceSettings:
+        settings = _voice_settings_from_mapping(values)
+        config["voice"] = asdict(settings)
+        return settings
+
+    return mutate_local_config(mutation, path)
+
+
+def disable_voice_settings(
+    path: Path | None = None,
+) -> tuple[VoiceSettings, Path]:
+    def mutation(config: dict[str, Any]) -> VoiceSettings:
+        stored = config.get("voice", {})
+        if not isinstance(stored, Mapping):
+            raise ValueError("Voice configuration must be an object.")
+        settings = _voice_settings_from_mapping({**stored, "enabled": False})
+        config["voice"] = asdict(settings)
+        return settings
+
+    return mutate_local_config(mutation, path)
 
 
 def load_llm_settings(
