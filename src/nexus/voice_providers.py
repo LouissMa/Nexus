@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import platform
 import shutil
@@ -70,6 +71,46 @@ def _validated_output_path(output_path: Path, *, require_wav: bool = False) -> P
     if require_wav and path.suffix.lower() != ".wav":
         raise VoiceConfigurationError("The recorder output path must use a WAV suffix.")
     return path
+
+
+def _module_available(module_name: str) -> bool:
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _system_speech_executable(platform_name: str) -> str | None:
+    if platform_name == "Windows":
+        return shutil.which("powershell.exe") or shutil.which("pwsh")
+    if platform_name == "Darwin":
+        return (
+            "/usr/bin/say"
+            if os.path.isfile("/usr/bin/say")
+            else shutil.which("say")
+        )
+    if platform_name == "Linux":
+        return shutil.which("espeak-ng") or shutil.which("espeak")
+    return None
+
+
+def voice_provider_availability(
+    settings: VoiceSettings,
+) -> dict[str, dict[str, str | bool]]:
+    return {
+        "recording": {
+            "provider": "sounddevice",
+            "available": _module_available("sounddevice"),
+        },
+        "transcription": {
+            "provider": settings.transcription_provider,
+            "available": _module_available(settings.transcription_provider),
+        },
+        "synthesis": {
+            "provider": settings.synthesis_provider,
+            "available": _system_speech_executable(_platform_name()) is not None,
+        },
+    }
 
 
 class SoundDeviceRecorder:
@@ -201,13 +242,8 @@ class SystemSpeechSynthesizer:
         )
 
     def _discover_executable(self, platform_name: str) -> str:
-        if platform_name == "Windows":
-            executable = shutil.which("powershell.exe") or shutil.which("pwsh")
-        elif platform_name == "Darwin":
-            executable = "/usr/bin/say" if os.path.isfile("/usr/bin/say") else shutil.which("say")
-        elif platform_name == "Linux":
-            executable = shutil.which("espeak-ng") or shutil.which("espeak")
-        else:
+        executable = _system_speech_executable(platform_name)
+        if platform_name not in {"Windows", "Darwin", "Linux"}:
             raise VoiceUnavailableError(
                 f"System speech is unavailable on operating system '{platform_name}'."
             )

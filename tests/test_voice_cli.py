@@ -262,14 +262,28 @@ def test_voice_status_is_disabled_without_loading_providers(
     isolated_nexus_home: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    availability = {
+        "recording": {"provider": "sounddevice", "available": False},
+        "transcription": {"provider": "faster_whisper", "available": False},
+        "synthesis": {"provider": "system", "available": True},
+    }
     monkeypatch.setattr(
         cli,
         "build_voice_providers",
         lambda settings: pytest.fail("status loaded voice providers"),
     )
+    monkeypatch.setattr(
+        cli,
+        "voice_provider_availability",
+        lambda settings: availability,
+    )
     run_cli(["voice", "status"])
     result = json.loads(capsys.readouterr().out)
-    assert result == {"status": "ok", "voice": load_voice_settings().masked()}
+    assert result == {
+        "status": "ok",
+        "voice": load_voice_settings().masked(),
+        "providers": availability,
+    }
 
 
 def test_voice_record_transcribe_and_speak_return_structured_json(

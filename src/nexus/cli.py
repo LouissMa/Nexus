@@ -75,7 +75,10 @@ from .voice import (
     VoiceService,
     validate_audio_file,
 )
-from .voice_providers import build_voice_providers
+from .voice_providers import (
+    build_voice_providers,
+    voice_provider_availability,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1276,7 +1279,13 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
 
         settings = load_voice_settings()
         if args.voice_command == "status":
-            print_json({"status": "ok", "voice": settings.masked()})
+            print_json(
+                {
+                    "status": "ok",
+                    "voice": settings.masked(),
+                    "providers": voice_provider_availability(settings),
+                }
+            )
             return True
         if not settings.enabled:
             raise VoiceConfigurationError("Voice support is disabled.")

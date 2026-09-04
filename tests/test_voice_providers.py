@@ -337,3 +337,34 @@ def test_build_voice_providers_follows_voice_settings() -> None:
     assert isinstance(transcriber, FasterWhisperTranscriber)
     assert transcriber.model_name == "base"
     assert isinstance(synthesizer, SystemSpeechSynthesizer)
+
+
+def test_voice_provider_availability_uses_non_loading_discovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    discovered: list[str] = []
+
+    def find_spec(name: str) -> object | None:
+        discovered.append(name)
+        return object() if name == "sounddevice" else None
+
+    monkeypatch.setattr(voice_providers.importlib.util, "find_spec", find_spec)
+    monkeypatch.setattr(
+        voice_providers,
+        "_system_speech_executable",
+        lambda platform_name: "powershell.exe",
+    )
+    monkeypatch.setattr(
+        voice_providers,
+        "_load_whisper_model",
+        lambda model_name: pytest.fail("availability loaded a Whisper model"),
+    )
+
+    result = voice_providers.voice_provider_availability(VoiceSettings())
+
+    assert result == {
+        "recording": {"provider": "sounddevice", "available": True},
+        "transcription": {"provider": "faster_whisper", "available": False},
+        "synthesis": {"provider": "system", "available": True},
+    }
+    assert discovered == ["sounddevice", "faster_whisper"]
