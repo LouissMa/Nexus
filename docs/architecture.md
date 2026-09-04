@@ -11,11 +11,10 @@ Core workflows remain usable without an API key. Network providers are activated
   |
   +--> [Nexus CLI] ------------------------------+
   |       |                                      |
-  |       +--> [VoiceService]                    |
-  |              |-- recorder -> local WAV       |
-  |              |-- transcript -> ConversationService
-  |              |-- briefing -> NexusService / Runtime
-  |              +-- response -> OS speech       |
+  |       +--> [Voice commands]                  |
+  |              |-- ask: VoiceService -> ConversationService -> OS speech
+  |              +-- briefing: CLI _briefing_result -> existing briefing services
+  |                            -> VoiceService.narrate_briefing -> OS speech
   |                                              |
   +--> [Loopback DashboardServer]                |
           | exact static routes                  |
@@ -37,8 +36,9 @@ Core workflows remain usable without an API key. Network providers are activated
 
 [Runtime CLI / foreground loop]
   -> ProactiveScheduler
-       -> briefing / review / stale-goal job
-       -> NotificationCenter
+       |-- briefing -> existing briefing services
+       |-- review / stale-goal job
+       +--> NotificationCenter
             -> durable inbox
             -> optional console / webhook
 
@@ -160,12 +160,13 @@ nexus voice ask --record-seconds N
   -> delete the temporary recording
 
 nexus voice briefing
-  -> reuse the existing briefing, optional LLM, live-tool, and Agent paths
-  -> render the completed briefing for speech
-  -> preserve structured text if speech is unavailable
+  -> CLI _briefing_result builds the briefing through existing services
+  -> VoiceService.narrate_briefing receives the completed briefing
+  -> SystemSpeechSynthesizer speaks or saves the rendered text
+  -> preserve the completed structured briefing if speech is unavailable
 ```
 
-Voice is an explicit interface beside conversation and runtime, not a second assistant core. Text commands do not need the voice extra or an API key. The initial adapters do not upload audio; `faster-whisper` may download the configured model on first use, while OS speech availability varies by platform. DeepSeek remains available only through the optional text-generation path and does not supply local STT/TTS. There is no continuous listener or wake-word process.
+Voice is an explicit interface beside conversation and runtime, not a second assistant core. For `voice briefing`, the CLI first uses the shared `_briefing_result` helper and existing `NexusService` or Agent orchestration; only the completed briefing is passed to `VoiceService.narrate_briefing` for rendering and OS speech. The proactive scheduler separately consumes the same briefing services and does not route through `VoiceService`. Text commands do not need the voice extra or an API key. The initial adapters do not upload audio; `faster-whisper` may download the configured model on first use, while OS speech availability varies by platform. DeepSeek remains available only through the optional text-generation path and does not supply local STT/TTS. There is no continuous listener or wake-word process.
 
 ## Proactive Runtime Flow
 
@@ -288,7 +289,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
 - Phase 13 voice remains explicit, duration-bounded assistance, not continuous listening or an open-ended autonomous loop.
 
-Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, continuous listening, wake word, visual context, family profiles, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events. Research Companion searches bounded Crossref metadata only when explicitly enabled; full-text ingestion, general web research, code execution, citation verification, and autonomous research loops remain future work.
+Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, continuous listening, wake word, visual context, family profiles, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events. Research Companion still excludes OCR, JavaScript-rendered or authenticated crawling, arbitrary shell execution, container isolation, and unbounded background research.
 
 ## Future Architecture
 

@@ -558,3 +558,36 @@ def test_file_inventory_names_voice_modules() -> None:
 
     assert "`src/nexus/voice.py`" in inventory
     assert "`src/nexus/voice_providers.py`" in inventory
+
+
+def test_architecture_documents_actual_voice_briefing_direction() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    architecture = (repository_root / "docs" / "architecture.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "CLI _briefing_result -> existing briefing services" in architecture
+    assert "-> VoiceService.narrate_briefing -> OS speech" in architecture
+    assert (
+        "The proactive scheduler separately consumes the same briefing services"
+        in architecture
+    )
+    assert "briefing -> NexusService / Runtime" not in architecture
+
+
+def test_architecture_lists_current_research_companion_limits() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    architecture = (repository_root / "docs" / "architecture.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "Research Companion still excludes OCR, JavaScript-rendered or "
+        "authenticated crawling, arbitrary shell execution, container isolation, "
+        "and unbounded background research."
+    ) in architecture
+    assert (
+        "full-text ingestion, general web research, code execution, citation "
+        "verification, and autonomous research loops remain future work"
+        not in architecture
+    )
