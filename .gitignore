@@ -218,3 +218,6 @@ test-output-*/
 
 # Superpowers implementation-session ledger
 .superpowers/
+
+# Isolated feature worktrees
+.worktrees/
