@@ -24,6 +24,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 可解释 Suggestions 2.0：综合静默目标、阻塞/待办任务、习惯风险、里程碑期限、实时日历冲突/专注窗口和任务相关 RAG 记忆，并提供过期快照与需批准的受限动作。
 - 日历感知重排：基于只读实时 iCalendar 约束生成预览，按优先级分配、缩短或说明无法安排，并通过状态版本安全应用。
 - 统一 `nexus ask` 入口：识别常用中英文本地意图，写操作先预览并批准，习惯打卡可低风险执行，并可选用严格 JSON 的 LLM 意图选择。
+- 显式启动的本地 Voice Assistant MVP：有时长上限的按键说话录音、`faster-whisper` 转写、操作系统语音输出、统一对话路由和语音简报。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
 - 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头、学术元数据和受目录约束的文件系统集成。
 - 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
@@ -56,6 +57,21 @@ nexus review day --name Alex
 ```
 
 这些本地流程不需要 API key。
+
+## 本地语音助手
+
+纯文本 Nexus 无需语音依赖或 API key 仍可正常使用。只有需要显式本地录音、转写或语音输出时，才安装可选语音依赖：
+
+```bash
+pip install -e ".[voice]"
+nexus config voice set --enable --model small --language auto
+nexus voice ask --record-seconds 5
+nexus voice briefing --live-tools
+```
+
+`nexus voice ask` 按请求的有限时长录音，在本地转写 WAV，将文字交给与 `nexus ask` 相同的对话与批准流程，并在操作系统语音可用时播报结果。`nexus voice briefing` 复用现有文本简报，也可使用显式请求的实时工具。可用 `nexus voice status`、`nexus voice record`、`nexus voice transcribe` 和 `nexus voice speak` 进行诊断或单项操作。
+
+初始适配器让音频始终留在本地，不会上传音频。`faster-whisper` 首次使用时可能下载已配置的模型；Windows、macOS 和 Linux 可用的系统语音及输出能力各不相同。已配置的 DeepSeek Endpoint 仍可用于可选文本生成，但 DeepSeek 在此路径中仍仅支持文本，不提供本地 STT/TTS。Nexus 只在显式命令后录音：它不会持续监听，也不支持唤醒词。
 
 ## 记忆、工具、MCP 与 Agent
 
@@ -237,7 +253,7 @@ nexus automation remove project-home
 
 ## API Key 与本地配置
 
-本地记忆、目标、规划、任务更新、打卡、确定性简报/复盘、主动调度、通知收件箱、Dashboard、本地稀疏检索、FastEmbed、确定性报告和本地网页/命令自动化都不需要 API key。
+本地记忆、目标、规划、任务更新、打卡、确定性简报/复盘、主动调度、通知收件箱、Dashboard、本地稀疏检索、FastEmbed、确定性报告、本地网页/命令自动化和初始本地语音路径都不需要 API key。
 
 只有选择需要访问外部 Provider 的功能时才需要凭据：
 
@@ -268,7 +284,8 @@ nexus briefing --llm --model-tier simple
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
 - 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
 - Research Companion 不执行 OCR、JavaScript 渲染浏览、登录态爬取、任意 Shell、容器隔离或无边界后台研究。网页摄取必须提供明确 HTTPS URL；受限实验运行器不等于操作系统沙箱。
-- Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、语音/视觉、智能家居控制或机器人能力。
+- 语音录音必须显式启动且有时长上限。初始适配器不会上传音频，但 `faster-whisper` 可能下载其配置模型；Nexus 不支持持续监听、唤醒词、说话人识别或 Dashboard 麦克风访问。
+- Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、视觉上下文、智能家居控制或机器人能力。
 
 ## CLI 命令地图
 
@@ -290,6 +307,7 @@ nexus tool weather|calendar|todo|github|notion|literature|email|files|audit
 nexus mcp servers|tools|call|audit
 nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
+nexus voice status|record|transcribe|speak|ask|briefing
 
 nexus config llm set|show
 nexus config embedding set|show
@@ -297,6 +315,7 @@ nexus config tool set|disable|show
 nexus config mcp add|disable|remove|policy|planning-tool|show
 nexus config profile show|set
 nexus config runtime show|set
+nexus config voice set|show|disable
 
 nexus runtime status|tick|run|start
 nexus notifications list|flush
@@ -326,6 +345,6 @@ python -m ruff format --check src tests
 
 ## 路线概览
 
-Phase 1-12 与 Research Companion 2.0 已完成：CLI 基础、可选 LLM、RAG 2.0、Planning/Reflection、真实只读集成、MCP 客户端与 Nexus MCP Server、有边界的多 Agent 协作、高级记忆生命周期、主动 Runtime、交互式生活 Dashboard、受权限控制的命名自动化、习惯、项目、建议、自适应重新规划、统一对话入口，以及可验证语料与研究循环。
+Phase 1-12 与 Research Companion 2.0 已完成。Phase 13 中显式启动的本地 Voice Assistant MVP 子集也已完成：有限时长按键说话、本地转写与操作系统语音、统一语音对话和语音简报。
 
-语音、视觉、智能家居与机器人接口仍是长期方向，并且必须复用同一套权限和审计边界。
+持续监听与唤醒词、视觉上下文、家庭成员配置、智能家居适配器和机器人能力仍是未来工作，并且必须复用同一套权限和审计边界。

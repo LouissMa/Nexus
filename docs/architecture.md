@@ -1,6 +1,6 @@
 # Nexus Architecture
 
-Nexus is a local-first personal AI assistant. The current system combines long-term memory, planning and reflection, optional LLM generation, permissioned real tools and MCP, bounded specialist agents, a proactive runtime, a read-only local dashboard, and named permissioned automation.
+Nexus is a local-first personal AI assistant. The current system combines long-term memory, planning and reflection, optional LLM generation, permissioned real tools and MCP, bounded specialist agents, an explicit local voice layer, a proactive runtime, a read-only local dashboard, and named permissioned automation.
 
 Core workflows remain usable without an API key. Network providers are activated only by explicit configuration or command flags.
 
@@ -10,6 +10,12 @@ Core workflows remain usable without an API key. Network providers are activated
 [User]
   |
   +--> [Nexus CLI] ------------------------------+
+  |       |                                      |
+  |       +--> [VoiceService]                    |
+  |              |-- recorder -> local WAV       |
+  |              |-- transcript -> ConversationService
+  |              |-- briefing -> NexusService / Runtime
+  |              +-- response -> OS speech       |
   |                                              |
   +--> [Loopback DashboardServer]                |
           | exact static routes                  |
@@ -47,7 +53,7 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 
 ## Core Modules
 
-- `src/nexus/cli.py`: Parses all commands and lazily wires Phase 10 managers so legacy commands do not initialize optional runtime integrations.
+- `src/nexus/cli.py`: Parses all commands and lazily wires runtime and voice providers so text commands do not initialize optional integrations or audio dependencies.
 - `src/nexus/service.py`: Owns memory/RAG delegation, goals, planning, task updates, reflection, briefings, and shared Agent artifacts.
 - `src/nexus/habits.py`: Owns bounded daily/weekday habits, idempotent local-date check-ins, derived streak/completion metrics, and archival.
 - `src/nexus/projects.py`: Owns bounded projects, goal/task links, milestones, derived or explicit progress, correction history, and archival.
@@ -58,8 +64,10 @@ The scheduler, dashboard, and automation manager reuse existing services and sto
 - `src/nexus/suggestions.py`: Deterministically ranks local state, calendar conflicts/focus windows, and eligible RAG memories; persists bounded context/expiry/status; executes allowlisted approved actions; and constrains optional LLM rewriting to wording fields.
 - `src/nexus/replanning.py`: Normalizes immutable calendar constraints, allocates task windows, records shortened/unscheduled work, and applies previews only when state and calendar fingerprints remain fresh.
 - `src/nexus/conversation.py`: Maps bounded Chinese/English requests to a static intent registry, validates optional strict-JSON LLM selections, previews mutations, and dispatches only registered Nexus services.
+- `src/nexus/voice.py`: Defines recorder/transcriber/synthesizer contracts and result models, validates bounded audio paths, renders speech text, cleans temporary recordings, and composes voice conversation and briefing operations without owning intent or briefing logic.
+- `src/nexus/voice_providers.py`: Lazily loads `sounddevice` and `faster-whisper`, records mono PCM WAV, transcribes locally, and invokes bounded OS speech commands with `shell=False`.
 - `src/nexus/store.py`: Persists memories, goals, tasks, scheduler claims, and bounded scheduler run history in `.nexus/state.json` with revision checks, atomic replacement, and cross-process locking.
-- `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, runtime, and Nexus MCP Server policy settings.
+- `src/nexus/config.py`: Owns shared local configuration transactions for LLM, embeddings, tools, profile, runtime, voice, and Nexus MCP Server policy settings.
 - `src/nexus/file_lock.py`: Provides canonical process-local and OS-backed cross-process path transactions for state and notification files.
 - `src/nexus/runtime_config.py`: Defines immutable profile/runtime settings, IANA time-zone and clock validation, job names, quiet hours, channel flags, and masked output.
 - `src/nexus/notifications.py`: Implements inbox-first JSONL persistence, quiet-hour deferral, cross-process delivery claims, console/webhook delivery, bounded records/read buffers, corrupt-line repair, and deferred flush.
@@ -138,6 +146,26 @@ memory retrieve
 ```
 
 Archive and forget are reversible. Permanent purge requires forgotten state and explicit confirmation. Derived summaries inherit and recompute source privacy/expiry policy.
+
+## Explicit Voice Flow
+
+```text
+nexus voice ask --record-seconds N
+  -> require enabled VoiceSettings and enforce recording/audio bounds
+  -> SoundDeviceRecorder writes a temporary local PCM WAV
+  -> FasterWhisperTranscriber produces text and metadata locally
+  -> ConversationService applies the existing intent schemas and approval rules
+  -> VoiceService renders concise speech text
+  -> SystemSpeechSynthesizer plays or saves through the available OS voice
+  -> delete the temporary recording
+
+nexus voice briefing
+  -> reuse the existing briefing, optional LLM, live-tool, and Agent paths
+  -> render the completed briefing for speech
+  -> preserve structured text if speech is unavailable
+```
+
+Voice is an explicit interface beside conversation and runtime, not a second assistant core. Text commands do not need the voice extra or an API key. The initial adapters do not upload audio; `faster-whisper` may download the configured model on first use, while OS speech availability varies by platform. DeepSeek remains available only through the optional text-generation path and does not supply local STT/TTS. There is no continuous listener or wake-word process.
 
 ## Proactive Runtime Flow
 
@@ -248,6 +276,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - RAG falls back to local sparse retrieval when embeddings or Qdrant fail.
 - Research acquisition, corpus retrieval, investigation, synthesis, follow-up, and bounded loops isolate extraction/network/index/RAG/LLM failures; the last valid index and available local evidence remain usable.
 - Planning and Agent workflows preserve deterministic local fallback when optional LLM, MCP, tools, or specialists fail.
+- Voice transcription failure stops before conversation dispatch; speech failure preserves completed conversation or briefing text as a structured degradation.
 - Command timeout terminates the child process tree; output is consumed under a byte bound.
 - Audit write failure is surfaced as degraded audit health rather than silently claiming complete auditability.
 
@@ -257,16 +286,16 @@ Path identities and roots are checked before execution and rechecked around sens
 - Read-only integrations remain read-only; Dashboard and Nexus MCP writes are limited to explicit allowlisted domain actions.
 - `ask` actions require one-shot human approval; unattended automation requires explicit `allow`.
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
-- Phase 11 remains bounded assistance, not an open-ended autonomous loop.
+- Phase 13 voice remains explicit, duration-bounded assistance, not continuous listening or an open-ended autonomous loop.
 
-Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events. Research Companion searches bounded Crossref metadata only when explicitly enabled; full-text ingestion, general web research, code execution, citation verification, and autonomous research loops remain future work.
+Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, continuous listening, wake word, visual context, family profiles, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events. Research Companion searches bounded Crossref metadata only when explicitly enabled; full-text ingestion, general web research, code execution, citation verification, and autonomous research loops remain future work.
 
 ## Future Architecture
 
 Future interfaces should reuse the same memory, planning, permission, transaction, and audit layers:
 
 ```text
-[CLI / Web / Mobile / Voice / Vision]
+[CLI / Web / Explicit Voice / future Mobile / Vision]
                   |
              [Nexus Core]
   memory | planning | runtime | permissions | audit
@@ -275,4 +304,4 @@ Future interfaces should reuse the same memory, planning, permission, transactio
                                      simulation-first
 ```
 
-Voice, vision, home, and robotics integrations are long-term adapters, not current capabilities or an AGI claim.
+The explicit local Voice Assistant MVP is current. Continuous voice, vision, home, and robotics integrations remain future adapters, not current capabilities or an AGI claim.

@@ -6,13 +6,13 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 - `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Dashboard/MCP Server/Research Companion usage, security boundaries, and limitations.
 - `README_zh.md`: Chinese version of the same user-facing structure and commands.
-- `pyproject.toml`: Package metadata, `nexus` CLI entry point, core and optional dependency groups, and packaged Dashboard HTML/CSS/JavaScript assets.
+- `pyproject.toml`: Package metadata, `nexus` CLI entry point, core and optional dependency groups including `voice`, and packaged Dashboard HTML/CSS/JavaScript assets.
 - `.gitignore`: Excludes Python/build/test output plus the complete local `.nexus/` personal runtime directory.
 
 ## Application Core
 
 - `src/nexus/__init__.py`: Package marker and package description.
-- `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, configuration, integrations, MCP client/server, Agents, proactive runtime, notifications, Dashboard, and automation commands. Optional managers remain lazy where possible.
+- `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, voice, configuration, integrations, MCP client/server, Agents, proactive runtime, notifications, Dashboard, and automation commands. Optional managers and voice providers remain lazy where possible.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.
 - `src/nexus/habits.py`: Habit validation, daily/weekday cadence, bounded idempotent check-ins, atomic increments, derived streak/completion summaries, archival, and cross-process-safe store mutation.
 - `src/nexus/projects.py`: Project validation, goal/task links, authoritative milestone-derived progress with explicit progress for milestone-free projects, correction history, archival, and cross-process-safe store mutation.
@@ -26,8 +26,13 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/store.py`: Cross-process-safe JSON persistence for memories, goals, daily tasks, scheduler occurrence claims, and bounded scheduler run history; revision checks and atomic replacement prevent lost updates.
 - `src/nexus/planning.py`: Daily-task construction, task statuses, and strict/gentle/academic/startup Coach profiles.
 - `src/nexus/llm.py`: OpenAI-compatible chat-completions client, tier selection, timeouts, response normalization, and public errors.
-- `src/nexus/config.py`: Canonical local configuration path and shared transactional mutation API. LLM, embedding, tool, profile, and runtime writers use one OS-backed cross-process lock and atomic replacement.
+- `src/nexus/config.py`: Canonical local configuration path and shared transactional mutation API. LLM, embedding, tool, profile, runtime, and voice writers use one OS-backed cross-process lock and atomic replacement.
 - `src/nexus/file_lock.py`: Canonical path identity plus process-local and OS-backed lock-file transactions reused by state and notification persistence.
+
+## Voice Assistant
+
+- `src/nexus/voice.py`: Voice provider protocols and result models; bounded input/output validation; temporary-recording cleanup; deterministic speech rendering; and conversation/briefing orchestration through existing services.
+- `src/nexus/voice_providers.py`: Lazy optional `sounddevice` recorder and `faster-whisper` transcriber plus bounded Windows/macOS/Linux system speech adapters using fixed commands and `shell=False`.
 
 ## Proactive Runtime and Notifications
 
@@ -86,9 +91,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 ## Documentation
 
 - `docs/product_vision.md`: Product direction and long-term Personal AI Operating System vision.
-- `docs/architecture.md`: Current component boundaries, persistence, configuration transactions, runtime, Dashboard, automation, failure isolation, and future adapters.
-- `docs/roadmap.md`: Phase 1-12 and Research Companion 2.0 implementation status plus Phase 13 multimodal direction.
-- `docs/aios_task_checklist.md`: Detailed progress tracker, including completed Phase 11 adaptive workspace work.
+- `docs/architecture.md`: Current component boundaries, voice/conversation/runtime flow, persistence, configuration transactions, Dashboard, automation, failure isolation, and future adapters.
+- `docs/roadmap.md`: Phase 1-12 and Research Companion 2.0 implementation status plus partial Phase 13 voice completion and remaining multimodal direction.
+- `docs/aios_task_checklist.md`: Detailed progress tracker, including the completed Phase 13 Voice Assistant MVP subset and remaining multimodal work.
 - `docs/file_inventory.md`: This responsibility index.
 - `docs/superpowers/specs/2026-07-17-mcp-client-design.md`: Phase 7 MCP design and safety contract.
 - `docs/superpowers/plans/2026-07-17-mcp-client.md`: Phase 7 implementation plan.
@@ -124,6 +129,12 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `tests/test_replanning_cli.py`: Replan preview/apply CLI workflow and persisted schedule verification.
 - `tests/test_conversation.py`: Local and LLM intent parsing, schema rejection, mutation previews, low-risk check-ins, and approved dispatch.
 - `tests/test_conversation_cli.py`: Unified `nexus ask` read, intent-inspection, preview, and approved mutation workflows.
+
+## Phase 13 Voice Tests
+
+- `tests/test_voice.py`: Voice contracts, bounds, input validation, temporary-file cleanup, speech rendering, conversation approvals, and briefing/speech degradation.
+- `tests/test_voice_providers.py`: Lazy optional imports, PCM WAV recording, Whisper transcription/model caching, OS command construction, path validation, timeout/output bounds, and provider errors without real audio hardware.
+- `tests/test_voice_cli.py`: Transactional voice configuration, exact parser/CLI composition, provider/error boundaries, conversation and briefing forwarding, and synchronized documentation assertions.
 
 ## Phase 10 Tests
 

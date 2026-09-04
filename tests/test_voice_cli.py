@@ -530,3 +530,31 @@ def test_voice_briefing_forwards_llm_live_tools_and_agents(
     assert captured["use_llm"] is True
     assert captured["external_context"] == {"weather": {"summary": "sunny"}}
     assert getattr(captured["now"].tzinfo, "key", None) == "Asia/Shanghai"
+
+
+def test_readmes_document_voice_setup_commands_and_listening_boundary() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    english = (repository_root / "README.md").read_text(encoding="utf-8")
+    chinese = (repository_root / "README_zh.md").read_text(encoding="utf-8")
+    commands = (
+        'pip install -e ".[voice]"',
+        "nexus config voice set --enable --model small --language auto",
+        "nexus voice ask --record-seconds 5",
+        "nexus voice briefing --live-tools",
+    )
+
+    for command in commands:
+        assert command in english
+        assert command in chinese
+    assert "does not continuously listen" in english
+    assert "不会持续监听" in chinese
+
+
+def test_file_inventory_names_voice_modules() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    inventory = (repository_root / "docs" / "file_inventory.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "`src/nexus/voice.py`" in inventory
+    assert "`src/nexus/voice_providers.py`" in inventory

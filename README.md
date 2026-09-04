@@ -24,6 +24,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Explainable Suggestions 2.0 from quiet goals, blocked/pending tasks, habit risk, milestone deadlines, live calendar conflicts/focus windows, and task-relevant RAG memories, with expiring snapshots and approval-gated actions.
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
+- Explicit local Voice Assistant MVP with bounded push-to-talk recording, `faster-whisper` transcription, OS speech output, unified conversation routing, and narrated briefings.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, scholarly metadata, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
@@ -56,6 +57,21 @@ nexus review day --name Alex
 ```
 
 These local workflows do not require an API key.
+
+## Local Voice Assistant
+
+Text-only Nexus continues to work without voice dependencies or an API key. Install the optional voice dependencies only when you want explicit local recording, transcription, or speech:
+
+```bash
+pip install -e ".[voice]"
+nexus config voice set --enable --model small --language auto
+nexus voice ask --record-seconds 5
+nexus voice briefing --live-tools
+```
+
+`nexus voice ask` records for the requested bounded duration, transcribes the WAV locally, routes the transcript through the same conversation and approval path as `nexus ask`, and uses operating-system speech when available. `nexus voice briefing` reuses the existing text briefing, including explicitly requested live tools. Use `nexus voice status`, `nexus voice record`, `nexus voice transcribe`, and `nexus voice speak` for diagnostics or individual operations.
+
+The initial adapters keep audio local and do not upload it. `faster-whisper` may download the configured model on first use, and OS speech voices and output support vary across Windows, macOS, and Linux. A configured DeepSeek endpoint remains usable for optional text generation, but DeepSeek is text-only in this path and does not provide local speech-to-text or text-to-speech. Nexus records only after an explicit command: it does not continuously listen and has no wake-word support.
 
 ## Memory, Tools, MCP, and Agents
 
@@ -237,7 +253,7 @@ Supported types are `browser`, `command`, `github_inspect`, and `status_report`.
 
 ## API Keys and Local Configuration
 
-No API key is required for local memory, goals, planning, task updates, check-ins, deterministic briefing/review, proactive scheduling, inbox notifications, the dashboard, local sparse retrieval, FastEmbed, deterministic reports, or local browser/command automation.
+No API key is required for local memory, goals, planning, task updates, check-ins, deterministic briefing/review, proactive scheduling, inbox notifications, the dashboard, local sparse retrieval, FastEmbed, deterministic reports, local browser/command automation, or the initial local voice path.
 
 Credentials are required only when the chosen feature contacts a provider that requires them:
 
@@ -268,7 +284,8 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
 - Research Companion does not perform OCR, JavaScript-rendered browsing, authenticated crawling, arbitrary shell execution, container isolation, or unbounded background research. Web acquisition requires an explicit HTTPS URL; the restricted experiment runner is not an OS sandbox.
-- Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, voice/vision, smart-home control, or robotics.
+- Voice recording is explicit and duration-bounded. The initial adapters do not upload audio, but `faster-whisper` may download its configured model; Nexus has no continuous listening, wake word, speaker identification, or Dashboard microphone access.
+- Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, visual context, smart-home control, or robotics.
 
 ## CLI Command Map
 
@@ -290,6 +307,7 @@ nexus tool weather|calendar|todo|github|notion|literature|email|files|audit
 nexus mcp servers|tools|call|audit
 nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
+nexus voice status|record|transcribe|speak|ask|briefing
 
 nexus config llm set|show
 nexus config embedding set|show
@@ -297,6 +315,7 @@ nexus config tool set|disable|show
 nexus config mcp add|disable|remove|policy|planning-tool|show
 nexus config profile show|set
 nexus config runtime show|set
+nexus config voice set|show|disable
 
 nexus runtime status|tick|run|start
 nexus notifications list|flush
@@ -326,6 +345,6 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 ## Roadmap Summary
 
-Phases 1-12 and Research Companion 2.0 are implemented: CLI foundations, optional LLM generation, RAG 2.0, Planning/Reflection, real read-only integrations, MCP client and Nexus MCP Server, bounded multi-agent coordination, advanced memory lifecycle, proactive runtime, the interactive life Dashboard, permissioned named automation, habits, projects, suggestions, adaptive replanning, unified conversation, and evidence-grounded research corpora and loops.
+Phases 1-12 and Research Companion 2.0 are implemented. The explicit local Voice Assistant MVP subset of Phase 13 is also implemented: bounded push-to-talk, local transcription and OS speech, unified voice conversation, and narrated briefings.
 
-Voice, vision, smart-home, and robotics interfaces remain long-term directions built behind the same permission and audit boundaries.
+Continuous listening and wake words, visual context, family profiles, smart-home adapters, and robotics remain future work behind the same permission and audit boundaries.

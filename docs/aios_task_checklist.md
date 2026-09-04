@@ -198,15 +198,18 @@ Current status: `[x]` Research Companion 2.0 completed with bounded acquisition,
 
 ## 12. Long-Term Multimodal and Embodied Interfaces
 
-Current status: `[ ]` Research direction, not started.
+Current status: `[-]` Roadmap Phase 13 is partially complete: the Voice Assistant MVP subset is delivered, while the remaining multimodal and embodied work is not started.
 
-- [ ] Voice input, wake-word flow, and speech output.
+- [x] Explicit duration-bounded push-to-talk recording, local `faster-whisper` transcription, and operating-system speech output.
+- [x] Voice conversation through existing intent/approval handling and narrated briefings through existing briefing/runtime services.
+- [ ] Continuous listening and wake-word activation.
 - [ ] Permissioned visual context.
-- [ ] Smart-home adapters and family profiles.
+- [ ] Family profiles.
+- [ ] Smart-home adapters.
 - [ ] Robotics adapter with simulation-first safety controls.
 - [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
-These interfaces should reuse the existing memory, planning, runtime, permission, configuration-transaction, and audit layers. They are not current AGI capabilities.
+The delivered voice subset reuses conversation, briefing, runtime, permission, and configuration boundaries. Its initial adapters keep audio local, and it has no continuous listener or wake word. Remaining interfaces should reuse the existing memory, planning, runtime, permission, configuration-transaction, and audit layers. They are not current AGI capabilities.
 
 ## Maintenance Rules
 
