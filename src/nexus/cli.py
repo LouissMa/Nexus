@@ -1223,7 +1223,7 @@ def _briefing_result(
 
 
 def _voice_config_values(args: argparse.Namespace) -> dict[str, Any]:
-    current = load_voice_settings()
+    current = load_voice_settings(env={})
     max_audio_bytes = (
         current.max_audio_bytes
         if args.max_audio_mib is None
@@ -1266,7 +1266,11 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
             else:
                 settings, path = update_voice_settings(**_voice_config_values(args))
             print_json(
-                {"status": "ok", "path": str(path), "voice": settings.masked()}
+                {
+                    "status": "ok",
+                    "path": str(Path(path).expanduser().resolve(strict=False)),
+                    "voice": settings.masked(),
+                }
             )
             return True
 
@@ -1406,6 +1410,9 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
                 play=args.play,
             )
         )
+    except VoiceConfigurationError as exc:
+        print_json({"status": "error", "error": str(exc)})
+        raise SystemExit(2) from exc
     except VoiceError as exc:
         print_json({"status": "error", "error": str(exc)})
         raise SystemExit(1) from exc

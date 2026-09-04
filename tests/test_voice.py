@@ -117,6 +117,18 @@ class FailingSynthesizer:
         raise VoiceUnavailableError("synthesis failed")
 
 
+class MisconfiguredSynthesizer:
+    def synthesize(
+        self,
+        text: str,
+        *,
+        voice: str | None,
+        output_path: Path | None,
+        play: bool,
+    ) -> SpeechResult:
+        raise VoiceConfigurationError("configured voice is invalid")
+
+
 class UnexpectedSynthesizer:
     def synthesize(
         self,
@@ -315,6 +327,14 @@ def test_voice_ask_keeps_text_when_synthesis_fails(tmp_path: Path) -> None:
     assert result["degradations"] == ["speech_unavailable"]
 
 
+def test_voice_ask_propagates_synthesis_configuration_errors(tmp_path: Path) -> None:
+    audio = write_test_wav(tmp_path / "input.wav")
+    service = build_service(synthesizer=MisconfiguredSynthesizer())
+
+    with pytest.raises(VoiceConfigurationError, match="configured voice is invalid"):
+        service.ask(audio_path=audio)
+
+
 def test_voice_ask_does_not_hide_non_voice_synthesis_errors(tmp_path: Path) -> None:
     audio = write_test_wav(tmp_path / "input.wav")
     service = build_service(synthesizer=UnexpectedSynthesizer())
@@ -391,3 +411,10 @@ def test_briefing_narration_preserves_text_when_synthesis_fails() -> None:
         "speech": None,
         "degradations": ["speech_unavailable"],
     }
+
+
+def test_briefing_narration_propagates_synthesis_configuration_errors() -> None:
+    service = build_service(synthesizer=MisconfiguredSynthesizer())
+
+    with pytest.raises(VoiceConfigurationError, match="configured voice is invalid"):
+        service.narrate_briefing({"briefing": "Good morning."})

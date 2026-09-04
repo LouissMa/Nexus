@@ -16,7 +16,12 @@ from nexus.config import (
     update_profile_settings,
     update_voice_settings,
 )
-from nexus.voice import SpeechResult, TranscriptionResult, VoiceUnavailableError
+from nexus.voice import (
+    SpeechResult,
+    TranscriptionResult,
+    VoiceConfigurationError,
+    VoiceUnavailableError,
+)
 
 
 class FakeRecorder:
@@ -59,6 +64,18 @@ class FakeSynthesizer:
             played=play,
             output_path=str(output_path) if output_path is not None else None,
         )
+
+
+class MisconfiguredSynthesizer:
+    def synthesize(
+        self,
+        text: str,
+        *,
+        voice: str | None,
+        output_path: Path | None,
+        play: bool,
+    ) -> SpeechResult:
+        raise VoiceConfigurationError("configured voice is invalid")
 
 
 @pytest.fixture
@@ -168,6 +185,40 @@ def test_config_voice_set_show_and_disable_are_local_and_masked(
     assert disabled["voice"]["transcription_model"] == "base"
 
 
+def test_config_voice_partial_set_does_not_persist_environment_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_nexus_home: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_voice(isolated_nexus_home, transcription_model="base")
+    monkeypatch.setenv("NEXUS_VOICE_TRANSCRIPTION_MODEL", "large-v3")
+
+    run_cli(["config", "voice", "set", "--language", "zh"])
+    capsys.readouterr()
+
+    stored = load_voice_settings(
+        env={}, path=isolated_nexus_home / "config.local.json"
+    )
+    assert stored.transcription_model == "base"
+    assert stored.language == "zh"
+
+
+def test_config_voice_json_normalizes_relative_config_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("NEXUS_HOME", "relative-home")
+
+    run_cli(["config", "voice", "set", "--enable"])
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["path"] == str(
+        (tmp_path / "relative-home" / "config.local.json").resolve()
+    )
+
+
 def test_voice_invalid_config_exits_two(
     isolated_nexus_home: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -270,6 +321,64 @@ def test_voice_provider_error_exits_one(
     assert json.loads(capsys.readouterr().out) == {
         "status": "error",
         "error": "optional recording dependency is missing",
+    }
+
+
+def test_standalone_voice_configuration_error_exits_two(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_nexus_home: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_voice(isolated_nexus_home)
+    monkeypatch.setattr(
+        cli,
+        "build_voice_providers",
+        lambda settings: (
+            FakeRecorder(),
+            FakeTranscriber(),
+            MisconfiguredSynthesizer(),
+        ),
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        run_cli(["voice", "speak", "hello", "--no-play"])
+
+    assert raised.value.code == 2
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "error",
+        "error": "configured voice is invalid",
+    }
+
+
+@pytest.mark.parametrize("command", ["ask", "briefing"])
+def test_composed_voice_configuration_error_exits_two(
+    command: str,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_nexus_home: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_voice(isolated_nexus_home)
+    monkeypatch.setattr(
+        cli,
+        "build_voice_providers",
+        lambda settings: (
+            FakeRecorder(),
+            FakeTranscriber(),
+            MisconfiguredSynthesizer(),
+        ),
+    )
+    arguments = ["voice", command, "--no-play"]
+    if command == "ask":
+        arguments.extend(["--input", str(write_test_wav(tmp_path / "input.wav"))])
+
+    with pytest.raises(SystemExit) as raised:
+        run_cli(arguments)
+
+    assert raised.value.code == 2
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "error",
+        "error": "configured voice is invalid",
     }
 
 

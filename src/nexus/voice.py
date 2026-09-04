@@ -272,6 +272,6 @@ class VoiceService:
                 output_path=output_path,
                 play=should_play,
             )
-        except VoiceError:
+        except VoiceUnavailableError:
             return None, ["speech_unavailable"]
         return speech.to_dict(), []
