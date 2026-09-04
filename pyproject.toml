@@ -25,6 +25,10 @@ mcp = [
 research = [
   "pypdf>=5,<7",
 ]
+voice = [
+  "sounddevice>=0.5,<1",
+  "faster-whisper>=1.1,<2",
+]
 
 [project.scripts]
 nexus = "nexus.cli:main"
