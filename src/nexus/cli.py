@@ -4,6 +4,7 @@ import argparse
 import json
 import threading
 from datetime import date, datetime, time
+from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
@@ -21,12 +22,14 @@ from .automation import (
     upsert_automation,
 )
 from .config import (
+    disable_voice_settings,
     load_embedding_settings,
     load_llm_settings,
     load_local_config,
     load_nexus_mcp_server_policies,
     load_runtime_settings,
     load_tool_settings,
+    load_voice_settings,
     masked_tool_settings,
     patch_profile_settings,
     patch_runtime_settings,
@@ -34,7 +37,9 @@ from .config import (
     update_embedding_settings,
     update_llm_settings,
     update_tool_settings,
+    update_voice_settings,
 )
+from .conversation import ConversationService
 from .dashboard import DashboardActions, DashboardServer, DashboardSnapshot
 from .integrations.core import ToolError
 from .integrations.manager import build_tool_manager
@@ -64,6 +69,13 @@ from .runtime_config import (
 from .scheduler import ProactiveScheduler
 from .service import NexusService
 from .store import JsonStore
+from .voice import (
+    VoiceConfigurationError,
+    VoiceError,
+    VoiceService,
+    validate_audio_file,
+)
+from .voice_providers import build_voice_providers
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -527,6 +539,60 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fetch configured weather, calendar, and Todoist context.",
     )
 
+    voice_parser = subparsers.add_parser(
+        "voice", help="Run explicit local voice operations."
+    )
+    voice_subparsers = voice_parser.add_subparsers(
+        dest="voice_command", required=True
+    )
+    voice_subparsers.add_parser("status", help="Show local voice configuration.")
+    voice_record = voice_subparsers.add_parser(
+        "record", help="Record a bounded WAV file."
+    )
+    voice_record.add_argument("output")
+    voice_record.add_argument("--seconds", type=int, required=True)
+    voice_transcribe = voice_subparsers.add_parser(
+        "transcribe", help="Transcribe a local WAV file."
+    )
+    voice_transcribe.add_argument("input")
+    voice_speak = voice_subparsers.add_parser(
+        "speak", help="Speak or save text locally."
+    )
+    voice_speak.add_argument("text")
+    voice_speak.add_argument("--output")
+    voice_speak.add_argument(
+        "--play", action=argparse.BooleanOptionalAction, default=None
+    )
+    voice_ask = voice_subparsers.add_parser(
+        "ask", help="Transcribe and route a request through Nexus conversation."
+    )
+    voice_ask_source = voice_ask.add_mutually_exclusive_group(required=True)
+    voice_ask_source.add_argument("--input")
+    voice_ask_source.add_argument("--record-seconds", type=int)
+    voice_ask.add_argument("--approve", action="store_true")
+    voice_ask.add_argument("--llm", action="store_true")
+    voice_ask.add_argument("--model-tier", choices=["simple", "complex"])
+    voice_ask.add_argument("--show-intent", action="store_true")
+    voice_ask.add_argument("--now")
+    voice_ask.add_argument("--output")
+    voice_ask.add_argument(
+        "--play", action=argparse.BooleanOptionalAction, default=None
+    )
+    voice_briefing = voice_subparsers.add_parser(
+        "briefing", help="Generate and narrate the normal Nexus briefing."
+    )
+    voice_briefing.add_argument("--weather")
+    voice_briefing.add_argument("--llm", action="store_true")
+    voice_briefing.add_argument("--agents", action="store_true")
+    voice_briefing.add_argument("--model-tier", choices=["simple", "complex"])
+    voice_briefing.add_argument("--show-prompt", action="store_true")
+    voice_briefing.add_argument("--now")
+    voice_briefing.add_argument("--live-tools", action="store_true")
+    voice_briefing.add_argument("--output")
+    voice_briefing.add_argument(
+        "--play", action=argparse.BooleanOptionalAction, default=None
+    )
+
     tool_parser = subparsers.add_parser("tool", help="Run permissioned external tools.")
     tool_subparsers = tool_parser.add_subparsers(dest="tool_command", required=True)
     weather_tool = tool_subparsers.add_parser("weather")
@@ -630,6 +696,30 @@ def build_parser() -> argparse.ArgumentParser:
 
     llm_subparsers.add_parser(
         "show", help="Show local LLM configuration with masked API key."
+    )
+
+    voice_config_parser = config_subparsers.add_parser(
+        "voice", help="Manage local voice configuration."
+    )
+    voice_config_subparsers = voice_config_parser.add_subparsers(
+        dest="voice_config_command", required=True
+    )
+    voice_set = voice_config_subparsers.add_parser(
+        "set", help="Save local voice configuration."
+    )
+    voice_set.add_argument("--enable", action="store_true", default=None)
+    voice_set.add_argument("--model")
+    voice_set.add_argument("--language")
+    voice_set.add_argument("--voice")
+    voice_set.add_argument("--sample-rate", type=int)
+    voice_set.add_argument("--max-record-seconds", type=int)
+    voice_set.add_argument("--max-audio-mib", type=int)
+    voice_set.add_argument(
+        "--play", action=argparse.BooleanOptionalAction, default=None
+    )
+    voice_config_subparsers.add_parser("show", help="Show local voice configuration.")
+    voice_config_subparsers.add_parser(
+        "disable", help="Disable local voice operations."
     )
 
     embedding_parser = config_subparsers.add_parser(
@@ -1094,6 +1184,236 @@ def _runtime_patch_values(args: argparse.Namespace) -> dict[str, Any]:
     return changes
 
 
+def _briefing_result(
+    args: argparse.Namespace,
+    *,
+    user_name: str,
+    now: datetime | None,
+    service: NexusService,
+    store: JsonStore,
+    retriever: Any,
+    tool_manager: Any,
+    mcp_manager: Any,
+    agent_traces: AgentTraceStore,
+) -> dict[str, Any]:
+    live_context = tool_manager.briefing_context(now) if args.live_tools else None
+    if args.llm:
+        config = LLMConfig.from_env(model_tier=args.model_tier)
+        llm = OpenAICompatibleLLM(config) if config.is_configured else None
+        service = NexusService(store, llm=llm, memory_retriever=retriever)
+    if args.agents:
+        orchestrator = AgentOrchestrator(
+            service, mcp_manager=mcp_manager, trace_store=agent_traces
+        )
+        return orchestrator.run_briefing(
+            user_name=user_name,
+            weather=args.weather,
+            now=now,
+            use_llm=args.llm,
+            external_context=live_context,
+        )
+    return service.daily_briefing(
+        user_name,
+        args.weather,
+        now,
+        args.llm,
+        args.show_prompt,
+        external_context=live_context,
+    )
+
+
+def _voice_config_values(args: argparse.Namespace) -> dict[str, Any]:
+    current = load_voice_settings()
+    max_audio_bytes = (
+        current.max_audio_bytes
+        if args.max_audio_mib is None
+        else args.max_audio_mib * 1024 * 1024
+    )
+    return {
+        "enabled": current.enabled if args.enable is None else args.enable,
+        "transcription_provider": current.transcription_provider,
+        "transcription_model": (
+            current.transcription_model if args.model is None else args.model
+        ),
+        "synthesis_provider": current.synthesis_provider,
+        "voice": current.voice if args.voice is None else args.voice,
+        "language": current.language if args.language is None else args.language,
+        "sample_rate": (
+            current.sample_rate if args.sample_rate is None else args.sample_rate
+        ),
+        "max_record_seconds": (
+            current.max_record_seconds
+            if args.max_record_seconds is None
+            else args.max_record_seconds
+        ),
+        "max_audio_bytes": max_audio_bytes,
+        "play_audio": current.play_audio if args.play is None else args.play,
+    }
+
+
+def _dispatch_voice(args: argparse.Namespace) -> bool:
+    is_voice_config = args.command == "config" and args.config_command == "voice"
+    if not is_voice_config and args.command != "voice":
+        return False
+
+    try:
+        if is_voice_config:
+            if args.voice_config_command == "show":
+                print_json({"voice": load_voice_settings().masked()})
+                return True
+            if args.voice_config_command == "disable":
+                settings, path = disable_voice_settings()
+            else:
+                settings, path = update_voice_settings(**_voice_config_values(args))
+            print_json(
+                {"status": "ok", "path": str(path), "voice": settings.masked()}
+            )
+            return True
+
+        settings = load_voice_settings()
+        if args.voice_command == "status":
+            print_json({"status": "ok", "voice": settings.masked()})
+            return True
+        if not settings.enabled:
+            raise VoiceConfigurationError("Voice support is disabled.")
+        if (
+            args.voice_command == "ask"
+            and args.record_seconds is not None
+            and not 1 <= args.record_seconds <= settings.max_record_seconds
+        ):
+            raise ValueError(
+                "record-seconds must be between 1 and "
+                f"{settings.max_record_seconds}."
+            )
+
+        recorder, transcriber, synthesizer = build_voice_providers(settings)
+        if args.voice_command == "record":
+            if not 1 <= args.seconds <= settings.max_record_seconds:
+                raise ValueError(
+                    "seconds must be between 1 and "
+                    f"{settings.max_record_seconds}."
+                )
+            output_path = Path(args.output).expanduser().resolve(strict=False)
+            if output_path.suffix.lower() != ".wav":
+                raise ValueError("record output must use a WAV suffix.")
+            if not output_path.parent.is_dir():
+                raise ValueError("record output parent must exist.")
+            recorded = recorder.record(
+                output_path, seconds=args.seconds, sample_rate=settings.sample_rate
+            )
+            print_json(
+                {
+                    "status": "ok",
+                    "output_path": str(Path(recorded).resolve(strict=False)),
+                }
+            )
+            return True
+        if args.voice_command == "transcribe":
+            audio_path = validate_audio_file(
+                Path(args.input),
+                max_bytes=settings.max_audio_bytes,
+                max_seconds=settings.max_record_seconds,
+            )
+            language = None if settings.language == "auto" else settings.language
+            print_json(
+                {
+                    "transcript": transcriber.transcribe(
+                        audio_path, language=language
+                    ).to_dict()
+                }
+            )
+            return True
+        if args.voice_command == "speak":
+            output_path = (
+                Path(args.output).expanduser().resolve(strict=False)
+                if args.output is not None
+                else None
+            )
+            play = settings.play_audio if args.play is None else args.play
+            speech = synthesizer.synthesize(
+                args.text,
+                voice=settings.voice,
+                output_path=output_path,
+                play=play,
+            )
+            print_json({"speech": speech.to_dict()})
+            return True
+
+        profile, _runtime = load_runtime_settings()
+        store = JsonStore.from_env()
+        embedding_settings = load_embedding_settings()
+        retriever = build_memory_retriever(embedding_settings, nexus_home())
+        llm = None
+        if args.voice_command == "ask" and args.llm:
+            llm_config = LLMConfig.from_env(model_tier=args.model_tier)
+            llm = (
+                OpenAICompatibleLLM(llm_config)
+                if llm_config.is_configured
+                else None
+            )
+        service = NexusService(store, llm=llm, memory_retriever=retriever)
+        if args.voice_command == "ask":
+            conversation = ConversationService(
+                service, timezone=profile.timezone, llm=service.llm
+            )
+            voice = VoiceService(
+                settings=settings,
+                recorder=recorder,
+                transcriber=transcriber,
+                synthesizer=synthesizer,
+                conversation=conversation,
+            )
+            result = voice.ask(
+                audio_path=Path(args.input) if args.input is not None else None,
+                record_seconds=args.record_seconds,
+                approved=args.approve,
+                use_llm=args.llm,
+                show_intent=args.show_intent,
+                now=_parse_optional_now(args.now),
+                output_path=Path(args.output) if args.output is not None else None,
+                play=args.play,
+            )
+            print_json(result)
+            return True
+
+        now = _parse_optional_now(args.now) or datetime.now(
+            ZoneInfo(profile.timezone)
+        )
+        tool_manager = build_tool_manager(load_tool_settings(), nexus_home())
+        mcp_manager = build_mcp_manager(load_mcp_settings(), nexus_home())
+        briefing = _briefing_result(
+            args,
+            user_name=profile.display_name,
+            now=now,
+            service=service,
+            store=store,
+            retriever=retriever,
+            tool_manager=tool_manager,
+            mcp_manager=mcp_manager,
+            agent_traces=AgentTraceStore(nexus_home() / "agent_runs.jsonl"),
+        )
+        voice = VoiceService(
+            settings=settings,
+            recorder=recorder,
+            transcriber=transcriber,
+            synthesizer=synthesizer,
+            conversation=None,
+        )
+        print_json(
+            voice.narrate_briefing(
+                briefing,
+                output_path=Path(args.output) if args.output is not None else None,
+                play=args.play,
+            )
+        )
+    except VoiceError as exc:
+        print_json({"status": "error", "error": str(exc)})
+        raise SystemExit(1) from exc
+    except (TypeError, ValueError) as exc:
+        _error_exit("invalid_voice_config", str(exc), 2)
+    return True
+
+
 def _dispatch_phase10(args: argparse.Namespace) -> bool:
     if args.command == "config" and args.config_command == "profile":
         try:
@@ -1266,6 +1586,8 @@ def _dispatch_phase10(args: argparse.Namespace) -> bool:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if _dispatch_voice(args):
+        return
     if _dispatch_phase10(args):
         return
     store = JsonStore.from_env()
@@ -2009,35 +2331,19 @@ def main() -> None:
 
     if args.command == "briefing":
         now = datetime.fromisoformat(args.now) if args.now else None
-        live_context = tool_manager.briefing_context(now) if args.live_tools else None
-        if args.llm:
-            config = LLMConfig.from_env(model_tier=args.model_tier)
-            llm = OpenAICompatibleLLM(config) if config.is_configured else None
-            service = NexusService(store, llm=llm, memory_retriever=retriever)
-        if args.agents:
-            orchestrator = AgentOrchestrator(
-                service, mcp_manager=mcp_manager, trace_store=agent_traces
+        print_json(
+            _briefing_result(
+                args,
+                user_name=args.name,
+                now=now,
+                service=service,
+                store=store,
+                retriever=retriever,
+                tool_manager=tool_manager,
+                mcp_manager=mcp_manager,
+                agent_traces=agent_traces,
             )
-            print_json(
-                orchestrator.run_briefing(
-                    user_name=args.name,
-                    weather=args.weather,
-                    now=now,
-                    use_llm=args.llm,
-                    external_context=live_context,
-                )
-            )
-        else:
-            print_json(
-                service.daily_briefing(
-                    args.name,
-                    args.weather,
-                    now,
-                    args.llm,
-                    args.show_prompt,
-                    external_context=live_context,
-                )
-            )
+        )
         return
 
     if args.command == "config" and args.config_command == "llm":
