@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 import wave
 from pathlib import Path
@@ -49,6 +51,27 @@ class FakeSoundDevice:
 
     def wait(self) -> None:
         self.waited = True
+
+
+class FailingSoundDevice(FakeSoundDevice):
+    def __init__(self, stage: str, error: Exception) -> None:
+        super().__init__()
+        self.stage = stage
+        self.error = error
+
+    def rec(
+        self, frames: int, *, samplerate: int, channels: int, dtype: str
+    ) -> FakeRecording:
+        if self.stage == "record":
+            raise self.error
+        return super().rec(
+            frames, samplerate=samplerate, channels=channels, dtype=dtype
+        )
+
+    def wait(self) -> None:
+        if self.stage == "wait":
+            raise self.error
+        super().wait()
 
 
 class FakeSegment:
@@ -104,6 +127,43 @@ def test_sounddevice_recorder_writes_mono_pcm_int16_wav(
         assert audio.getnframes() == 16_000
 
 
+@pytest.mark.parametrize("stage", ["record", "wait"])
+def test_sounddevice_recorder_normalizes_device_failures_without_leaking_details(
+    stage: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    secret = "device-secret-details"
+    sounddevice = FailingSoundDevice(stage, RuntimeError(secret))
+    monkeypatch.setattr(voice_providers, "_import_sounddevice", lambda: sounddevice)
+
+    with pytest.raises(VoiceUnavailableError) as captured:
+        SoundDeviceRecorder().record(
+            tmp_path / "recording.wav", seconds=1, sample_rate=8_000
+        )
+
+    assert str(captured.value) == "Audio recording failed."
+    assert secret not in str(captured.value)
+
+
+def test_sounddevice_recorder_normalizes_wav_write_failures_without_leaking_details(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sounddevice = FakeSoundDevice()
+    monkeypatch.setattr(voice_providers, "_import_sounddevice", lambda: sounddevice)
+    monkeypatch.setattr(
+        voice_providers.wave,
+        "open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("private path")),
+    )
+
+    with pytest.raises(VoiceUnavailableError) as captured:
+        SoundDeviceRecorder().record(
+            tmp_path / "recording.wav", seconds=1, sample_rate=8_000
+        )
+
+    assert str(captured.value) == "Audio recording failed."
+    assert "private path" not in str(captured.value)
+
+
 def test_recorder_rejects_missing_output_parent(tmp_path: Path) -> None:
     with pytest.raises(VoiceConfigurationError, match="parent"):
         SoundDeviceRecorder().record(
@@ -154,6 +214,54 @@ def test_faster_whisper_reports_missing_optional_dependency(
         )
 
 
+def test_faster_whisper_normalizes_model_initialization_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        voice_providers,
+        "_load_whisper_model",
+        lambda _name: (_ for _ in ()).throw(RuntimeError("private model cache")),
+    )
+
+    with pytest.raises(VoiceUnavailableError) as captured:
+        FasterWhisperTranscriber("small").transcribe(
+            write_test_wav(tmp_path / "input.wav"), language=None
+        )
+
+    assert str(captured.value) == "Speech transcription is unavailable."
+    assert "private model cache" not in str(captured.value)
+
+
+@pytest.mark.parametrize("failure_stage", ["transcribe", "iterate"])
+def test_faster_whisper_normalizes_runtime_failures_without_leaking_details(
+    failure_stage: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    secret = "private device or model details"
+
+    class FailingWhisperModel:
+        def transcribe(self, *_args: Any, **_kwargs: Any) -> tuple[Any, Any]:
+            if failure_stage == "transcribe":
+                raise OSError(secret)
+
+            def failing_segments() -> Any:
+                raise RuntimeError(secret)
+                yield
+
+            return failing_segments(), SimpleNamespace(language="en", duration=0.1)
+
+    monkeypatch.setattr(
+        voice_providers, "_load_whisper_model", lambda _name: FailingWhisperModel()
+    )
+
+    with pytest.raises(VoiceUnavailableError) as captured:
+        FasterWhisperTranscriber("small").transcribe(
+            write_test_wav(tmp_path / "input.wav"), language=None
+        )
+
+    assert str(captured.value) == "Speech transcription failed."
+    assert secret not in str(captured.value)
+
+
 def test_faster_whisper_rejects_empty_output(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -191,15 +299,59 @@ def test_system_speech_uses_shell_false_stdin_and_bounded_timeout(
     )
 
     assert calls[0][0][0].endswith("powershell.exe")
-    assert "hello" not in calls[0][0]
+    assert calls[0][0] == [
+        "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        voice_providers._WINDOWS_SPEECH_SCRIPT,
+    ]
     assert calls[0][1] == {
         "shell": False,
-        "input": "hello",
+        "input": json.dumps(
+            {"text": "hello", "voice": None, "output": None, "play": True}
+        ),
         "text": True,
         "capture_output": True,
         "timeout": 20,
     }
     assert result.played is True
+
+
+@pytest.mark.skipif(
+    shutil.which("powershell.exe") is None and shutil.which("pwsh") is None,
+    reason="PowerShell is required for the Windows parsing regression",
+)
+def test_windows_speech_payload_keeps_dynamic_values_out_of_powershell_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    powershell = shutil.which("powershell.exe") or shutil.which("pwsh")
+    assert powershell is not None
+    sentinel = tmp_path / "injected.txt"
+    output = tmp_path / "speech output with spaces.json"
+    voice = f"voice'; Set-Content -LiteralPath '{sentinel}' owned; #"
+    harmless_script = r"""
+$payload = [Console]::In.ReadToEnd() | ConvertFrom-Json
+[IO.File]::WriteAllText(
+    [string]$payload.output,
+    ($payload | ConvertTo-Json -Compress)
+)
+""".strip()
+    monkeypatch.setattr(voice_providers, "_platform_name", lambda: "Windows")
+    monkeypatch.setattr(voice_providers, "_system_speech_executable", lambda _name: powershell)
+    monkeypatch.setattr(voice_providers, "_WINDOWS_SPEECH_SCRIPT", harmless_script)
+
+    SystemSpeechSynthesizer().synthesize(
+        "hello; Write-Output source", voice=voice, output_path=output, play=False
+    )
+
+    assert json.loads(output.read_text(encoding="utf-8-sig")) == {
+        "text": "hello; Write-Output source",
+        "voice": voice,
+        "output": str(output.resolve()),
+        "play": False,
+    }
+    assert not sentinel.exists()
 
 
 @pytest.mark.parametrize("platform_name", ["Plan9", "FreeBSD"])

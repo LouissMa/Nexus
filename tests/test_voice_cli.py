@@ -22,6 +22,8 @@ from nexus.voice import (
     VoiceConfigurationError,
     VoiceUnavailableError,
 )
+from nexus import voice_providers
+from nexus.voice_providers import FasterWhisperTranscriber, SoundDeviceRecorder
 
 
 class FakeRecorder:
@@ -336,6 +338,65 @@ def test_voice_provider_error_exits_one(
         "status": "error",
         "error": "optional recording dependency is missing",
     }
+
+
+@pytest.mark.parametrize("operation", ["record", "transcribe"])
+def test_operational_provider_failures_return_safe_structured_json(
+    operation: str,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_nexus_home: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_voice(isolated_nexus_home)
+    secret = "raw driver path and device details"
+
+    class FailingSoundDevice:
+        def rec(self, *_args: object, **_kwargs: object) -> object:
+            raise RuntimeError(secret)
+
+    class FailingWhisperModel:
+        def transcribe(self, *_args: object, **_kwargs: object) -> object:
+            raise OSError(secret)
+
+    monkeypatch.setattr(
+        voice_providers, "_import_sounddevice", lambda: FailingSoundDevice()
+    )
+    monkeypatch.setattr(
+        voice_providers, "_load_whisper_model", lambda _name: FailingWhisperModel()
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_voice_providers",
+        lambda settings: (
+            SoundDeviceRecorder(),
+            FasterWhisperTranscriber(settings.transcription_model),
+            FakeSynthesizer(),
+        ),
+    )
+    arguments = ["voice", "record", str(tmp_path / "capture.wav"), "--seconds", "1"]
+    if operation == "transcribe":
+        arguments = [
+            "voice",
+            "transcribe",
+            str(write_test_wav(tmp_path / "input.wav")),
+        ]
+
+    with pytest.raises(SystemExit) as raised:
+        run_cli(arguments)
+
+    captured = capsys.readouterr()
+    assert raised.value.code == 1
+    assert json.loads(captured.out) == {
+        "status": "error",
+        "error": (
+            "Audio recording failed."
+            if operation == "record"
+            else "Speech transcription failed."
+        ),
+    }
+    assert captured.err == ""
+    assert secret not in captured.out
 
 
 def test_standalone_voice_configuration_error_exits_two(

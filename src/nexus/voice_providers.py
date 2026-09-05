@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import platform
 import shutil
@@ -25,13 +26,14 @@ from nexus.voice import (
 _MAX_SPEECH_CHARACTERS = 4_000
 _MAX_DIAGNOSTIC_CHARACTERS = 1_000
 _WINDOWS_SPEECH_SCRIPT = r"""
+$payload = [Console]::In.ReadToEnd() | ConvertFrom-Json
 Add-Type -AssemblyName System.Speech
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 try {
-    $text = [Console]::In.ReadToEnd()
-    $voice = $args[0]
-    $output = $args[1]
-    $play = $args[2] -eq '1'
+    $text = [string]$payload.text
+    $voice = [string]$payload.voice
+    $output = [string]$payload.output
+    $play = [bool]$payload.play
     if ($voice) { $synth.SelectVoice($voice) }
     if ($output) {
         $synth.SetOutputToWaveFile($output)
@@ -132,19 +134,22 @@ class SoundDeviceRecorder:
                 "Audio recording requires the optional voice dependencies."
             ) from error
 
-        frame_count = seconds * sample_rate
-        recording = sounddevice.rec(
-            frame_count,
-            samplerate=sample_rate,
-            channels=1,
-            dtype="int16",
-        )
-        sounddevice.wait()
-        with wave.open(str(path), "wb") as audio:
-            audio.setnchannels(1)
-            audio.setsampwidth(2)
-            audio.setframerate(sample_rate)
-            audio.writeframes(recording.tobytes())
+        try:
+            frame_count = seconds * sample_rate
+            recording = sounddevice.rec(
+                frame_count,
+                samplerate=sample_rate,
+                channels=1,
+                dtype="int16",
+            )
+            sounddevice.wait()
+            with wave.open(str(path), "wb") as audio:
+                audio.setnchannels(1)
+                audio.setsampwidth(2)
+                audio.setframerate(sample_rate)
+                audio.writeframes(recording.tobytes())
+        except Exception as error:
+            raise VoiceUnavailableError("Audio recording failed.") from error
         return path
 
 
@@ -163,6 +168,10 @@ class FasterWhisperTranscriber:
                 raise VoiceUnavailableError(
                     "Transcription requires the optional voice dependencies."
                 ) from error
+            except Exception as error:
+                raise VoiceUnavailableError(
+                    "Speech transcription is unavailable."
+                ) from error
         return self._model
 
     def transcribe(
@@ -173,18 +182,22 @@ class FasterWhisperTranscriber:
             raise VoiceConfigurationError(
                 "Transcription input must be an existing WAV file."
             )
-        segments, info = self._get_model().transcribe(
-            str(path), language=language, vad_filter=True
-        )
-        text = " ".join(
-            cleaned
-            for segment in segments
-            if (cleaned := str(segment.text).strip())
-        )
+        model = self._get_model()
+        try:
+            segments, info = model.transcribe(
+                str(path), language=language, vad_filter=True
+            )
+            text = " ".join(
+                cleaned
+                for segment in segments
+                if (cleaned := str(segment.text).strip())
+            )
+            detected_language = getattr(info, "language", None) or language
+            duration = getattr(info, "duration", None)
+        except Exception as error:
+            raise VoiceUnavailableError("Speech transcription failed.") from error
         if not text:
             raise VoiceError("Transcription produced an empty transcript.")
-        detected_language = getattr(info, "language", None) or language
-        duration = getattr(info, "duration", None)
         return TranscriptionResult(
             text=text,
             provider="faster_whisper",
@@ -233,8 +246,20 @@ class SystemSpeechSynthesizer:
             output_path=path,
             play=play,
         )
+        stdin = (
+            json.dumps(
+                {
+                    "text": text,
+                    "voice": voice.strip() if voice else None,
+                    "output": str(path) if path is not None else None,
+                    "play": play,
+                }
+            )
+            if platform_name == "Windows"
+            else text
+        )
         for command in commands:
-            self._run(command, text)
+            self._run(command, stdin)
         return SpeechResult(
             provider="system",
             played=play,
@@ -270,9 +295,6 @@ class SystemSpeechSynthesizer:
                     "-NonInteractive",
                     "-Command",
                     _WINDOWS_SPEECH_SCRIPT,
-                    voice or "",
-                    str(output_path) if output_path else "",
-                    "1" if play else "0",
                 ]
             ]
 
