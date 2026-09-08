@@ -198,18 +198,19 @@ Current status: `[x]` Research Companion 2.0 completed with bounded acquisition,
 
 ## 12. Long-Term Multimodal and Embodied Interfaces
 
-Current status: `[-]` Roadmap Phase 13 is partially complete: the Voice Assistant MVP subset is delivered, while the remaining multimodal and embodied work is not started.
+Current status: `[~]` Roadmap Phase 13 includes Voice Assistant MVP and Voice Assistant 2.0 foreground continuous turn-taking. Remaining multimodal and embodied work is not started.
 
 - [x] Explicit duration-bounded push-to-talk recording, local `faster-whisper` transcription, and operating-system speech output.
 - [x] Voice conversation through existing intent/approval handling and narrated briefings through existing briefing/runtime services.
-- [ ] Continuous listening and wake-word activation.
+- [x] Continuous foreground voice sessions with WebRTC VAD, stop phrases, idle/turn limits, cleanup, and approval stop.
+- [ ] Wake-word activation, speech interruption, and background listening.
 - [ ] Permissioned visual context.
 - [ ] Family profiles.
 - [ ] Smart-home adapters.
 - [ ] Robotics adapter with simulation-first safety controls.
 - [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
-The delivered voice subset reuses conversation, briefing, runtime, permission, and configuration boundaries. Its initial adapters keep audio local, and it has no continuous listener or wake word. Remaining interfaces should reuse the existing memory, planning, runtime, permission, configuration-transaction, and audit layers. They are not current AGI capabilities.
+The delivered voice subset reuses conversation, briefing, runtime, permission, and configuration boundaries. Audio stays local; continuous turn-taking runs only inside explicitly launched `voice chat`. Wake words and full-duplex conversation are not implemented. Remaining interfaces should reuse existing core boundaries. These are not AGI capabilities.
 
 ## Maintenance Rules
 

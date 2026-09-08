@@ -31,6 +31,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Voice Assistant
 
+- `src/nexus/voice_session.py`: Foreground session lifecycle, WebRTC VAD microphone capture with pre-roll and silence endpointing, idle/turn bounds, JSON events, temporary-audio cleanup, and stop-on-approval behavior. Reuses `VoiceService` with session stop-phrase handling and optional text-only output.
+- `tests/test_voice_session.py`: Continuous turn lifecycle, stop phrases, no-speech handling, approval boundary, Ctrl+C cleanup, microphone release, and duration bounds using fake audio providers.
+- `docs/superpowers/specs/2026-09-08-continuous-voice-design.md`: Voice Assistant 2.0 behavior, limits, architecture, and verification scope.
+
 - `src/nexus/voice.py`: Voice provider protocols and result models; bounded input/output validation; temporary-recording cleanup; deterministic speech rendering; and conversation/briefing orchestration through existing services.
 - `src/nexus/voice_providers.py`: Lazy optional `sounddevice` recorder and `faster-whisper` transcriber plus bounded Windows/macOS/Linux system speech adapters using fixed commands and `shell=False`.
 

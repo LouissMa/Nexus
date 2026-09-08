@@ -13,12 +13,12 @@ from typing import Any
 from nexus.config import VoiceSettings
 from nexus.voice import (
     AudioRecorder,
+    EmptyTranscriptionError,
     SpeechSynthesizer,
     SpeechTranscriber,
     SpeechResult,
     TranscriptionResult,
     VoiceConfigurationError,
-    VoiceError,
     VoiceUnavailableError,
 )
 
@@ -197,7 +197,7 @@ class FasterWhisperTranscriber:
         except Exception as error:
             raise VoiceUnavailableError("Speech transcription failed.") from error
         if not text:
-            raise VoiceError("Transcription produced an empty transcript.")
+            raise EmptyTranscriptionError("Transcription produced an empty transcript.")
         return TranscriptionResult(
             text=text,
             provider="faster_whisper",

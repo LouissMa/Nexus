@@ -149,6 +149,16 @@ Archive and forget are reversible. Permanent purge requires forgotten state and 
 
 ## Explicit Voice Flow
 
+`nexus voice chat` uses `voice_session.py` to alternate WebRTC VAD capture,
+`VoiceService.ask`, and system playback. The 16 kHz mono input stream closes
+before transcription/playback. Each temporary WAV is removed at turn exit.
+Idle timeout, capture-attempt limits, stop phrases, pending approvals, and Ctrl+C
+terminate the foreground session. Empty recognition resumes within the same
+attempt budget. No approval is inherited by later turns. The shared Whisper
+instance caches the model; conversational history and full-duplex audio are
+not added. Session events are emitted as flushed JSON lines without a new
+persistent transcript store.
+
 ```text
 nexus voice ask --record-seconds N
   -> require enabled VoiceSettings and enforce recording/audio bounds
@@ -166,7 +176,7 @@ nexus voice briefing
   -> preserve the completed structured briefing if speech is unavailable
 ```
 
-Voice is an explicit interface beside conversation and runtime, not a second assistant core. For `voice briefing`, the CLI first uses the shared `_briefing_result` helper and existing `NexusService` or Agent orchestration; only the completed briefing is passed to `VoiceService.narrate_briefing` for rendering and OS speech. The proactive scheduler separately consumes the same briefing services and does not route through `VoiceService`. Text commands do not need the voice extra or an API key. The initial adapters do not upload audio; `faster-whisper` may download the configured model on first use, while OS speech availability varies by platform. DeepSeek remains available only through the optional text-generation path and does not supply local STT/TTS. There is no continuous listener or wake-word process.
+Voice is an explicit interface beside conversation and runtime, not a second assistant core. For `voice briefing`, the CLI first uses the shared `_briefing_result` helper and existing `NexusService` or Agent orchestration; only the completed briefing is passed to `VoiceService.narrate_briefing` for rendering and OS speech. The proactive scheduler separately consumes the same briefing services and does not route through `VoiceService`. Text commands do not need the voice extra or an API key. The initial adapters do not upload audio; `faster-whisper` may download the configured model on first use, while OS speech availability varies by platform. DeepSeek remains available only through the optional text-generation path and does not supply local STT/TTS. Continuous turn-taking runs in the explicitly launched foreground session; there is no wake-word process.
 
 ## Proactive Runtime Flow
 
@@ -287,7 +297,7 @@ Path identities and roots are checked before execution and rechecked around sens
 - Read-only integrations remain read-only; Dashboard and Nexus MCP writes are limited to explicit allowlisted domain actions.
 - `ask` actions require one-shot human approval; unattended automation requires explicit `allow`.
 - Prompts, memory text, credentials, raw tool payloads, command output, URLs, and argument values are excluded from operational audits and traces.
-- Phase 13 voice remains explicit, duration-bounded assistance, not continuous listening or an open-ended autonomous loop.
+- Phase 13 voice includes explicit, bounded foreground continuous turn-taking; wake words and open-ended background listening remain future work.
 
 Current limitations include no remote dashboard, arbitrary browser mutations, arbitrary LLM-authored commands, continuous listening, wake word, visual context, family profiles, smart-home control, or robotics. Suggestions consume read-only calendar context only when explicitly requested and do not write calendar events. Research Companion still excludes OCR, JavaScript-rendered or authenticated crawling, arbitrary shell execution, container isolation, and unbounded background research.
 
@@ -305,4 +315,4 @@ Future interfaces should reuse the same memory, planning, permission, transactio
                                      simulation-first
 ```
 
-The explicit local Voice Assistant MVP is current. Continuous voice, vision, home, and robotics integrations remain future adapters, not current capabilities or an AGI claim.
+Voice Assistant MVP and continuous foreground voice sessions are current. Wake words, speech interruption, vision, home, and robotics integrations remain future adapters.

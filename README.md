@@ -66,12 +66,15 @@ Text-only Nexus continues to work without voice dependencies or an API key. Inst
 pip install -e ".[voice]"
 nexus config voice set --enable --model small --language auto
 nexus voice ask --record-seconds 5
+nexus voice chat --max-turns 20 --idle-seconds 30
 nexus voice briefing --live-tools
 ```
 
 `nexus voice ask` records for the requested bounded duration, transcribes the WAV locally, routes the transcript through the same conversation and approval path as `nexus ask`, and uses operating-system speech when available. `nexus voice briefing` reuses the existing text briefing, including explicitly requested live tools. Use `nexus voice status`, `nexus voice record`, `nexus voice transcribe`, and `nexus voice speak` for diagnostics or individual operations.
 
-The initial adapters keep audio local and do not upload it. `faster-whisper` may download the configured model on first use, and OS speech voices and output support vary across Windows, macOS, and Linux. A configured DeepSeek endpoint remains usable for optional text generation, but DeepSeek is text-only in this path and does not provide local speech-to-text or text-to-speech. Nexus records only after an explicit command: it does not continuously listen and has no wake-word support.
+`nexus voice chat` starts Voice Assistant 2.0 continuous turn-taking: WebRTC VAD waits for speech and ends each utterance after about 900 ms of silence. Nexus processes and speaks the reply, then listens again. Say `end conversation` or `结束对话`, press Ctrl+C, or wait for the idle timeout to exit. Pending approvals stop the session with a preview; approvals never carry across turns. `--no-play` returns text without speech. Output is flushed JSON-line session events. The default limit is 20 capture attempts (maximum 100); idle timeout defaults to 30 seconds (maximum 120). Empty transcriptions consume an attempt and resume listening.
+
+Reinstall `pip install -e ".[voice]"` when upgrading to obtain `webrtcvad-wheels`. Audio remains local and temporary recordings are deleted. Whisper may download its model on first use. Add `--llm` to use the configured text LLM for existing intent parsing; transcribed text may then be sent to that provider. Sessions reuse the command router, without new conversational history or pronoun resolution. Listening pauses during processing/playback. Wake words, speech interruption, background listening, and Dashboard microphone access remain future work.
 
 ## Memory, Tools, MCP, and Agents
 
@@ -284,7 +287,7 @@ Local configuration is stored in `.nexus/config.local.json`. CLI and dashboard o
 - Command automation uses a fixed argument vector and `shell=False`. Its working directory and report paths must stay inside explicit existing roots; timeout and captured output are bounded.
 - Notification and automation payloads are bounded; tool, MCP, Agent, and automation records are sanitized, and Dashboard reads expose bounded recent summaries. Corrupt JSONL lines are skipped.
 - Research Companion does not perform OCR, JavaScript-rendered browsing, authenticated crawling, arbitrary shell execution, container isolation, or unbounded background research. Web acquisition requires an explicit HTTPS URL; the restricted experiment runner is not an OS sandbox.
-- Voice recording is explicit and duration-bounded. The initial adapters do not upload audio, but `faster-whisper` may download its configured model; Nexus has no continuous listening, wake word, speaker identification, or Dashboard microphone access.
+- Voice recording is explicit and duration-bounded. Continuous turn-taking runs only during `voice chat`; wake words, speaker identification, speech interruption, and Dashboard microphone access are not implemented.
 - Nexus does not provide open-ended autonomy, remote dashboard hosting, arbitrary browser mutation, arbitrary LLM-authored commands, visual context, smart-home control, or robotics.
 
 ## CLI Command Map
@@ -307,7 +310,7 @@ nexus tool weather|calendar|todo|github|notion|literature|email|files|audit
 nexus mcp servers|tools|call|audit
 nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
-nexus voice status|record|transcribe|speak|ask|briefing
+nexus voice status|record|transcribe|speak|ask|chat|briefing
 
 nexus config llm set|show
 nexus config embedding set|show
@@ -345,6 +348,6 @@ Update both READMEs, the checklist, and the inventory when user-facing capabilit
 
 ## Roadmap Summary
 
-Phases 1-12 and Research Companion 2.0 are implemented. The explicit local Voice Assistant MVP subset of Phase 13 is also implemented: bounded push-to-talk, local transcription and OS speech, unified voice conversation, and narrated briefings.
+Phases 1-12 and Research Companion 2.0 are implemented. Phase 13 includes the Voice Assistant MVP and Voice Assistant 2.0 continuous foreground turn-taking. Wake words, interruption, visual context, and embodied interfaces remain future work.
 
 Continuous listening and wake words, visual context, family profiles, smart-home adapters, and robotics remain future work behind the same permission and audit boundaries.

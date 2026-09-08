@@ -150,15 +150,16 @@ OCR, JavaScript-rendered or authenticated crawling, arbitrary shell execution, c
 
 Objective: explore additional interfaces around the stable Nexus core.
 
-Current status: the explicit local Voice Assistant MVP subset is complete; the rest of Phase 13 remains planned.
+Current status: Voice Assistant MVP and Voice Assistant 2.0 continuous foreground turn-taking are complete; remaining multimodal interfaces are planned.
 
 - [x] Explicit duration-bounded push-to-talk recording, local `faster-whisper` transcription, and operating-system speech output.
 - [x] Voice conversation through the existing intent/approval path and narrated briefings through the existing briefing/runtime services.
-- [ ] Continuous listening and wake-word activation.
+- [x] Voice Assistant 2.0: explicit foreground continuous turn-taking with WebRTC VAD, stop phrases, idle/turn limits, temporary-audio cleanup, and approval stop.
+- [ ] Wake-word activation, speech interruption, and background listening.
 - [ ] Permissioned visual context.
 - [ ] Family profiles.
 - [ ] Smart-home adapters.
 - [ ] Robotics adapter with simulation-first safety testing.
 - [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
-The initial voice adapters keep audio local and do not upload it; `faster-whisper` may download its configured model on first use. This partial phase does not imply that Nexus is AGI or that the current project can continuously listen or autonomously control a home or robot.
+Voice adapters keep audio local; `faster-whisper` may download its configured model on first use. Continuous turn-taking requires explicit `voice chat` startup and pauses listening while processing and speaking. This partial phase does not imply AGI, unattended listening, or autonomous home/robot control.

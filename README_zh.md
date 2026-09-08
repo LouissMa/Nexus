@@ -66,12 +66,15 @@ nexus review day --name Alex
 pip install -e ".[voice]"
 nexus config voice set --enable --model small --language auto
 nexus voice ask --record-seconds 5
+nexus voice chat --max-turns 20 --idle-seconds 30
 nexus voice briefing --live-tools
 ```
 
 `nexus voice ask` 按请求的有限时长录音，在本地转写 WAV，将文字交给与 `nexus ask` 相同的对话与批准流程，并在操作系统语音可用时播报结果。`nexus voice briefing` 复用现有文本简报，也可使用显式请求的实时工具。可用 `nexus voice status`、`nexus voice record`、`nexus voice transcribe` 和 `nexus voice speak` 进行诊断或单项操作。
 
-初始适配器让音频始终留在本地，不会上传音频。`faster-whisper` 首次使用时可能下载已配置的模型；Windows、macOS 和 Linux 可用的系统语音及输出能力各不相同。已配置的 DeepSeek Endpoint 仍可用于可选文本生成，但 DeepSeek 在此路径中仍仅支持文本，不提供本地 STT/TTS。Nexus 只在显式命令后录音：它不会持续监听，也不支持唤醒词。
+`nexus voice chat` 启动 Voice Assistant 2.0 连续轮流会话：WebRTC VAD 等待说话，检测到约 900 毫秒停顿后结束本轮录音。Nexus 处理并播报后自动再次监听。说“结束对话”或 `end conversation`、按 Ctrl+C，或等待静默超时即可退出。遇到待审批操作时停止会话并输出预览，审批不会跨轮继承。`--no-play` 只输出文字。会话事件以实时刷新的 JSON 行输出。默认最多录音尝试 20 轮（上限 100），每轮等待说话 30 秒（上限 120）；空转写消耗一次尝试后继续监听。
+
+升级时重新运行 `pip install -e ".[voice]"` 安装 `webrtcvad-wheels`。音频始终保留在本地，临时录音会被删除；Whisper 首次运行可能下载模型。添加 `--llm` 可使用已配置的文本 LLM 解析意图，此时转写文字可能发送给该厂商。会话复用现有命令路由，没有新增聊天历史推理或代词消解。处理和播报时暂停监听；唤醒词、语音打断、后台监听和 Dashboard 麦克风仍待实现。
 
 ## 记忆、工具、MCP 与 Agent
 
@@ -284,7 +287,7 @@ nexus briefing --llm --model-tier simple
 - 命令自动化使用固定参数数组和 `shell=False`。工作目录和报告路径必须位于显式存在的 Root 内；执行时间和捕获输出都有上限。
 - 通知与自动化 Payload 有明确边界；工具、MCP、Agent 和自动化记录会脱敏，Dashboard 只公开有界的最近摘要；损坏的 JSONL 行会被跳过。
 - Research Companion 不执行 OCR、JavaScript 渲染浏览、登录态爬取、任意 Shell、容器隔离或无边界后台研究。网页摄取必须提供明确 HTTPS URL；受限实验运行器不等于操作系统沙箱。
-- 语音录音必须显式启动且有时长上限。初始适配器不会上传音频，但 `faster-whisper` 可能下载其配置模型；Nexus 不支持持续监听、唤醒词、说话人识别或 Dashboard 麦克风访问。
+- 语音录音必须显式启动且有时长上限。连续轮流监听仅在 `voice chat` 运行期间启用；唤醒词、说话人识别、语音打断和 Dashboard 麦克风访问尚未实现。
 - Nexus 当前不提供开放式自主运行、远程 Dashboard、浏览器任意写操作、LLM 任意生成命令、视觉上下文、智能家居控制或机器人能力。
 
 ## CLI 命令地图
@@ -307,7 +310,7 @@ nexus tool weather|calendar|todo|github|notion|literature|email|files|audit
 nexus mcp servers|tools|call|audit
 nexus mcp-server stdio [--approve-tool NAME]
 nexus agent runs|show
-nexus voice status|record|transcribe|speak|ask|briefing
+nexus voice status|record|transcribe|speak|ask|chat|briefing
 
 nexus config llm set|show
 nexus config embedding set|show
@@ -345,6 +348,6 @@ python -m ruff format --check src tests
 
 ## 路线概览
 
-Phase 1-12 与 Research Companion 2.0 已完成。Phase 13 中显式启动的本地 Voice Assistant MVP 子集也已完成：有限时长按键说话、本地转写与操作系统语音、统一语音对话和语音简报。
+Phase 1-12 与 Research Companion 2.0 已完成。Phase 13 已包含 Voice Assistant MVP 和 Voice Assistant 2.0 前台连续轮流会话。唤醒词、语音打断、视觉上下文及具身接口仍待实现。
 
 持续监听与唤醒词、视觉上下文、家庭成员配置、智能家居适配器和机器人能力仍是未来工作，并且必须复用同一套权限和审计边界。

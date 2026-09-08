@@ -621,8 +621,8 @@ def test_readmes_document_voice_setup_commands_and_listening_boundary() -> None:
     for command in commands:
         assert command in english
         assert command in chinese
-    assert "does not continuously listen" in english
-    assert "不会持续监听" in chinese
+    assert "nexus voice chat" in english
+    assert "nexus voice chat" in chinese
 
 
 def test_file_inventory_names_voice_modules() -> None:
@@ -633,6 +633,23 @@ def test_file_inventory_names_voice_modules() -> None:
 
     assert "`src/nexus/voice.py`" in inventory
     assert "`src/nexus/voice_providers.py`" in inventory
+
+
+def test_continuous_voice_cli(isolated_nexus_home, monkeypatch, capsys):
+    from nexus.voice_session import SpeechTurnRecorder
+
+    configure_voice(isolated_nexus_home)
+    monkeypatch.setattr(cli, "build_voice_providers", lambda settings: fake_providers())
+
+    def capture(self, path, **kwargs):
+        write_test_wav(path)
+        return True
+
+    monkeypatch.setattr(SpeechTurnRecorder, "record_turn", capture)
+    run_cli(["voice", "chat", "--max-turns", "2", "--no-play"])
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert events[-1] == {"event": "session_end", "reason": "turn_limit", "completed_turns": 2}
+    assert len([event for event in events if event["event"] == "turn"]) == 2
 
 
 def test_architecture_documents_actual_voice_briefing_direction() -> None:

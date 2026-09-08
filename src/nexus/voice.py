@@ -26,6 +26,10 @@ class InvalidAudioError(VoiceError):
     """Raised when an input audio file violates the local safety contract."""
 
 
+class EmptyTranscriptionError(VoiceError):
+    """No usable speech was recognized in an audio turn."""
+
+
 @dataclass(frozen=True)
 class TranscriptionResult:
     text: str
@@ -158,6 +162,7 @@ class VoiceService:
         now: datetime | None = None,
         output_path: Path | None = None,
         play: bool | None = None,
+        session: bool = False,
     ) -> dict[str, Any]:
         self._require_enabled()
         if (audio_path is None) == (record_seconds is None):
@@ -204,7 +209,12 @@ class VoiceService:
                 language=language,
             )
             if not transcript.text.strip():
-                raise VoiceError("Transcription returned an empty transcript.")
+                raise EmptyTranscriptionError("Transcription returned an empty transcript.")
+
+            if session and transcript.text.strip().lower().strip(".!?。！？ ") in {
+                "stop listening", "end conversation", "exit", "结束对话", "停止监听", "退出语音"
+            }:
+                return {"session_stop": True}
 
             conversation = self.conversation.handle(
                 transcript.text.strip(),
@@ -214,11 +224,14 @@ class VoiceService:
                 now=now,
             )
             speech_text = render_conversation_speech(conversation)
-            speech, synthesis_degradations = self._synthesize(
-                speech_text,
-                output_path=output_path,
-                play=play,
-            )
+            if session and play is False:
+                speech, synthesis_degradations = None, []
+            else:
+                speech, synthesis_degradations = self._synthesize(
+                    speech_text,
+                    output_path=output_path,
+                    play=play,
+                )
             degradations = list(conversation.get("degradations", []))
             degradations.extend(synthesis_degradations)
             return {

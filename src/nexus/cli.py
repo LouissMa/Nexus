@@ -549,6 +549,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="voice_command", required=True
     )
     voice_subparsers.add_parser("status", help="Show local voice configuration.")
+    voice_chat = voice_subparsers.add_parser("chat", help="Start a bounded continuous voice session.")
+    voice_chat.add_argument("--max-turns", type=int, default=20)
+    voice_chat.add_argument("--idle-seconds", type=int, default=30)
+    voice_chat.add_argument("--llm", action="store_true")
+    voice_chat.add_argument("--model-tier", choices=["simple", "complex"])
+    voice_chat.add_argument("--play", action=argparse.BooleanOptionalAction, default=None)
     voice_record = voice_subparsers.add_parser(
         "record", help="Record a bounded WAV file."
     )
@@ -1357,7 +1363,7 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
         embedding_settings = load_embedding_settings()
         retriever = build_memory_retriever(embedding_settings, nexus_home())
         llm = None
-        if args.voice_command == "ask" and args.llm:
+        if args.voice_command in {"ask", "chat"} and args.llm:
             llm_config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = (
                 OpenAICompatibleLLM(llm_config)
@@ -1365,7 +1371,7 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
                 else None
             )
         service = NexusService(store, llm=llm, memory_retriever=retriever)
-        if args.voice_command == "ask":
+        if args.voice_command in {"ask", "chat"}:
             conversation = ConversationService(
                 service, timezone=profile.timezone, llm=service.llm
             )
@@ -1376,6 +1382,19 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
                 synthesizer=synthesizer,
                 conversation=conversation,
             )
+            if args.voice_command == "chat":
+                from nexus.voice_session import SpeechTurnRecorder, run_voice_session
+
+                def emit_voice_event(event):
+                    print(json.dumps(event, ensure_ascii=False), flush=True)
+
+                run_voice_session(
+                    voice, recorder=SpeechTurnRecorder(), max_turns=args.max_turns,
+                    idle_seconds=args.idle_seconds, use_llm=args.llm,
+                    play=settings.play_audio if args.play is None else args.play,
+                    emit=emit_voice_event,
+                )
+                return True
             result = voice.ask(
                 audio_path=Path(args.input) if args.input is not None else None,
                 record_seconds=args.record_seconds,
