@@ -163,3 +163,18 @@ Current status: Voice Assistant MVP and Voice Assistant 2.0 continuous foregroun
 - [ ] Connect future voice/vision interfaces to permissioned Research Companion workflows.
 
 Voice adapters keep audio local; `faster-whisper` may download its configured model on first use. Continuous turn-taking requires explicit `voice chat` startup and pauses listening while processing and speaking. This partial phase does not imply AGI, unattended listening, or autonomous home/robot control.
+
+## Phase 14: Desktop Task Agent
+
+Current status: foundation implemented; richer computer interaction remains planned.
+
+- [x] Chinese/English file search and open intents shared by text and voice.
+- [x] Bounded filename search including images, configured roots, metadata, and truncation.
+- [x] In-session numbered candidates and approved Windows document opening.
+- [x] Registered Windows application launch with no model-authored arguments.
+- [x] Existing browser automation aliases, policy checks, and launch plus today's task list.
+- [x] Explicit startup-request semantics, tests, and synchronized documentation.
+- [ ] OCR, semantic image retrieval, and thumbnail candidates.
+- [ ] Application discovery and desktop UI interaction.
+- [ ] General task plans, execution verification, bounded retries, and reusable workflows.
+- [ ] Evaluate reusable OpenClaw components individually before integration.

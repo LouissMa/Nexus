@@ -25,7 +25,7 @@ from .runtime_config import RUNTIME_JOB_NAMES
 from .store import JsonStore
 
 
-AUTOMATION_TYPES = {"browser", "command", "github_inspect", "status_report"}
+AUTOMATION_TYPES = {"browser", "application", "command", "github_inspect", "status_report"}
 AUTOMATION_POLICIES = {"deny", "ask", "allow"}
 ACTION_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 SAFE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$")
@@ -35,13 +35,14 @@ MAX_AUDIT_EVENTS = 1_000
 
 _COMMON_FIELDS = {"type", "enabled", "policy"}
 _TYPE_FIELDS = {
+    "application": _COMMON_FIELDS | {"executable"},
     "browser": _COMMON_FIELDS | {"url", "allowed_hosts"},
     "command": _COMMON_FIELDS
     | {"argv", "cwd", "allowed_roots", "timeout_seconds", "max_output_bytes"},
     "github_inspect": _COMMON_FIELDS | {"repo", "limit"},
     "status_report": _COMMON_FIELDS | {"output_path", "allowed_roots"},
 }
-_MASKED_FIELDS = {"url", "allowed_hosts", "argv", "cwd", "allowed_roots", "output_path"}
+_MASKED_FIELDS = {"url", "allowed_hosts", "argv", "cwd", "allowed_roots", "output_path", "executable"}
 _TASK_STATUSES = ("pending", "in_progress", "completed", "blocked")
 
 
@@ -946,6 +947,12 @@ class AutomationManager:
             _verify_path_guard(self._path_guards[name])
         if automation_type == "browser":
             return self._run_browser(definition)
+        if automation_type == "application":
+            executable = _application_path(definition.get("executable"))
+            if os.name != "nt":
+                raise AutomationExecutionError("platform_unsupported", "Application launching currently requires Windows.")
+            os.startfile(str(executable))
+            return {"launch_status": "launch_requested", "verified": "executable_exists"}
         if automation_type == "command":
             return self._run_command(definition)
         if automation_type == "github_inspect":
@@ -1157,6 +1164,8 @@ def _validate_definition(name: str, value: Any) -> dict[str, Any]:
                 "Browser URL host is outside allowed_hosts."
             )
         definition["allowed_hosts"] = normalized_hosts
+    elif automation_type == "application":
+        definition["executable"] = str(_application_path(definition.get("executable")))
     elif automation_type == "command":
         _validate_command_definition(definition)
     elif automation_type == "github_inspect":
@@ -1184,6 +1193,18 @@ def _validate_definition(name: str, value: Any) -> dict[str, Any]:
     else:
         _validate_status_definition(definition)
     return definition
+
+
+def _application_path(value: Any) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise AutomationConfigurationError("An application executable path is required.")
+    path = Path(value).expanduser()
+    if not path.is_absolute() or path.is_symlink() or path.suffix.casefold() != ".exe" or not path.is_file():
+        raise AutomationConfigurationError("Application executable must be an existing absolute .exe path.")
+    resolved = path.resolve()
+    if resolved.suffix.casefold() != ".exe":
+        raise AutomationConfigurationError("Application target must be an .exe file.")
+    return resolved
 
 
 def _validate_action_name(name: Any) -> None:

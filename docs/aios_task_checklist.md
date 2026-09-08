@@ -212,6 +212,24 @@ Current status: `[~]` Roadmap Phase 13 includes Voice Assistant MVP and Voice As
 
 The delivered voice subset reuses conversation, briefing, runtime, permission, and configuration boundaries. Audio stays local; continuous turn-taking runs only inside explicitly launched `voice chat`. Wake words and full-duplex conversation are not implemented. Remaining interfaces should reuse existing core boundaries. These are not AGI capabilities.
 
+## 13. Desktop Task Agent
+
+Current status: `[~]` Text/voice desktop foundation implemented.
+
+- [x] Filename search in explicitly configured filesystem roots, including image names.
+- [x] Bounded scanning, metadata, candidate numbers, and truncation reporting.
+- [x] Approved Windows image/PDF/text opening with root and extension checks.
+- [x] Registered application/website aliases with deny/ask/allow policies.
+- [x] Start-work intent: launch an alias and list today's tasks.
+- [x] CLI/voice tests, examples, bilingual READMEs, and architecture updates.
+- [ ] OCR, image content retrieval, and thumbnail display.
+- [ ] Installed-app discovery and desktop UI automation.
+- [ ] General execution planning, result verification, retries, and reusable workflows.
+- [ ] Selective OpenClaw implementation evaluation and reuse.
+
+Launch acknowledgement is not verified window control. Voice still stops at
+approval previews; trusted allow-policy app aliases can execute without stopping.
+
 ## Maintenance Rules
 
 - [ ] Update this checklist after every important feature.

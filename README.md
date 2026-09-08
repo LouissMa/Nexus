@@ -25,6 +25,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
 - Explicit local Voice Assistant MVP with bounded push-to-talk recording, `faster-whisper` transcription, OS speech output, unified conversation routing, and narrated briefings.
+- Desktop Task Agent foundation: filename search, approved document opening, registered Windows app/website launch, and launch plus today's tasks through text or voice.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, scholarly metadata, and bounded filesystem integrations.
 - Permissioned MCP client over stdio or Streamable HTTP with schema discovery, deny/ask/allow policies, bounded retries, and secret-safe audits.
@@ -57,6 +58,48 @@ nexus review day --name Alex
 ```
 
 These local workflows do not require an API key.
+
+## Desktop Tasks
+
+The Desktop Task Agent foundation connects text and voice to authorized filename
+search and registered application/website launch. Configure your own existing
+folder (replace the example path), then register the included ChatGPT website:
+
+```powershell
+nexus config tool set filesystem --root "D:/Pictures"
+nexus automation set chatgpt --definition (Get-Content -Raw examples/desktop-chatgpt.json)
+nexus ask "find files passport"
+nexus ask "open chatgpt"
+nexus ask "open chatgpt" --approve
+nexus ask "open file D:/Pictures/passport.jpg" --approve
+nexus ask "Hi Nexus，帮我打开Chatgpt，我们开始今天的任务" --approve
+```
+
+Filename search includes images and returns numbered paths, size, modification
+time, and truncation status. `护照照片` also matches `passport` filenames. Each
+root scan is bounded to 10,000 entries, 50 matches and five seconds; at most ten
+configured roots are visited. Hidden entries, links and junctions are skipped.
+Randomly named photos cannot yet be identified by image content; there is no OCR
+or thumbnail interface in this increment.
+
+Inside one `voice chat` session, `open result 2` or `打开第二张` refers to the latest
+search. File opening requires a one-shot approval and authorized filesystem read
+access; only common image, PDF, TXT and Markdown files are supported. The voice
+session stops at an approval preview; use its explicit path with `nexus ask ...
+--approve` to execute. Candidate numbers do not persist across CLI invocations.
+
+Register a Windows desktop app with `nexus automation set <alias> --definition`
+and an object such as `{"type":"application","executable":"C:/Apps/Example/app.exe","policy":"ask"}`,
+using an actual existing absolute `.exe` path. Applications take no caller-supplied
+arguments. Registered browser/application policies remain deny/ask/allow; an
+explicitly trusted `allow` alias can launch during voice chat without stopping
+for approval. `Hi Nexus` is an optional text prefix, not a wake word.
+
+Opening reports that the OS accepted a launch request; it does not verify the
+window, log in, click controls, or execute today's tasks. Local file/app opening
+currently targets Windows; website opening uses the existing browser adapter.
+The work-start phrase opens the registered alias and lists today's tasks. No
+OpenClaw code or runtime dependency is included.
 
 ## Local Voice Assistant
 

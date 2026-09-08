@@ -1,0 +1,7 @@
+{
+  "type": "browser",
+  "url": "https://chatgpt.com/",
+  "allowed_hosts": ["chatgpt.com"],
+  "enabled": true,
+  "policy": "ask"
+}

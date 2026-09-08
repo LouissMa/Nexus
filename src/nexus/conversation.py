@@ -18,6 +18,11 @@ class Intent:
 
 
 INTENT_SCHEMAS: dict[str, dict[str, type]] = {
+    "find_files": {"query": str},
+    "open_file": {"path": str},
+    "open_candidate": {"number": int},
+    "open_application": {"name": str},
+    "start_work": {"name": str},
     "show_today": {},
     "list_goals": {},
     "list_habits": {},
@@ -41,6 +46,7 @@ INTENT_SCHEMAS: dict[str, dict[str, type]] = {
 }
 
 APPROVAL_INTENTS = {
+    "open_file", "open_candidate", "open_application", "start_work",
     "add_memory",
     "add_goal",
     "add_habit",
@@ -54,6 +60,7 @@ APPROVAL_INTENTS = {
 class IntentRegistry:
     def parse_local(self, text: str) -> Intent | None:
         raw = str(text).strip()
+        raw = re.sub(r"^(?:hi\s+nexus|你好[，, ]*nexus)[，,!！:：\s]*", "", raw, flags=re.IGNORECASE)
         normalized = raw.casefold()
         fixed = (
             (
@@ -118,6 +125,22 @@ class IntentRegistry:
                 return self._intent(name, {})
 
         patterns: list[tuple[str, str, Any]] = [
+            (
+                r"^(?:帮我)?(?:找到|查找|搜索文件)(?:我(?:的)?本地(?:的)?|本地(?:的)?|我的)?(?:文件[：:]?\s*)?(.+)$",
+                "find_files", lambda m: {"query": m.group(1).strip().rstrip("。！!")},
+            ),
+            (r"^(?:find files|find local files|search files)\s+(.+)$",
+             "find_files", lambda m: {"query": m.group(1).strip()}),
+            (r"^(?:打开文件|open file)\s*[：:]?\s+(.+)$",
+             "open_file", lambda m: {"path": m.group(1).strip().strip('"')}),
+            (r"^(?:打开第|open result\s+)([1-9]\d*)(?:个|张|项)?$",
+             "open_candidate", lambda m: {"number": int(m.group(1))}),
+            (r"^打开第([一二三四五六七八九十])(?:个|张|项)$",
+             "open_candidate", lambda m: {"number": "一二三四五六七八九十".index(m.group(1)) + 1}),
+            (r"^(?:帮我)?打开\s*([\w.-]+)[，,]\s*(?:我们)?开始今天的任务[。！!]?$",
+             "start_work", lambda m: {"name": m.group(1)}),
+            (r"^(?:帮我)?(?:打开|启动|open|launch)\s*([\w.-]+)[。！!]?$",
+             "open_application", lambda m: {"name": m.group(1)}),
             (
                 r"^(?:list research documents|列出研究文档)\s+([\w-]+)$",
                 "list_research_documents",
@@ -234,11 +257,12 @@ class IntentRegistry:
 
 
 class ConversationService:
-    def __init__(self, nexus: Any, *, timezone: str = "UTC", llm: Any = None) -> None:
+    def __init__(self, nexus: Any, *, timezone: str = "UTC", llm: Any = None, desktop: Any = None) -> None:
         self.nexus = nexus
         self.timezone = timezone
         self.llm = llm
         self.registry = IntentRegistry()
+        self.desktop = desktop
 
     def handle(
         self,
@@ -269,6 +293,8 @@ class ConversationService:
         envelope = self._envelope(intent, degradations)
         if show_intent:
             envelope["intent_details"] = asdict(intent)
+        if intent.name in {"find_files", "open_file", "open_candidate", "open_application", "start_work"}:
+            return self._handle_desktop(intent, envelope, approved, current)
         if intent.requires_approval and not approved:
             envelope["preview"] = {
                 "intent": intent.name,
@@ -282,6 +308,61 @@ class ConversationService:
         envelope["explanation"] = (
             "Completed through the registered local Nexus service."
         )
+        return envelope
+
+    def _handle_desktop(self, intent: Intent, envelope: dict[str, Any], approved: bool, now: datetime) -> dict[str, Any]:
+        from nexus.desktop import build_desktop_service
+        from nexus.automation import AutomationError
+        from nexus.integrations.core import ToolError
+
+        try:
+            if self.desktop is None:
+                self.desktop = build_desktop_service()
+            args = dict(intent.arguments)
+            if intent.name == "find_files":
+                result = self.desktop.search(args["query"])
+                envelope["result"] = result
+                names = "; ".join(f"{i + 1}. {item['name']}" for i, item in enumerate(result["matches"][:5]))
+                envelope["explanation"] = f"Found {len(result['matches'])} filename matches. {names}" if result["matches"] else "No filename matches found in the authorized folders."
+                if result["truncated"]:
+                    envelope["explanation"] += " Search limits were reached; results may be incomplete."
+                if result.get("skipped_directories"):
+                    envelope["explanation"] += " Some directories could not be scanned."
+                return envelope
+            if intent.name == "open_candidate":
+                args = {"path": self.desktop.candidate(args["number"])}
+            if intent.name in {"open_application", "start_work"}:
+                definitions = self.desktop.automations.settings
+                key = next((key for key in definitions if key.casefold() == args["name"].casefold()), None)
+                if key is None:
+                    raise ToolError("Register this application or website with nexus automation set first.")
+                definition = definitions[key]
+                if definition["type"] not in {"browser", "application"}:
+                    raise ToolError("Only registered applications and websites can be opened.")
+                if not definition["enabled"] or definition["policy"] == "deny":
+                    raise ToolError("This application or website is disabled or denied.")
+                envelope["requires_approval"] = definition["policy"] == "ask"
+            if envelope["requires_approval"] and not approved:
+                envelope["preview"] = {"intent": "open_file" if intent.name == "open_candidate" else intent.name, "arguments": args}
+                envelope["explanation"] = "Approve this desktop action before Nexus opens it."
+                return envelope
+            if intent.name in {"open_file", "open_candidate"}:
+                result = self.desktop.open_file(args["path"], approved=approved)
+            else:
+                result = self.desktop.launch(args["name"], approved=approved)
+                if intent.name == "start_work":
+                    local_date = now.astimezone(ZoneInfo(self.timezone)).date().isoformat()
+                    try:
+                        result["tasks"] = self.nexus.list_daily_tasks(local_date)
+                    except (ValueError, RuntimeError, OSError):
+                        result["tasks"] = None
+                        envelope["degradations"].append("today_tasks_unavailable")
+            envelope["result"] = result
+            envelope["explanation"] = "Launch request submitted. The application window has not been inspected."
+        except (ToolError, AutomationError, OSError, ValueError) as error:
+            envelope["requires_approval"] = False
+            envelope["degradations"].append("desktop_action_failed")
+            envelope["explanation"] = str(error)[:500]
         return envelope
 
     @staticmethod

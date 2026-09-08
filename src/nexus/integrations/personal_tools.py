@@ -220,6 +220,12 @@ class FilesystemTool:
                 "bytes": len(raw),
             }
         if operation == "search":
+            if arguments.get("mode") == "filename":
+                from nexus.desktop import find_local_files
+
+                if not target.is_dir():
+                    raise ToolError("Filename search requires a directory.")
+                return find_local_files([target], str(arguments.get("query", "")))
             query = str(arguments.get("query", "")).lower().strip()
             if not query:
                 raise ToolError("Filesystem search query is required.")

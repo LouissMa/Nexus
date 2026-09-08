@@ -147,6 +147,22 @@ memory retrieve
 
 Archive and forget are reversible. Permanent purge requires forgotten state and explicit confirmation. Derived summaries inherit and recompute source privacy/expiry policy.
 
+## Desktop Task Flow
+
+Text and voice -> ConversationService -> DesktopTaskService -> filesystem search
+or AutomationManager. Desktop configuration is loaded lazily. Filename search
+uses the existing search permission and audit, without loading image contents.
+Candidate numbers are scoped to one conversation instance. File opening requires
+read permission plus one-shot approval, root containment, and supported document
+extensions. Application aliases accept registered absolute Windows `.exe` paths
+without conversational arguments; website aliases reuse the browser adapter.
+Both alias types retain deny/ask/allow policy. Startup acknowledgement explicitly
+does not verify window state. Start-work composes startup with today's task list.
+
+Search bounds are 10 roots, 10,000 entries and five seconds per root, and 50
+returned candidates. The Desktop Task Agent does not yet perform OCR, thumbnail
+rendering, arbitrary desktop clicking, or general autonomous task execution.
+
 ## Explicit Voice Flow
 
 `nexus voice chat` uses `voice_session.py` to alternate WebRTC VAD capture,

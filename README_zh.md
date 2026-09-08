@@ -25,6 +25,7 @@ Nexus 会记住目标和生活上下文，生成每日计划，按时运行简�
 - 日历感知重排：基于只读实时 iCalendar 约束生成预览，按优先级分配、缩短或说明无法安排，并通过状态版本安全应用。
 - 统一 `nexus ask` 入口：识别常用中英文本地意图，写操作先预览并批准，习惯打卡可低风险执行，并可选用严格 JSON 的 LLM 意图选择。
 - 显式启动的本地 Voice Assistant MVP：有时长上限的按键说话录音、`faster-whisper` 转写、操作系统语音输出、统一对话路由和语音简报。
+- Desktop Task Agent 基础版：通过文字或语音搜索文件名、批准后打开文档、启动已注册的 Windows 应用或网址，以及启动后列出今日任务。
 - 可选 OpenAI-compatible LLM 生成，本地保存 Provider 与模型层级，并对配置脱敏。
 - 只读天气、iCalendar、Todoist、GitHub、Notion、IMAP 邮件头、学术元数据和受目录约束的文件系统集成。
 - 基于 stdio 或 Streamable HTTP 的 MCP Client，支持 Schema 发现、deny/ask/allow、有限重试和安全审计。
@@ -57,6 +58,40 @@ nexus review day --name Alex
 ```
 
 这些本地流程不需要 API key。
+
+## 电脑本地任务
+
+Desktop Task Agent 基础版已将文字和语音接入授权目录文件名搜索、已注册应用和网址启动。
+将示例目录替换为你自己的现有目录，再注册项目附带的 ChatGPT 网页定义：
+
+```powershell
+nexus config tool set filesystem --root "D:/Pictures"
+nexus automation set chatgpt --definition (Get-Content -Raw examples/desktop-chatgpt.json)
+nexus ask "帮我找到我本地的护照照片"
+nexus ask "打开chatgpt"
+nexus ask "打开chatgpt" --approve
+nexus ask "打开文件 D:/Pictures/passport.jpg" --approve
+nexus ask "Hi Nexus，帮我打开Chatgpt，我们开始今天的任务" --approve
+```
+
+搜索包含图片文件，返回候选编号、路径、大小、修改时间和是否截断。“护照照片”也会匹配
+文件名中的 `passport`。每个目录扫描最多 10,000 个条目、50 个匹配、5 秒，最多扫描 10 个
+授权根目录；跳过隐藏项、符号链接和目录联接。本版尚无 OCR、缩略图界面或图片内容识别，
+所以无法从随机文件名判断哪张是护照照片。
+
+同一次 `voice chat` 中可以接着说“打开第二张”，引用最近一次搜索。打开文件需要一次性批准
+和文件系统读取权限，仅支持常见图片、PDF、TXT、Markdown。语音会话在批准预览处停止；
+可用预览中的明确路径执行 `nexus ask "打开文件 ..." --approve`。候选编号不会跨 CLI 调用保留。
+
+Windows 桌面应用通过 `nexus automation set <别名> --definition` 注册，例如
+`{"type":"application","executable":"C:/Apps/Example/app.exe","policy":"ask"}`，
+程序必须是现有的绝对 `.exe` 路径，不接受对话传入的启动参数。应用和网址沿用 `deny/ask/allow`
+策略；你明确设为 `allow` 的可信别名可以在语音会话中直接启动。`Hi Nexus` 只是可选文字前缀，
+并非唤醒词。
+
+启动结果表示操作系统已接收请求，尚未检查窗口、登录状态或点击软件界面。本地文件与应用
+启动目前面向 Windows，网址复用已有浏览器适配器。“开始今天的任务”会打开注册别名并列出
+今日任务，不会自动执行这些任务。本次没有引入 OpenClaw 代码或运行依赖。
 
 ## 本地语音助手
 

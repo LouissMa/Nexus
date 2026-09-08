@@ -29,6 +29,16 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `src/nexus/config.py`: Canonical local configuration path and shared transactional mutation API. LLM, embedding, tool, profile, runtime, and voice writers use one OS-backed cross-process lock and atomic replacement.
 - `src/nexus/file_lock.py`: Canonical path identity plus process-local and OS-backed lock-file transactions reused by state and notification persistence.
 
+## Desktop Task Agent
+
+- `src/nexus/desktop.py`: Bounded filename scanning, passport filename aliases, in-session numbered candidates, approved Windows document opening, and registered app/website launch through existing automation policies. The factory loads local configuration lazily when a desktop intent is used.
+- `src/nexus/conversation.py`: Adds validated desktop intents, Chinese/English local routing, optional LLM intent selection, candidate previews, app-policy decisions, launch-plus-today composition, and bounded desktop failure explanations.
+- `src/nexus/integrations/personal_tools.py`: Existing filesystem search now accepts filename mode through the same search permission and audit path; text-content search remains unchanged.
+- `src/nexus/automation.py`: Adds the application adapter for an existing absolute Windows executable, with no caller arguments, masked configuration and existing policy/audit handling.
+- `tests/test_desktop.py`: Filename-vs-content matching, permission/root/extension boundaries, candidate previews, app policies, application definition validation, CLI configuration, voice routing, and LLM rejection tests.
+- `examples/desktop-chatgpt.json`: Explicit ask-policy ChatGPT website automation for user registration; it is not enabled automatically.
+- `docs/superpowers/specs/2026-09-08-desktop-task-agent-design.md`: Delivered desktop scope, permission boundaries, execution semantics, verification, and deferred work.
+
 ## Voice Assistant
 
 - `src/nexus/voice_session.py`: Foreground session lifecycle, WebRTC VAD microphone capture with pre-roll and silence endpointing, idle/turn bounds, JSON events, temporary-audio cleanup, and stop-on-approval behavior. Reuses `VoiceService` with session stop-phrase handling and optional text-only output.
