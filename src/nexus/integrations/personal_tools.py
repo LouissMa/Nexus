@@ -212,7 +212,8 @@ class FilesystemTool:
             if not target.is_file():
                 raise ToolError(f"'{target}' is not a file.")
             max_bytes = min(max(int(arguments.get("max_bytes", 65536)), 1), 1_000_000)
-            raw = target.read_bytes()[:max_bytes]
+            with target.open("rb") as source:
+                raw = source.read(max_bytes)
             return {
                 "path": str(target),
                 "content": raw.decode("utf-8", errors="replace"),

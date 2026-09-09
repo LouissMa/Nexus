@@ -16,7 +16,8 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。该运行时目前处于规划阶段，
-尚未实现。详见[开发路线图](docs/roadmap.md)及
+尚未实现。15.1 已增加不绑定框架的工具注册与单次调用层，运行时选型仍处于初步调研阶段。
+详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
 ## 当前功能
@@ -64,6 +65,21 @@ nexus review day --name Alex
 ```
 
 这些本地流程不需要 API key。
+
+## 执行工具层（Phase 15.1）
+
+```powershell
+nexus executor tools
+nexus executor call filesystem.read --arguments '{"path":"README.md","max_bytes":4000}'
+nexus executor call automation.chatgpt --approve
+```
+
+需先配置文件系统授权目录或自动化别名。工具目录列出已启用且允许调用的文件系统操作
+和命名自动化。每次调用验证输入/输出 Schema、复验权限，并对 ask 策略要求批准。
+输入/输出限制为 16/64 KiB；不会自动重试，副作用不确定时明确报告。超时由原适配器
+负责，目录会标明是否有超时约束。本层不需要 API Key，尚不是动态 Agent 执行循环。
+详见[工具契约设计](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md)和
+[初步开源比较](docs/execution_framework_evaluation.md)。
 
 ## 电脑本地任务
 

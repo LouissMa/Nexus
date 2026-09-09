@@ -17,7 +17,8 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 The next priority is **Phase 15: General Task Execution Core**: tool contracts and
 open-source evaluation, a dynamic execution loop, durable tasks and approval
 resume, shared context, and verified outcomes. This runtime is planned, not yet
-implemented. See the [roadmap](docs/roadmap.md) and
+implemented. Phase 15.1 now includes a framework-neutral tool registry and single-call
+dispatcher; runtime evaluation remains preliminary. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -65,6 +66,24 @@ nexus review day --name Alex
 ```
 
 These local workflows do not require an API key.
+
+## Execution Tools (Phase 15.1)
+
+```powershell
+nexus executor tools
+nexus executor call filesystem.read --arguments '{"path":"README.md","max_bytes":4000}'
+nexus executor call automation.chatgpt --approve
+```
+
+Configure filesystem roots or automation aliases first. The catalog includes
+enabled, permitted filesystem operations and named automations. Calls validate
+input/output schemas, recheck policies, require ask-policy approval, and return
+structured outcomes. Input/output limits are 16/64 KiB. There are no automatic
+retries; uncertain side effects are reported explicitly. Timeout enforcement is
+adapter-specific and listed in the catalog. No API key is needed for this layer.
+This is not yet a dynamic Agent loop. See the
+[contract design](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md) and
+[initial open-source comparison](docs/execution_framework_evaluation.md).
 
 ## Desktop Tasks
 

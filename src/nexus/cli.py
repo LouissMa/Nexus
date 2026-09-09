@@ -87,6 +87,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Nexus personal AI: memory, planning, reflection, hybrid RAG, and permissioned tools.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    executor_parser = subparsers.add_parser("executor", help="Inspect and invoke contracted execution tools.")
+    executor_commands = executor_parser.add_subparsers(dest="executor_command", required=True)
+    executor_commands.add_parser("tools")
+    executor_call = executor_commands.add_parser("call")
+    executor_call.add_argument("tool")
+    executor_call.add_argument("--arguments", default="{}")
+    executor_call.add_argument("--approve", action="store_true")
 
     ask_parser = subparsers.add_parser(
         "ask", help="Use the unified local-first conversation entry point."
@@ -1260,6 +1267,26 @@ def _voice_config_values(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _dispatch_executor(args: argparse.Namespace) -> bool:
+    if args.command == "executor":
+        from nexus.execution_tools import build_tool_registry
+
+        try:
+            registry = build_tool_registry()
+            if args.executor_command == "tools":
+                print_json({"tools": registry.catalog()})
+            else:
+                result = registry.call(args.tool, parse_json_object(args.arguments), approved=args.approve)
+                print_json(result)
+                if result["status"] != "success":
+                    raise SystemExit(1)
+        except (ValueError, RuntimeError, OSError):
+            print_json({"status": "error", "error": "Executor configuration or arguments are invalid."})
+            raise SystemExit(2)
+        return True
+    return False
+
+
 def _dispatch_voice(args: argparse.Namespace) -> bool:
     is_voice_config = args.command == "config" and args.config_command == "voice"
     if not is_voice_config and args.command != "voice":
@@ -1621,6 +1648,8 @@ def _dispatch_phase10(args: argparse.Namespace) -> bool:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if _dispatch_executor(args):
+        return
     if _dispatch_voice(args):
         return
     if _dispatch_phase10(args):

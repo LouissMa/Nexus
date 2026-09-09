@@ -13,6 +13,11 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `src/nexus/execution_tools.py`: Phase 15.1 immutable-by-copy tool contracts, local JSON Schema validation, policy-aware catalog, bounded single-call dispatch, explicit uncertain side effects, and adapters for filesystem and configured automations. No planning loop or task persistence yet.
+- `tests/test_execution_tools.py`: Schema, policy revocation/approval, result size, uncertain effects, defensive copies, references, existing-adapter and CLI integration tests.
+- `docs/execution_framework_evaluation.md`: Pinned source evidence, preliminary candidate comparison, current contract decision and pending runtime/license validation.
+- `docs/superpowers/specs/2026-09-09-execution-tool-contracts.md`: Delivered contract/CLI behavior, bounds, timeout semantics, and deferred runtime work.
+
 - `src/nexus/__init__.py`: Package marker and package description.
 - `src/nexus/cli.py`: Parses memory, goals, Planning/Reflection, briefing, voice, configuration, integrations, MCP client/server, Agents, proactive runtime, notifications, Dashboard, and automation commands. Optional managers and voice providers remain lazy where possible.
 - `src/nexus/service.py`: Application orchestration for memory/RAG, goals, tasks, planning, reflection, briefings, live context, MCP context, and Agent artifacts.

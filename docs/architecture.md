@@ -147,6 +147,17 @@ memory retrieve
 
 Archive and forget are reversible. Permanent purge requires forgotten state and explicit confirmation. Derived summaries inherit and recompute source privacy/expiry policy.
 
+## Execution Contract Layer
+
+`executor tools/call` -> `ToolRegistry` -> existing ToolManager or AutomationManager.
+The initial registry exposes filesystem operations and registered automations
+under local JSON schemas, policy checks, argument/result size bounds, side-effect
+declarations and adapter-specific timeout metadata. It invokes once and does not
+retry. Exceptions or invalid outputs after side effects retain an unknown outcome.
+The managers continue to enforce permissions and record adapter audits. Model
+planning, durable runs, universal deadlines and approval resume are not implemented
+here. See `docs/superpowers/specs/2026-09-09-execution-tool-contracts.md`.
+
 ## Desktop Task Flow
 
 Text and voice -> ConversationService -> DesktopTaskService -> filesystem search

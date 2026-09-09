@@ -188,9 +188,11 @@ Current status: foundation implemented; richer computer interaction remains plan
 
 ## Phase 15: General Task Execution Core
 
-Status: planned, not implemented. Start with 15.1.
+Status: 15.1 tool contracts and initial adapters implemented; dynamic runtime not yet implemented.
 
-- [ ] 15.1: Evaluate open-source runtimes and define unified tool contracts, schemas, permissions, side effects, deadlines, and retry semantics.
+- [x] 15.1a: Unified input/output contracts, policy-aware catalog, bounded one-call dispatch, explicit side-effect/retry/adapter-timeout metadata, filesystem and named automation adapters, CLI and tests.
+- [x] 15.1b: Initial pinned-source comparison of LangGraph, smolagents and OpenClaw; framework-neutral contract decision recorded.
+- [ ] 15.1c: Runtime integration/recovery tests, full license/dependency checks and final executor-framework selection.
 - [ ] 15.2: Implement one model-driven plan/act/observe loop over existing adapters, with bounded steps, explicit clarification, and terminal outcomes.
 - [ ] 15.3: Persist runs, actions, artifacts, and approvals; support cancellation and restart recovery without blindly replaying writes.
 - [ ] 15.4: Connect eligible RAG, goals, research, text, and voice to shared task state and observable progress.
