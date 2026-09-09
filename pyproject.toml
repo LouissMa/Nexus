@@ -12,6 +12,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+executor = [
+  "langgraph>=1.2.11,<2",
+]
 rag = [
   "qdrant-client[fastembed]>=1.14.2,<2",
 ]

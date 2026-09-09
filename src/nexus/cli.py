@@ -90,6 +90,11 @@ def build_parser() -> argparse.ArgumentParser:
     executor_parser = subparsers.add_parser("executor", help="Inspect and invoke contracted execution tools.")
     executor_commands = executor_parser.add_subparsers(dest="executor_command", required=True)
     executor_commands.add_parser("tools")
+    executor_run = executor_commands.add_parser("run", help="Pursue a goal with a bounded model-driven tool loop.")
+    executor_run.add_argument("goal")
+    executor_run.add_argument("--max-steps", type=int, default=12)
+    executor_run.add_argument("--timeout-seconds", type=float, default=120)
+    executor_run.add_argument("--model-tier", choices=["simple", "complex"])
     executor_call = executor_commands.add_parser("call")
     executor_call.add_argument("tool")
     executor_call.add_argument("--arguments", default="{}")
@@ -1275,6 +1280,19 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
             registry = build_tool_registry()
             if args.executor_command == "tools":
                 print_json({"tools": registry.catalog()})
+            elif args.executor_command == "run":
+                from nexus.execution_runtime import ExecutionRuntime
+
+                llm_config = LLMConfig.from_env(model_tier=args.model_tier)
+                if not llm_config.is_configured:
+                    print_json({"status": "not_configured", "error": "Configure an LLM before running dynamic tasks."})
+                    raise SystemExit(2)
+                result = ExecutionRuntime(registry, OpenAICompatibleLLM(llm_config)).run(
+                    args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds,
+                )
+                print_json(result)
+                if result["status"] != "reported_complete":
+                    raise SystemExit(1)
             else:
                 result = registry.call(args.tool, parse_json_object(args.arguments), approved=args.approve)
                 print_json(result)

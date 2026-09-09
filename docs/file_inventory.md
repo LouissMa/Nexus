@@ -13,6 +13,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `src/nexus/execution_runtime.py`: Optional LangGraph foreground decision/action loop, strict model actions, observation context bounds, cooperative deadlines, repeat detection, clarification/approval stops and explicit uncertain/unverified outcomes. No durable state yet.
+- `tests/test_execution_runtime.py`: Real LangGraph loop and in-memory interrupt/resume smoke tests, observation-driven scripted models, permissions, malformed actions, budgets, cancellation, evidence references and CLI/filesystem integration.
+- `docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md`: Runtime behavior, optional dependency choice, limits, privacy, validation evidence and deferred persistence.
+
 - `src/nexus/execution_tools.py`: Phase 15.1 immutable-by-copy tool contracts, local JSON Schema validation, policy-aware catalog, bounded single-call dispatch, explicit uncertain side effects, and adapters for filesystem and configured automations. No planning loop or task persistence yet.
 - `tests/test_execution_tools.py`: Schema, policy revocation/approval, result size, uncertain effects, defensive copies, references, existing-adapter and CLI integration tests.
 - `docs/execution_framework_evaluation.md`: Pinned source evidence, preliminary candidate comparison, current contract decision and pending runtime/license validation.

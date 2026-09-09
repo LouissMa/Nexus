@@ -12,19 +12,30 @@ performance benchmark or a claim of completed Windows integration testing.
 Revisions were resolved with read-only `git ls-remote ... HEAD`. Source inspection
 was limited to the linked interfaces, not a whole-repository review. The OpenClaw
 raw-file web fetch failed; the same pinned source was read with a direct HTTPS
-request. No candidate framework was installed or executed. Maintenance and
+request. At that initial review no framework was installed or executed. Maintenance and
 Windows-runtime suitability have not been established by these reads alone.
 
 ## Current Decision
 
 Implement framework-neutral Nexus tool contracts first, using the existing
 `jsonschema` dependency. Preserve ToolManager/AutomationManager as permission and
-execution owners. No external source is copied, no runtime dependency is added,
-and no framework is selected as the durable executor yet.
+execution owners. Phase 15.2 subsequently selects optional LangGraph 1.2.11 for
+foreground graph execution after actual Windows tests. No external source is
+copied. A durable executor/checkpointer choice still requires Phase 15.3 work.
 
 This allows a later LangGraph or another runtime adapter to use the same tool
 boundary. Avoiding framework coupling here is a scoped engineering choice, not
 evidence that a custom runtime would outperform the candidates.
+
+## Phase 15.2 Validation
+
+Installed and ran LangGraph 1.2.11. Runtime tests cover a real decision/action
+graph, Nexus tool adapters, permission stop, unknown side effects, repeats and
+CLI. An in-memory checkpoint/interrupt/resume smoke test confirms the preceding
+completed node is not replayed. Installed metadata reports MIT for LangGraph,
+its checkpoint package, langchain-core and langsmith. This selects a foreground
+runtime, not a complete persistence implementation or a benchmark winner.
+No real-provider task-quality comparison was performed.
 
 ## Remaining Selection Work
 

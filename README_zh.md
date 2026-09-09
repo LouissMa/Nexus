@@ -15,8 +15,9 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 长期方向是构建由 CLI、网页、语音和未来具身接口共享的 Personal AI Operating System。当前版本不是 AGI，而是一个本地运行、权限边界明确的个人助手。
 
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
-动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。该运行时目前处于规划阶段，
-尚未实现。15.1 已增加不绑定框架的工具注册与单次调用层，运行时选型仍处于初步调研阶段。
+动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
+尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
+持久恢复和独立成果验证仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
@@ -77,9 +78,26 @@ nexus executor call automation.chatgpt --approve
 需先配置文件系统授权目录或自动化别名。工具目录列出已启用且允许调用的文件系统操作
 和命名自动化。每次调用验证输入/输出 Schema、复验权限，并对 ask 策略要求批准。
 输入/输出限制为 16/64 KiB；不会自动重试，副作用不确定时明确报告。超时由原适配器
-负责，目录会标明是否有超时约束。本层不需要 API Key，尚不是动态 Agent 执行循环。
+负责，目录会标明是否有超时约束。单次调用层不需要 API Key，也被下方动态循环复用。
 详见[工具契约设计](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md)和
 [初步开源比较](docs/execution_framework_evaluation.md)。
+
+## 动态执行（Phase 15.2）
+
+```powershell
+pip install -e ".[executor]"
+nexus executor run "读取 README.md，总结项目当前的功能边界" --max-steps 12 --timeout-seconds 120
+```
+
+先配置 LLM 和授权工具。模型每次选择一个动作，观察真实工具结果后继续、提问或停止。
+已注册的 allow 工具可以执行；ask 工具在执行前返回待审批动作，当前没有全局批准开关或
+恢复命令。工具数据可能发送到已配置的 LLM；运行时关闭 LangSmith tracing。
+时间预算在步骤间检查并传给模型请求，工具仍使用自己的超时机制，不保证强制中断所有阻塞调用。
+
+`reported_complete` 表示模型提供了成功工具结果的引用，不代表任务已独立验收通过。
+其他状态区分审批/补充信息等待、预算耗尽、失败、重复和副作用不确定。任务状态仅在内存中，
+重新运行会从头开始。RAG/MCP/语音任务接入及持久恢复仍属于后续阶段。
+详见[动态运行时设计](docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md)。
 
 ## 电脑本地任务
 

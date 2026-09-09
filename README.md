@@ -16,9 +16,10 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 
 The next priority is **Phase 15: General Task Execution Core**: tool contracts and
 open-source evaluation, a dynamic execution loop, durable tasks and approval
-resume, shared context, and verified outcomes. This runtime is planned, not yet
-implemented. Phase 15.1 now includes a framework-neutral tool registry and single-call
-dispatcher; runtime evaluation remains preliminary. See the [roadmap](docs/roadmap.md) and
+resume, shared context, and verified outcomes. The full stack is not yet
+complete. Phase 15.1 provides tool contracts; Phase 15.2 now adds a LangGraph
+foreground decision/action loop. Durable recovery and independent outcome
+verification remain future work. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -81,9 +82,30 @@ input/output schemas, recheck policies, require ask-policy approval, and return
 structured outcomes. Input/output limits are 16/64 KiB. There are no automatic
 retries; uncertain side effects are reported explicitly. Timeout enforcement is
 adapter-specific and listed in the catalog. No API key is needed for this layer.
-This is not yet a dynamic Agent loop. See the
+The single-call layer is also used by the dynamic loop below. See the
 [contract design](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md) and
 [initial open-source comparison](docs/execution_framework_evaluation.md).
+
+## Dynamic Execution (Phase 15.2)
+
+```powershell
+pip install -e ".[executor]"
+nexus executor run "Read README.md and summarize the project's current limitations" --max-steps 12 --timeout-seconds 120
+```
+
+Configure the LLM and permitted tools first. The model chooses one action at a
+time, observes actual tool results and continues, asks a question or stops.
+The registered allow-policy tools may execute; ask-policy tools stop with a
+pending approval. There is no global approval flag or resume command yet.
+Tool data may be sent to the configured LLM. LangSmith tracing is disabled.
+The deadline is checked between steps and passed to model calls; existing tool
+timeouts still apply and are not universally preemptive.
+
+`reported_complete` means the model supplied successful tool references, not
+independently verified task success. Other outcomes distinguish approval/input
+waits, budgets, failure, repetition and uncertain side effects. State is in memory;
+rerunning starts over. RAG/MCP/voice integration and durable task recovery are
+subsequent work. See the [runtime design](docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md).
 
 ## Desktop Tasks
 

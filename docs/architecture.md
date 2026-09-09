@@ -147,6 +147,17 @@ memory retrieve
 
 Archive and forget are reversible. Permanent purge requires forgotten state and explicit confirmation. Derived summaries inherit and recompute source privacy/expiry policy.
 
+## Dynamic Runtime
+
+`executor run` -> optional LangGraph decide/execute nodes -> existing ToolRegistry.
+The LLM receives goal, catalog, action schema and bounded recent observations.
+It cannot supply tool approval. Ask-policy calls return waiting_approval; unknown
+side effects stop for review. Successful reference numbers support a
+reported_complete outcome, without claiming independent artifact verification.
+The runtime is foreground/in-memory and disables LangSmith tracing; cooperative
+deadlines do not forcibly interrupt tools lacking adapter timeouts. Persistent
+resume and shared voice/RAG/MCP task context remain future stages.
+
 ## Execution Contract Layer
 
 `executor tools/call` -> `ToolRegistry` -> existing ToolManager or AutomationManager.

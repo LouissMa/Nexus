@@ -232,13 +232,13 @@ approval previews; trusted allow-policy app aliases can execute without stopping
 
 ## 14. General Task Execution Core (Roadmap Phase 15)
 
-Current status: `[~]` Tool contracts and initial adapters implemented; dynamic runtime not started.
+Current status: `[~]` Tool contracts and foreground dynamic execution implemented; durable task recovery remains future work.
 This is the immediate priority before more one-off desktop actions.
 
 - [x] 15.1a Unified contracts, bounded dispatcher, filesystem/automation adapters, catalog and CLI tests.
 - [x] 15.1b Initial pinned-source comparison and framework-neutral contract decision.
-- [ ] 15.1c Runtime/recovery evaluation and final framework selection.
-- [ ] 15.2 Bounded dynamic plan/act/observe loop using existing adapters.
+- [~] 15.1c LangGraph foreground/in-memory recovery validation complete; cross-process recovery and broader evaluation remain.
+- [x] 15.2 LangGraph dynamic loop with strict actions, observations, budgets, repeat detection, approval stop and explicit unverified outcomes.
 - [ ] 15.3 Durable task state, approval resume, cancellation, and uncertain-write recovery.
 - [ ] 15.4 Shared task context across RAG, research, text, and voice.
 - [ ] 15.5 Artifact verification, unseen cross-domain tasks, and reliability/cost evaluation.
