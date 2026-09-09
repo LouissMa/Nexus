@@ -4,6 +4,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
+- `docs/current_capabilities_and_next_phase.md`: Dated Chinese capability baseline, explicit current limitations, Phase 15 milestones and acceptance tasks, open-source evaluation criteria, and the longer-term route toward embodied interfaces. Separates planned work from delivered functionality.
+
 - `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Dashboard/MCP Server/Research Companion usage, security boundaries, and limitations.
 - `README_zh.md`: Chinese version of the same user-facing structure and commands.
 - `pyproject.toml`: Package metadata, `nexus` CLI entry point, core and optional dependency groups including `voice`, and packaged Dashboard HTML/CSS/JavaScript assets.

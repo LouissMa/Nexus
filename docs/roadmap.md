@@ -1,5 +1,12 @@
 # Nexus Development Roadmap
 
+## Current Priority
+
+Phase 15, General Task Execution Core, is the next implementation priority.
+Existing Phase 13/14 foundations remain available; their unfinished interface
+features are not prerequisites for the first general execution loop.
+See [current capabilities and next-phase milestones](current_capabilities_and_next_phase.md).
+
 ## Phase 1: LifeAgent CLI MVP
 
 Objective: prove the smallest useful loop of a personal AI manager.
@@ -176,5 +183,20 @@ Current status: foundation implemented; richer computer interaction remains plan
 - [x] Explicit startup-request semantics, tests, and synchronized documentation.
 - [ ] OCR, semantic image retrieval, and thumbnail candidates.
 - [ ] Application discovery and desktop UI interaction.
-- [ ] General task plans, execution verification, bounded retries, and reusable workflows.
+- [ ] Connect desktop tools to the Phase 15 general execution core; richer reusable desktop workflows follow that foundation.
 - [ ] Evaluate reusable OpenClaw components individually before integration.
+
+## Phase 15: General Task Execution Core
+
+Status: planned, not implemented. Start with 15.1.
+
+- [ ] 15.1: Evaluate open-source runtimes and define unified tool contracts, schemas, permissions, side effects, deadlines, and retry semantics.
+- [ ] 15.2: Implement one model-driven plan/act/observe loop over existing adapters, with bounded steps, explicit clarification, and terminal outcomes.
+- [ ] 15.3: Persist runs, actions, artifacts, and approvals; support cancellation and restart recovery without blindly replaying writes.
+- [ ] 15.4: Connect eligible RAG, goals, research, text, and voice to shared task state and observable progress.
+- [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
+
+Success means executing new goals by composing tools, not adding one intent per
+example. Missing LLM configuration must be reported explicitly. Existing local
+commands remain available. Cost reporting is conditional on reliable provider
+usage and pricing; step/call/time limits must work independently.

@@ -10,9 +10,15 @@ Nexus remembers goals and life context, creates daily plans, runs scheduled brie
 
 ## Product Direction
 
-Most assistants wait for a prompt. Nexus is being built as a dependable personal AI core that can remember, plan, remind, review, and perform named actions at the right time.
+Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
 The long-term direction is a Personal AI Operating System shared by CLI, web, voice, and future embodied interfaces. The current release is not AGI: it is a local, permission-bounded assistant with explicit limits.
+
+The next priority is **Phase 15: General Task Execution Core**: tool contracts and
+open-source evaluation, a dynamic execution loop, durable tasks and approval
+resume, shared context, and verified outcomes. This runtime is planned, not yet
+implemented. See the [roadmap](docs/roadmap.md) and
+[capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
 
@@ -25,6 +31,7 @@ The long-term direction is a Personal AI Operating System shared by CLI, web, vo
 - Calendar-aware replan previews and stale-safe apply, with read-only live iCalendar constraints, priority allocation, shortening, and explicit unscheduled reasons.
 - Unified `nexus ask` entry point with common Chinese/English local intents, approval previews for mutations, low-risk habit check-ins, and optional strict-JSON LLM intent selection.
 - Explicit local Voice Assistant MVP with bounded push-to-talk recording, `faster-whisper` transcription, OS speech output, unified conversation routing, and narrated briefings.
+- Voice Assistant 2.0 foreground turn-taking with WebRTC VAD, idle/turn limits, stop phrases, and temporary-audio cleanup; no wake word or speech interruption.
 - Desktop Task Agent foundation: filename search, approved document opening, registered Windows app/website launch, and launch plus today's tasks through text or voice.
 - Optional OpenAI-compatible LLM generation with local provider/model tiers and masked configuration.
 - Read-only weather, iCalendar, Todoist, GitHub, Notion, IMAP-header, scholarly metadata, and bounded filesystem integrations.

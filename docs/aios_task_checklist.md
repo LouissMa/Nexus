@@ -230,6 +230,19 @@ Current status: `[~]` Text/voice desktop foundation implemented.
 Launch acknowledgement is not verified window control. Voice still stops at
 approval previews; trusted allow-policy app aliases can execute without stopping.
 
+## 14. General Task Execution Core (Roadmap Phase 15)
+
+Current status: `[ ]` Planning documented; runtime implementation not started.
+This is the immediate priority before more one-off desktop actions.
+
+- [ ] 15.1 Open-source evaluation and unified tool contracts.
+- [ ] 15.2 Bounded dynamic plan/act/observe loop using existing adapters.
+- [ ] 15.3 Durable task state, approval resume, cancellation, and uncertain-write recovery.
+- [ ] 15.4 Shared task context across RAG, research, text, and voice.
+- [ ] 15.5 Artifact verification, unseen cross-domain tasks, and reliability/cost evaluation.
+
+Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
+
 ## Maintenance Rules
 
 - [ ] Update this checklist after every important feature.
