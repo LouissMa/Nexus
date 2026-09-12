@@ -13,11 +13,14 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
-- `src/nexus/execution_runtime.py`: Optional LangGraph foreground decision/action loop, strict model actions, observation context bounds, cooperative deadlines, repeat detection, clarification/approval stops and explicit uncertain/unverified outcomes. No durable state yet.
+- `src/nexus/execution_runtime.py`: Optional LangGraph foreground decision/action loop, strict actions, bounded observations, cumulative budgets, durable checkpoint/control hooks, repeat detection, clarification/approval stops and explicit uncertain/unverified outcomes. Direct library use can still be in-memory.
+- `src/nexus/execution_store.py`: Local SQLite run snapshots; per-run nonblocking OS leases; run listing, inspection and cooperative controls; PersistentExecutor resume, single-use approvals bound to configuration, and manual uncertain-action reconciliation. Stores no provider configuration; tool data in snapshots is not encrypted.
+- `tests/test_execution_store.py`: Store reopening, approval/configuration/token isolation, question continuation, cumulative budgets, concurrent runner exclusion, pause/cancel, checkpoint failure, reconciliation and actual subprocess crash/no-replay tests.
+- `docs/superpowers/specs/2026-09-12-durable-execution.md`: Phase 15.3 state/checkpoint design, CLI commands, recovery guarantees, privacy and deferred work.
 - `tests/test_execution_runtime.py`: Real LangGraph loop and in-memory interrupt/resume smoke tests, observation-driven scripted models, permissions, malformed actions, budgets, cancellation, evidence references and CLI/filesystem integration.
 - `docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md`: Runtime behavior, optional dependency choice, limits, privacy, validation evidence and deferred persistence.
 
-- `src/nexus/execution_tools.py`: Phase 15.1 immutable-by-copy tool contracts, local JSON Schema validation, policy-aware catalog, bounded single-call dispatch, explicit uncertain side effects, and adapters for filesystem and configured automations. No planning loop or task persistence yet.
+- `src/nexus/execution_tools.py`: Immutable-by-copy tool contracts, local JSON Schema validation, policy-aware catalog, bounded single-call dispatch, explicit uncertain side effects, filesystem/automation adapters and configuration fingerprints for approval validation. Planning and persistence live in runtime/store modules.
 - `tests/test_execution_tools.py`: Schema, policy revocation/approval, result size, uncertain effects, defensive copies, references, existing-adapter and CLI integration tests.
 - `docs/execution_framework_evaluation.md`: Pinned source evidence, preliminary candidate comparison, current contract decision and pending runtime/license validation.
 - `docs/superpowers/specs/2026-09-09-execution-tool-contracts.md`: Delivered contract/CLI behavior, bounds, timeout semantics, and deferred runtime work.

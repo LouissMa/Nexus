@@ -188,13 +188,13 @@ Current status: foundation implemented; richer computer interaction remains plan
 
 ## Phase 15: General Task Execution Core
 
-Status: 15.1 contracts and 15.2 foreground dynamic execution implemented; persistence and independent verification remain pending.
+Status: 15.1 contracts, 15.2 foreground dynamic execution and 15.3 durable execution baseline implemented; shared context and independent verification remain pending.
 
 - [x] 15.1a: Unified input/output contracts, policy-aware catalog, bounded one-call dispatch, explicit side-effect/retry/adapter-timeout metadata, filesystem and named automation adapters, CLI and tests.
 - [x] 15.1b: Initial pinned-source comparison of LangGraph, smolagents and OpenClaw; framework-neutral contract decision recorded.
-- [~] 15.1c: LangGraph selected and tested for foreground execution and in-memory interrupt/resume; crash recovery, broader dependency review and candidate benchmarks remain pending.
+- [~] 15.1c: LangGraph selected and tested for foreground execution, interrupt/resume and durable crash recovery; broader dependency review and candidate benchmarks remain pending.
 - [x] 15.2: LangGraph model-driven decide/act/observe loop over registered tools, bounded decisions/context, cooperative deadlines, explicit clarification, approval stop and unverified completion reporting.
-- [ ] 15.3: Persist runs, actions, artifacts, and approvals; support cancellation and restart recovery without blindly replaying writes.
+- [x] 15.3: SQLite run/action/result snapshots, single-use bound approvals, cooperative pause/cancel, restart recovery and explicit uncertain-action reconciliation. Independent artifact verification remains in 15.5.
 - [ ] 15.4: Connect eligible RAG, goals, research, text, and voice to shared task state and observable progress.
 - [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
 

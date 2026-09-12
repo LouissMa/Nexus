@@ -45,7 +45,8 @@ class ExecutionRuntime:
         self.model = model
         self.clock = clock
 
-    def run(self, goal: str, *, max_steps: int = 12, timeout_seconds: float = 120) -> dict[str, Any]:
+    def run(self, goal: str, *, max_steps: int = 12, timeout_seconds: float = 120,
+            initial_state=None, checkpoint=None, control=None, approval_binding=None) -> dict[str, Any]:
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Goal must contain 1 to 4,000 characters.")
         if type(max_steps) is not int or not 1 <= max_steps <= 50:
@@ -59,11 +60,29 @@ class ExecutionRuntime:
         except ImportError as error:
             raise ValueError('Install the optional executor dependency: pip install -e ".[executor]"') from error
 
-        deadline = self.clock() + timeout_seconds
-        state = {"goal": goal.strip(), "status": "running", "steps": 0, "observations": [],
+        started = self.clock()
+        state = initial_state or {"goal": goal.strip(), "status": "running", "steps": 0, "observations": [],
                  "summary": "", "pending_action": None, "verification": "not_verified"}
-        repeats: dict[str, int] = {}
+        elapsed = state.get("elapsed_seconds", 0)
+        deadline = started + timeout_seconds - elapsed
+        state.update(status="running", max_steps=max_steps, timeout_seconds=timeout_seconds)
+        repeats = state.setdefault("repeats", {})
         latest = [state]
+        approval = [approval_binding]
+
+        def save(current):
+            current["elapsed_seconds"] = elapsed + self.clock() - started
+            if checkpoint:
+                checkpoint(current)
+
+        def stopped(current):
+            request = control() if control else None
+            if control:
+                current["control_requested"] = request
+            if request:
+                current["status"] = "cancelled" if request == "cancel" else "paused"
+                return True
+            return False
 
         def exhausted(current):
             if current["steps"] >= max_steps or self.clock() >= deadline:
@@ -73,7 +92,7 @@ class ExecutionRuntime:
 
         def decide(current):
             latest[0] = current
-            if exhausted(current):
+            if stopped(current) or exhausted(current):
                 return current
             catalog = self.registry.catalog()
             if not catalog:
@@ -88,15 +107,20 @@ class ExecutionRuntime:
                     observation.update(data_excerpt=encoded[:6000], data_truncated=True)
                 observations.append(observation)
             prompt = json.dumps({"goal": current["goal"], "tools": catalog, "observations": observations,
+                                 "user_answers": current.get("user_answers", []),
                                  "action_schema": ACTION_SCHEMA}, ensure_ascii=False)
             if len(prompt.encode("utf-8")) > 131072:
                 current["status"] = "context_limit"
                 return current
             current["steps"] += 1
+            current["phase"] = "deciding"
+            save(current)
             try:
                 response = self.model.generate(_SYSTEM, prompt, timeout_seconds=max(0.001, deadline - self.clock()))
             except Exception:
                 current["status"] = "model_failed"
+                return current
+            if stopped(current):
                 return current
             if self.clock() >= deadline:
                 current["status"] = "budget_exhausted"
@@ -112,6 +136,7 @@ class ExecutionRuntime:
                                                 "status": "invalid_model_action", "data": None})
                 return current
             current["pending_action"] = action
+            current["phase"] = "tool_pending" if action["action"] == "tool" else "idle"
             if action["action"] == "ask_user":
                 current.update(status="waiting_input", summary=action["question"])
             elif action["action"] == "fail":
@@ -127,19 +152,27 @@ class ExecutionRuntime:
 
         def execute(current):
             latest[0] = current
+            if stopped(current):
+                return current
             if self.clock() >= deadline:
                 current["status"] = "budget_exhausted"
                 return current
             action = current["pending_action"]
+            Draft202012Validator(ACTION_SCHEMA).validate(action)
+            binding = self.registry.binding(action["tool"], action["arguments"])
             fingerprint = json.dumps([action["tool"], action["arguments"]], sort_keys=True, allow_nan=False)
             contract = next((item for item in self.registry.catalog() if item["name"] == action["tool"]), None)
             max_repeats = 2 if contract and contract["idempotent"] and contract["side_effects"] == "none" else 1
             if repeats.get(fingerprint, 0) >= max_repeats:
                 current["status"] = "repeated_action"
                 return current
+            current["phase"] = "tool_running"
             repeats[fingerprint] = repeats.get(fingerprint, 0) + 1
+            save(current)
             try:
-                result = self.registry.call(action["tool"], action["arguments"])
+                result = self.registry.call(action["tool"], action["arguments"],
+                                            approved=approval[0] == binding)
+                approval[0] = None
             except KeyboardInterrupt:
                 current["observations"].append({"number": len(current["observations"]) + 1,
                                                 "tool": action["tool"], "status": "interrupted",
@@ -150,18 +183,30 @@ class ExecutionRuntime:
                                             "action_summary": action["summary"], **result})
             if result["status"] == "approval_required":
                 current["status"] = "waiting_approval"
+                current["approval_binding"] = binding
+                current["phase"] = "tool_pending"
+                repeats[fingerprint] -= 1
             elif result["effect_outcome"] == "unknown":
                 current["status"] = "needs_review"
             else:
                 current["pending_action"] = None
+                current["phase"] = "idle"
+                current.pop("approval_binding", None)
                 if self.clock() >= deadline:
                     current["status"] = "budget_exhausted"
+                stopped(current)
+            save(current)
             return current
 
+        def decide_saved(current):
+            result = decide(current)
+            save(result)
+            return result
+
         graph = StateGraph(dict)
-        graph.add_node("decide", decide)
+        graph.add_node("decide", decide_saved)
         graph.add_node("execute", execute)
-        graph.add_edge(START, "decide")
+        graph.add_edge(START, "execute" if state.get("phase") == "tool_pending" else "decide")
         graph.add_conditional_edges("decide", lambda current: END if current["status"] != "running" else
                                     "execute" if current["pending_action"] else "decide")
         graph.add_conditional_edges("execute", lambda current: "decide" if current["status"] == "running" else END)
@@ -173,5 +218,6 @@ class ExecutionRuntime:
         except KeyboardInterrupt:
             result = {**latest[0], "status": "cancelled"}
         result["runtime"] = "langgraph"
-        result["persistence"] = "none"
+        result["persistence"] = "sqlite" if checkpoint else "none"
+        save(result)
         return result

@@ -18,8 +18,8 @@ The next priority is **Phase 15: General Task Execution Core**: tool contracts a
 open-source evaluation, a dynamic execution loop, durable tasks and approval
 resume, shared context, and verified outcomes. The full stack is not yet
 complete. Phase 15.1 provides tool contracts; Phase 15.2 now adds a LangGraph
-foreground decision/action loop. Durable recovery and independent outcome
-verification remain future work. See the [roadmap](docs/roadmap.md) and
+foreground decision/action loop. Phase 15.3 adds local durable execution and approval
+resume; shared context and independent outcome verification remain future work. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -86,7 +86,7 @@ The single-call layer is also used by the dynamic loop below. See the
 [contract design](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md) and
 [initial open-source comparison](docs/execution_framework_evaluation.md).
 
-## Dynamic Execution (Phase 15.2)
+## Dynamic Execution (Phases 15.2-15.3)
 
 ```powershell
 pip install -e ".[executor]"
@@ -96,16 +96,52 @@ nexus executor run "Read README.md and summarize the project's current limitatio
 Configure the LLM and permitted tools first. The model chooses one action at a
 time, observes actual tool results and continues, asks a question or stops.
 The registered allow-policy tools may execute; ask-policy tools stop with a
-pending approval. There is no global approval flag or resume command yet.
+pending approval. Approvals are single-use and bound to the run, action and tool configuration.
 Tool data may be sent to the configured LLM. LangSmith tracing is disabled.
 The deadline is checked between steps and passed to model calls; existing tool
 timeouts still apply and are not universally preemptive.
 
 `reported_complete` means the model supplied successful tool references, not
 independently verified task success. Other outcomes distinguish approval/input
-waits, budgets, failure, repetition and uncertain side effects. State is in memory;
-rerunning starts over. RAG/MCP/voice integration and durable task recovery are
-subsequent work. See the [runtime design](docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md).
+waits, budgets, failure, repetition and uncertain side effects. CLI runs are saved
+in `NEXUS_HOME/executor.sqlite3` (default `.nexus/executor.sqlite3`). Use `resume`,
+not another `run`, to continue the same task. RAG/MCP/voice context integration
+remains subsequent work.
+
+```powershell
+nexus executor runs
+nexus executor show RUN_ID
+nexus executor resume RUN_ID --approval-token TOKEN_FROM_SHOW
+nexus executor resume RUN_ID --answer "Use the project folder"
+nexus executor pause RUN_ID
+nexus executor resume RUN_ID
+nexus executor cancel RUN_ID
+```
+
+Inspect the pending tool and arguments before approving. Configuration changes
+invalidate the token; inspect again for a new token. Listing, viewing, control
+requests and reconciliation need no API key. Resume needs a configured model.
+Pause/cancel are cooperative requests checked at execution boundaries, not OS
+process termination. Cancellation is sticky. Step and active-time budgets are
+retained across resumes; waiting for a person does not consume the time budget.
+An exhausted budget is not automatically renewed.
+
+If a process exits during a tool call, resume reports `needs_review` and refuses
+automatic replay. After independently checking the destination, record one outcome:
+
+```powershell
+nexus executor resolve RUN_ID --outcome completed --note "Verified the destination manually"
+# OR, only after confirming no operation occurred:
+nexus executor resolve RUN_ID --outcome not-executed --note "Confirmed the destination was unchanged"
+```
+
+Reconciliation never calls tools and is recorded as user evidence, not tool success.
+It leaves the task paused (or cancelled); a later resume can continue, with fresh
+approval where required. Partial or unknown effects must remain unresolved until
+checked. This is conservative recovery, not an exactly-once execution guarantee.
+Snapshots contain local goal/answer/tool data, are not encrypted, and must not be
+published; provider keys/configurations are not copied into the task store.
+See the [durable execution design](docs/superpowers/specs/2026-09-12-durable-execution.md).
 
 ## Desktop Tasks
 

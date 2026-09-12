@@ -154,9 +154,17 @@ The LLM receives goal, catalog, action schema and bounded recent observations.
 It cannot supply tool approval. Ask-policy calls return waiting_approval; unknown
 side effects stop for review. Successful reference numbers support a
 reported_complete outcome, without claiming independent artifact verification.
-The runtime is foreground/in-memory and disables LangSmith tracing; cooperative
-deadlines do not forcibly interrupt tools lacking adapter timeouts. Persistent
-resume and shared voice/RAG/MCP task context remain future stages.
+The runtime is foreground and disables LangSmith tracing. CLI execution uses
+PersistentExecutor with local SQLite snapshots before decisions and tool dispatch,
+and after observations. A per-run nonblocking OS file lease prevents competing
+runners; separate database transactions allow cooperative pause/cancel requests.
+Crash recovery treats an unfinished tool dispatch as uncertain, never as safe to
+replay. Single-use approval tokens bind the run/action to a hash of contract,
+arguments, policy and adapter configuration; raw configurations are not persisted.
+Manual reconciliation records user evidence without declaring tool success.
+Step/repeat/active-time budgets survive resumes. Deadlines do not forcibly interrupt
+tools lacking adapter timeouts. Shared voice/RAG/MCP context and independent
+artifact verification remain future stages. See the durable execution design.
 
 ## Execution Contract Layer
 

@@ -17,7 +17,7 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
 尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
-持久恢复和独立成果验证仍待实现。
+15.3 已增加本地持久任务与审批恢复；共享上下文和独立成果验证仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
@@ -82,7 +82,7 @@ nexus executor call automation.chatgpt --approve
 详见[工具契约设计](docs/superpowers/specs/2026-09-09-execution-tool-contracts.md)和
 [初步开源比较](docs/execution_framework_evaluation.md)。
 
-## 动态执行（Phase 15.2）
+## 动态执行（Phase 15.2-15.3）
 
 ```powershell
 pip install -e ".[executor]"
@@ -90,14 +90,45 @@ nexus executor run "读取 README.md，总结项目当前的功能边界" --max-
 ```
 
 先配置 LLM 和授权工具。模型每次选择一个动作，观察真实工具结果后继续、提问或停止。
-已注册的 allow 工具可以执行；ask 工具在执行前返回待审批动作，当前没有全局批准开关或
-恢复命令。工具数据可能发送到已配置的 LLM；运行时关闭 LangSmith tracing。
+已注册的 allow 工具可以执行；ask 工具在执行前返回待审批动作，批准绑定当前任务、
+具体动作及工具配置，不提供全局批准开关。工具数据可能发送到已配置的 LLM；运行时关闭 LangSmith tracing。
 时间预算在步骤间检查并传给模型请求，工具仍使用自己的超时机制，不保证强制中断所有阻塞调用。
 
 `reported_complete` 表示模型提供了成功工具结果的引用，不代表任务已独立验收通过。
-其他状态区分审批/补充信息等待、预算耗尽、失败、重复和副作用不确定。任务状态仅在内存中，
-重新运行会从头开始。RAG/MCP/语音任务接入及持久恢复仍属于后续阶段。
-详见[动态运行时设计](docs/superpowers/specs/2026-09-09-dynamic-execution-loop.md)。
+其他状态区分审批/补充信息等待、预算耗尽、失败、重复和副作用不确定。CLI 任务保存在
+`NEXUS_HOME/executor.sqlite3`，默认 `.nexus/executor.sqlite3`。用 `resume` 继续同一任务；
+再次 `run` 会创建新任务。RAG/MCP/语音共享任务上下文仍属于后续阶段。
+
+```powershell
+nexus executor runs
+nexus executor show RUN_ID
+nexus executor resume RUN_ID --approval-token TOKEN_FROM_SHOW
+nexus executor resume RUN_ID --answer "使用项目目录"
+nexus executor pause RUN_ID
+nexus executor resume RUN_ID
+nexus executor cancel RUN_ID
+```
+
+审批前查看待执行工具及参数。工具配置变化会使令牌失效，需要重新查看并批准。
+列表、详情、暂停/取消请求和人工核对不需要 API；恢复执行需要配置模型。
+暂停和取消是执行边界上的协作式请求，不会强制杀死外部软件。取消不可撤回。
+恢复保留累计步骤、重复动作记录及实际运行时间预算，等待用户的时间不计入预算；
+预算耗尽后不会自动重置。
+
+若进程在工具调用中退出，恢复进入 `needs_review`，不会自动重做。先检查真实目标状态，
+再记录一种核对结果：
+
+```powershell
+nexus executor resolve RUN_ID --outcome completed --note "已人工确认目标结果"
+# 或者，仅在确认操作没有发生时：
+nexus executor resolve RUN_ID --outcome not-executed --note "已确认目标未被修改"
+```
+
+核对命令不执行工具，记录的是用户证据，不是假造的工具成功。核对后任务暂停或保持取消，
+后续恢复仍需遵守工具审批。部分完成或仍然不确定的操作应继续等待核对。
+这不承诺跨系统的 exactly-once 执行。快照含目标、回答和工具结果，未加密，不能发布到 GitHub；
+任务库不会复制厂商 Key 和配置，但工具返回的敏感数据仍需妥善保护。
+详见[持久执行设计](docs/superpowers/specs/2026-09-12-durable-execution.md)。
 
 ## 电脑本地任务
 

@@ -237,9 +237,9 @@ This is the immediate priority before more one-off desktop actions.
 
 - [x] 15.1a Unified contracts, bounded dispatcher, filesystem/automation adapters, catalog and CLI tests.
 - [x] 15.1b Initial pinned-source comparison and framework-neutral contract decision.
-- [~] 15.1c LangGraph foreground/in-memory recovery validation complete; cross-process recovery and broader evaluation remain.
+- [~] 15.1c LangGraph foreground and durable cross-process crash recovery validated; broader framework/dependency evaluation remains.
 - [x] 15.2 LangGraph dynamic loop with strict actions, observations, budgets, repeat detection, approval stop and explicit unverified outcomes.
-- [ ] 15.3 Durable task state, approval resume, cancellation, and uncertain-write recovery.
+- [x] 15.3 Durable SQLite task state, single-use approval resume, cooperative pause/cancellation, crash recovery and manual uncertain-action reconciliation. No automatic replay or exactly-once claim.
 - [ ] 15.4 Shared task context across RAG, research, text, and voice.
 - [ ] 15.5 Artifact verification, unseen cross-domain tasks, and reliability/cost evaluation.
 

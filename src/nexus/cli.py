@@ -90,6 +90,18 @@ def build_parser() -> argparse.ArgumentParser:
     executor_parser = subparsers.add_parser("executor", help="Inspect and invoke contracted execution tools.")
     executor_commands = executor_parser.add_subparsers(dest="executor_command", required=True)
     executor_commands.add_parser("tools")
+    executor_commands.add_parser("runs")
+    executor_resolve = executor_commands.add_parser("resolve")
+    executor_resolve.add_argument("run_id")
+    executor_resolve.add_argument("--outcome", required=True, choices=["completed", "not-executed"])
+    executor_resolve.add_argument("--note", required=True)
+    for operation in ("show", "pause", "cancel", "resume"):
+        command = executor_commands.add_parser(operation)
+        command.add_argument("run_id")
+        if operation == "resume":
+            command.add_argument("--approval-token")
+            command.add_argument("--answer")
+            command.add_argument("--model-tier", choices=["simple", "complex"])
     executor_run = executor_commands.add_parser("run", help="Pursue a goal with a bounded model-driven tool loop.")
     executor_run.add_argument("goal")
     executor_run.add_argument("--max-steps", type=int, default=12)
@@ -1277,19 +1289,38 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
         from nexus.execution_tools import build_tool_registry
 
         try:
+            if args.executor_command in {"runs", "show", "pause", "cancel", "resolve"}:
+                from nexus.execution_store import ExecutionStore, PersistentExecutor
+                from nexus.config import nexus_home
+
+                store = ExecutionStore(nexus_home() / "executor.sqlite3")
+                if args.executor_command == "runs":
+                    print_json({"runs": store.list()})
+                elif args.executor_command == "resolve":
+                    print_json(PersistentExecutor(store, None).resolve(args.run_id, outcome=args.outcome, note=args.note))
+                else:
+                    if args.executor_command in {"pause", "cancel"}:
+                        store.request(args.run_id, args.executor_command)
+                    print_json(store.get(args.run_id))
+                return True
             registry = build_tool_registry()
             if args.executor_command == "tools":
                 print_json({"tools": registry.catalog()})
-            elif args.executor_command == "run":
+            elif args.executor_command in {"run", "resume"}:
                 from nexus.execution_runtime import ExecutionRuntime
+                from nexus.execution_store import ExecutionStore, PersistentExecutor
+                from nexus.config import nexus_home
 
                 llm_config = LLMConfig.from_env(model_tier=args.model_tier)
                 if not llm_config.is_configured:
                     print_json({"status": "not_configured", "error": "Configure an LLM before running dynamic tasks."})
                     raise SystemExit(2)
-                result = ExecutionRuntime(registry, OpenAICompatibleLLM(llm_config)).run(
-                    args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds,
-                )
+                executor = PersistentExecutor(ExecutionStore(nexus_home() / "executor.sqlite3"),
+                                              ExecutionRuntime(registry, OpenAICompatibleLLM(llm_config)))
+                if args.executor_command == "run":
+                    result = executor.start(args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds)
+                else:
+                    result = executor.resume(args.run_id, approval_token=args.approval_token, answer=args.answer)
                 print_json(result)
                 if result["status"] != "reported_complete":
                     raise SystemExit(1)

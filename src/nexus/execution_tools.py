@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import re
 from copy import deepcopy
@@ -47,8 +48,9 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[str, tuple[ToolContract, Callable, Callable]] = {}
+        self._bindings: dict[str, Callable] = {}
 
-    def register(self, contract: ToolContract, handler: Callable, policy: Callable) -> None:
+    def register(self, contract: ToolContract, handler: Callable, policy: Callable, *, binding=None) -> None:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", contract.name):
             raise ValueError("Invalid tool name.")
         if contract.name in self._tools:
@@ -70,6 +72,13 @@ class ToolRegistry:
         if contract.input_schema.get("additionalProperties") is not False:
             raise ValueError("Tool input schemas must reject unknown arguments.")
         self._tools[contract.name] = (deepcopy(contract), handler, policy)
+        self._bindings[contract.name] = binding or (lambda: None)
+
+    def binding(self, name: str, arguments: dict) -> str:
+        entry = self._tools.get(name)
+        definition = None if entry is None else [asdict(entry[0]), self._policy(entry[2]), self._bindings[name]()]
+        payload = json.dumps([name, arguments, definition], sort_keys=True, allow_nan=False)
+        return hashlib.sha256(payload.encode()).hexdigest()
 
     @staticmethod
     def _policy(callback: Callable) -> str:
@@ -167,7 +176,8 @@ def build_tool_registry(*, tools: Any = None, automations: Any = None) -> ToolRe
             output["required"] = ["matches"]
             output["properties"] = {"matches": {"type": "array"}}
         registry.register(ToolContract(f"filesystem.{operation}", f"{operation.title()} within authorized filesystem roots.",
-                                       schema, output, idempotent=True), run, policy)
+                                       schema, output, idempotent=True), run, policy,
+                          binding=lambda: tools.settings.get("filesystem", {}))
     for alias, definition in automations.settings.items():
         def policy(key=alias):
             current = automations.settings.get(key, {})
@@ -183,5 +193,5 @@ def build_tool_registry(*, tools: Any = None, automations: Any = None) -> ToolRe
             _object({}, []), {"type": "object", "required": ["status"], "properties": {"status": {"const": "success"}}},
             side_effects=effect, idempotent=effect == "none",
             timeout_seconds=definition.get("timeout_seconds") if kind == "command" else None,
-        ), run, policy)
+        ), run, policy, binding=lambda key=alias: automations.settings.get(key, {}))
     return registry
