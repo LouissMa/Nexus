@@ -1,6 +1,6 @@
 # Execution Context Design: Phase 15.4a
 
-Status: design awaiting written-spec review; not implemented.
+Status: implemented and verified.
 Date: 2026-09-13.
 
 ## Goal and Scope
@@ -23,9 +23,9 @@ never evidence that an execution action succeeded.
 3. Let the model retrieve everything through tools: flexible, but expands the tool
    and approval surface before the context privacy contract is established.
 
-## Proposed CLI Contract
+## CLI Contract
 
-These options are proposed and do not work in the released CLI yet:
+These options enable the delivered context capture path:
 
 ```powershell
 nexus executor run "Review my next research step" --with-context --context-goal GOAL_ID --context-research RESEARCH_ID
@@ -51,7 +51,8 @@ Create `src/nexus/execution_context.py` with an ExecutionContextBuilder that use
 the existing Nexus service and memory eligibility rules. Keep data selection,
 projection, budgets and source validation separate from LangGraph decisions.
 
-1. CLI validates explicit selections and consent.
+1. CLI validates explicit selections and consent; PersistentExecutor validates
+   goal and execution budgets before context capture or run creation.
 2. Builder loads only the selected goals and research project; it retrieves at
    most five eligible memories using the task goal as query/task context.
 3. Builder returns a versioned context envelope with projected content,
@@ -85,6 +86,8 @@ and selected privacy scope. Do not copy raw provider error strings or configurat
 - No extra LLM call to summarize context. Configured RAG query embedding may use
   its existing external provider; disclose this in help/docs. This feature never
   re-indexes or sends source text for embedding automatically.
+  Context capture uses existing retrieval adapter limits; the runtime time budget
+  starts when the execution loop begins, not when context capture begins.
 
 ## Privacy, Persistence and Recovery
 
@@ -139,6 +142,15 @@ Old snapshots without context follow the original resume path unchanged.
   no tool replay, unchanged approval and context-free compatibility.
 
 ## Acceptance Tests
+
+Verification on 2026-09-13: executor regression 61 passed; final full suite
+568 passed, 4 skipped (157.49 seconds). Independent review found and verified
+the fix for budget validation occurring after retrieval. Three regression cases
+now prove invalid budgets initialize no retriever and persist no run.
+An earlier full run had one intermittent failure in the existing interprocess
+automation configuration test; its isolated rerun and both later full runs passed.
+No paid model calls were used. Tests ran under explicit `tests` discovery with
+isolated temporary directories, without publishing personal configuration.
 
 1. Private/personal sentinel text is absent from default context and model prompts.
 2. Widening memory scope without explicit sensitive consent fails before model use.

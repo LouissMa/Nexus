@@ -17,7 +17,7 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
 尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
-15.3 已增加本地持久任务与审批恢复；共享上下文和独立成果验证仍待实现。
+15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文；文字语音共享入口和独立成果验证仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
@@ -84,8 +84,8 @@ nexus executor call automation.chatgpt --approve
 
 ## 动态执行（Phase 15.2-15.3）
 
-下一项为 15.4a：显式选择目标、RAG 记忆和研究项目作为执行上下文；之后再接入文字/语音共享任务（15.4b）。
-目前仅完成[设计草案](docs/superpowers/specs/2026-09-13-execution-context-design.md)，尚未实现，草案中的新参数暂不可用。
+15.4a 已接入显式选择的目标、RAG 记忆和研究项目上下文；文字/语音共享任务（15.4b）仍待实现。
+详见[上下文设计](docs/superpowers/specs/2026-09-13-execution-context-design.md)和下方用法。
 
 ```powershell
 pip install -e ".[executor]"
@@ -100,7 +100,7 @@ nexus executor run "读取 README.md，总结项目当前的功能边界" --max-
 `reported_complete` 表示模型提供了成功工具结果的引用，不代表任务已独立验收通过。
 其他状态区分审批/补充信息等待、预算耗尽、失败、重复和副作用不确定。CLI 任务保存在
 `NEXUS_HOME/executor.sqlite3`，默认 `.nexus/executor.sqlite3`。用 `resume` 继续同一任务；
-再次 `run` 会创建新任务。RAG/MCP/语音共享任务上下文仍属于后续阶段。
+再次 `run` 会创建新任务。选定来源的 RAG 上下文已可用，MCP/语音共享执行入口仍属于后续阶段。
 
 ```powershell
 nexus executor runs
@@ -132,6 +132,29 @@ nexus executor resolve RUN_ID --outcome not-executed --note "已确认目标未�
 这不承诺跨系统的 exactly-once 执行。快照含目标、回答和工具结果，未加密，不能发布到 GitHub；
 任务库不会复制厂商 Key 和配置，但工具返回的敏感数据仍需妥善保护。
 详见[持久执行设计](docs/superpowers/specs/2026-09-12-durable-execution.md)。
+
+## 执行上下文（Phase 15.4a）
+
+必须显式启用，不带新参数的原有命令行为不变。把示例 ID 替换为自己的目标和研究项目 ID：
+
+```powershell
+nexus executor run "结合我的目标，检查下一步研究任务" --with-context --context-goal GOAL_ID --context-research RESEARCH_ID
+nexus executor run "安排一个专注学习步骤" --with-context --context-memory-scope private --allow-sensitive-context
+```
+
+选定目标/研究字段和相关记忆可能发送到已配置的 LLM。记忆默认仅检索 `shared`；
+使用 `personal` 或 `private` 必须加 `--allow-sensitive-context` 明确同意，不会扩大工具权限。
+配置的 RAG 可能向 Embedding 厂商发送任务查询；本功能不自动重建索引，也不额外调用 LLM 压缩上下文。
+
+限制为三个不重复目标、五条相关记忆、一个研究项目、五个开放问题；每个文本字段最多 1,000 字符，
+整体 UTF-8 JSON 最多 16 KiB。研究内容只包含目标、问题和数量摘要，不加载论文全文、笔记或实验输出。
+`executor show RUN_ID` 可查看来源、检索策略/分数、截断标记和不含敏感原始异常的降级原因。
+
+恢复复用原快照，不重新检索。引用来源被删除、过期、归档、修改或改变隐私范围时，
+返回 `context_invalid` 并阻止继续，保留待审批状态；每次模型/工具调用前也会校验。
+当前没有自动刷新或重启功能，已经可能产生副作用的任务不要直接从头重跑。
+校验无法撤回已发送给厂商的数据，也不会自动擦除历史明文任务快照。
+上下文引用只是背景信息，不能冒充工具执行成功证据。
 
 ## 电脑本地任务
 

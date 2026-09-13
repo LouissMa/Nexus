@@ -163,8 +163,14 @@ replay. Single-use approval tokens bind the run/action to a hash of contract,
 arguments, policy and adapter configuration; raw configurations are not persisted.
 Manual reconciliation records user evidence without declaring tool success.
 Step/repeat/active-time budgets survive resumes. Deadlines do not forcibly interrupt
-tools lacking adapter timeouts. Shared voice/RAG/MCP context and independent
-artifact verification remain future stages. See the durable execution design.
+tools lacking adapter timeouts. Phase 15.4a supplies opt-in goal/RAG/research
+background_context via ExecutionContextBuilder. It projects selected canonical
+sources, filters before retrieval, bounds the envelope at 16 KiB, and persists
+provenance in the existing run. Resume and execution boundaries validate references
+without re-retrieval; stale sources block before model/tool calls. Unknown actions
+retain the existing review path. Context does not grant permission or successful
+evidence. Shared text/voice/MCP entry and independent artifact verification remain
+future stages. See the durable execution and execution context designs.
 
 ## Execution Contract Layer
 

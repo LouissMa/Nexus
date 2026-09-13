@@ -104,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
             command.add_argument("--model-tier", choices=["simple", "complex"])
     executor_run = executor_commands.add_parser("run", help="Pursue a goal with a bounded model-driven tool loop.")
     executor_run.add_argument("goal")
+    executor_run.add_argument("--with-context", action="store_true", help="Send selected context to the model; configured RAG may embed the query remotely.")
+    executor_run.add_argument("--context-goal", action="append", default=[], help="Selected goal ID; projected fields may be sent to the model.")
+    executor_run.add_argument("--context-research", help="Selected research ID; projected fields may be sent to the model.")
+    executor_run.add_argument("--context-memory-scope", choices=["shared", "personal", "private"])
+    executor_run.add_argument("--allow-sensitive-context", action="store_true", help="Explicitly consent to sending personal/private context to the model.")
     executor_run.add_argument("--max-steps", type=int, default=12)
     executor_run.add_argument("--timeout-seconds", type=float, default=120)
     executor_run.add_argument("--model-tier", choices=["simple", "complex"])
@@ -1287,8 +1292,21 @@ def _voice_config_values(args: argparse.Namespace) -> dict[str, Any]:
 def _dispatch_executor(args: argparse.Namespace) -> bool:
     if args.command == "executor":
         from nexus.execution_tools import build_tool_registry
+        from nexus.execution_context import ExecutionContextError
 
         try:
+            context_options = None
+            if args.executor_command == "run":
+                from nexus.execution_context import validate_context_options
+
+                if not args.with_context and (args.context_goal or args.context_research is not None
+                                             or args.context_memory_scope is not None or args.allow_sensitive_context):
+                    raise ExecutionContextError("Context options require --with-context.")
+                if args.with_context:
+                    context_options = {"goal_ids": args.context_goal, "research_id": args.context_research,
+                                       "memory_scope": args.context_memory_scope or "shared",
+                                       "allow_sensitive": args.allow_sensitive_context}
+                    validate_context_options(**context_options)
             if args.executor_command in {"runs", "show", "pause", "cancel", "resolve"}:
                 from nexus.execution_store import ExecutionStore, PersistentExecutor
                 from nexus.config import nexus_home
@@ -1317,8 +1335,16 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
                     raise SystemExit(2)
                 executor = PersistentExecutor(ExecutionStore(nexus_home() / "executor.sqlite3"),
                                               ExecutionRuntime(registry, OpenAICompatibleLLM(llm_config)))
+                needs_context = context_options is not None or (args.executor_command == "resume"
+                    and "context" in executor.store.get(args.run_id))
+                if needs_context:
+                    from nexus.execution_context import ExecutionContextBuilder
+
+                    executor.context_builder = ExecutionContextBuilder(NexusService(JsonStore.from_env()),
+                        retriever_factory=lambda: build_memory_retriever(load_embedding_settings(), nexus_home()))
                 if args.executor_command == "run":
-                    result = executor.start(args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds)
+                    result = executor.start(args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds,
+                                            context_options=context_options)
                 else:
                     result = executor.resume(args.run_id, approval_token=args.approval_token, answer=args.answer)
                 print_json(result)
@@ -1329,6 +1355,9 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
                 print_json(result)
                 if result["status"] != "success":
                     raise SystemExit(1)
+        except ExecutionContextError as error:
+            print_json({"status": "context_invalid", "error": str(error)})
+            raise SystemExit(2)
         except (ValueError, RuntimeError, OSError):
             print_json({"status": "error", "error": "Executor configuration or arguments are invalid."})
             raise SystemExit(2)

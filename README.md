@@ -10,9 +10,9 @@ Nexus remembers goals and life context, creates daily plans, runs scheduled brie
 
 ## Product Direction
 
-Next increment, not yet implemented: opt-in goal/RAG/research execution context
-(Phase 15.4a), followed by shared text/voice tasks (15.4b).
-See the [proposed context design](docs/superpowers/specs/2026-09-13-execution-context-design.md).
+Phase 15.4a adds opt-in goal/RAG/research execution context. Shared text/voice
+tasks (15.4b) remain next. See the
+[context design](docs/superpowers/specs/2026-09-13-execution-context-design.md).
 
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
@@ -23,7 +23,7 @@ open-source evaluation, a dynamic execution loop, durable tasks and approval
 resume, shared context, and verified outcomes. The full stack is not yet
 complete. Phase 15.1 provides tool contracts; Phase 15.2 now adds a LangGraph
 foreground decision/action loop. Phase 15.3 adds local durable execution and approval
-resume; shared context and independent outcome verification remain future work. See the [roadmap](docs/roadmap.md) and
+resume; 15.4a adds selected-source task context. Shared text/voice entry and independent outcome verification remain future work. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -109,8 +109,8 @@ timeouts still apply and are not universally preemptive.
 independently verified task success. Other outcomes distinguish approval/input
 waits, budgets, failure, repetition and uncertain side effects. CLI runs are saved
 in `NEXUS_HOME/executor.sqlite3` (default `.nexus/executor.sqlite3`). Use `resume`,
-not another `run`, to continue the same task. RAG/MCP/voice context integration
-remains subsequent work.
+not another `run`, to continue the same task. Selected-source RAG context is
+available below; shared MCP/voice execution entry remains subsequent work.
 
 ```powershell
 nexus executor runs
@@ -146,6 +146,36 @@ checked. This is conservative recovery, not an exactly-once execution guarantee.
 Snapshots contain local goal/answer/tool data, are not encrypted, and must not be
 published; provider keys/configurations are not copied into the task store.
 See the [durable execution design](docs/superpowers/specs/2026-09-12-durable-execution.md).
+
+## Execution Context (Phase 15.4a)
+
+Context is opt-in; existing commands without these options are unchanged.
+Replace the example IDs with your own goal and research project IDs:
+
+```powershell
+nexus executor run "Review my next research step" --with-context --context-goal GOAL_ID --context-research RESEARCH_ID
+nexus executor run "Plan a focused study step" --with-context --context-memory-scope private --allow-sensitive-context
+```
+
+Selected goal/research fields and relevant memories may be sent to your configured
+LLM. Default memory scope is `shared`; `personal` or `private` requires explicit
+`--allow-sensitive-context`. This does not widen tool permissions. Configured RAG
+may send the task query to an embedding provider; no automatic re-index or extra
+LLM summarization call is added.
+
+Limits: three unique selected goals, five relevant memories, one selected research
+project, five open questions, 1,000 characters per text field and 16 KiB of UTF-8
+JSON overall. Research context includes its objective/questions/counts, not full
+papers, notes or experimental output. `executor show RUN_ID` includes provenance,
+retrieval strategy/scores, truncation and safe degradation codes.
+
+Resume reuses the saved context rather than retrieving again. Removed, expired,
+archived, privacy-changed or edited referenced sources block continuation with
+`context_invalid`, preserving pending approvals. Validation also runs before each
+model/tool step. There is no automatic refresh or restart; do not rerun a task
+blindly if it may already have produced side effects. These checks cannot recall
+data already sent to a provider or erase historical plaintext run snapshots.
+Context references never count as successful tool evidence.
 
 ## Desktop Tasks
 

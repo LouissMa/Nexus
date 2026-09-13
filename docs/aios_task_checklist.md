@@ -240,8 +240,8 @@ This is the immediate priority before more one-off desktop actions.
 - [~] 15.1c LangGraph foreground and durable cross-process crash recovery validated; broader framework/dependency evaluation remains.
 - [x] 15.2 LangGraph dynamic loop with strict actions, observations, budgets, repeat detection, approval stop and explicit unverified outcomes.
 - [x] 15.3 Durable SQLite task state, single-use approval resume, cooperative pause/cancellation, crash recovery and manual uncertain-action reconciliation. No automatic replay or exactly-once claim.
-- [ ] 15.4 Shared task context across RAG, research, text, and voice.
-- [ ] 15.4a Selected goal/RAG/research context: design drafted on 2026-09-13; awaiting written-spec review, not implemented.
+- [~] 15.4 Selected-source context implemented; shared text/voice entry remains pending.
+- [x] 15.4a Opt-in selected goals/research and shared-default RAG; bounded provenance snapshots, sensitive consent, stale-source checks and safe degradation.
 - [ ] 15.4b Shared text/voice task entry and observable progress, after 15.4a.
 - [ ] 15.5 Artifact verification, unseen cross-domain tasks, and reliability/cost evaluation.
 

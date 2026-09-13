@@ -102,14 +102,23 @@ class ExecutionStore:
 
 
 class PersistentExecutor:
-    def __init__(self, store, runtime):
+    def __init__(self, store, runtime, *, context_builder=None):
         self.store = store
         self.runtime = runtime
+        self.context_builder = context_builder
 
-    def start(self, goal, *, max_steps=12, timeout_seconds=120):
+    def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None):
+        from nexus.execution_runtime import validate_execution_request
+
+        validate_execution_request(goal, max_steps, timeout_seconds)
+        context = {}
+        if context_options is not None:
+            if self.context_builder is None:
+                raise ValueError("Execution context builder is required.")
+            context["context"] = self.context_builder.build(goal, **context_options)
         state = self.store.create({"goal": goal, "status": "created", "steps": 0, "observations": [],
                                    "pending_action": None, "summary": "", "verification": "not_verified",
-                                   "max_steps": max_steps, "timeout_seconds": timeout_seconds})
+                                   "max_steps": max_steps, "timeout_seconds": timeout_seconds, **context})
         return self.resume(state["run_id"])
 
     def checkpoint(self, state):
@@ -160,6 +169,12 @@ class PersistentExecutor:
                 state["status"] = "cancelled"
                 self.checkpoint(state)
                 return state
+            validate_context = None
+            if "context" in state:
+                if self.context_builder is None:
+                    raise ValueError("Execution context validation is required for this run.")
+                validate_context = lambda: self.context_builder.validate(state["context"])
+                validate_context()
             approved = None
             if state["status"] == "waiting_approval":
                 if not approval_token or approval_token != state.get("approval_token"):
@@ -186,4 +201,5 @@ class PersistentExecutor:
                                     timeout_seconds=state["timeout_seconds"], initial_state=state,
                                     checkpoint=self.checkpoint,
                                     control=lambda: self.store.get(run_id)["control_requested"],
+                                    context_validator=validate_context,
                                     approval_binding=approved)

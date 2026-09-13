@@ -4,7 +4,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
-- `docs/superpowers/specs/2026-09-13-execution-context-design.md`: Proposed Phase 15.4a opt-in goal/RAG/research context design, disclosure rules, snapshot invalidation, limits and acceptance tests. Awaiting written-spec review; not implemented.
+- `docs/superpowers/specs/2026-09-13-execution-context-design.md`: Phase 15.4a selected-source context contract, disclosure rules, snapshot invalidation, limits and acceptance tests.
+- `docs/superpowers/plans/2026-09-13-execution-context.md`: Implementation sequence and validation checklist for Phase 15.4a.
 
 - `docs/current_capabilities_and_next_phase.md`: Dated Chinese capability baseline, explicit current limitations, Phase 15 milestones and acceptance tasks, open-source evaluation criteria, and the longer-term route toward embodied interfaces. Separates planned work from delivered functionality.
 
@@ -14,6 +15,9 @@ This file explains the role of important Nexus files. Update it whenever a signi
 - `.gitignore`: Excludes Python/build/test output plus the complete local `.nexus/` personal runtime directory.
 
 ## Application Core
+
+- `src/nexus/execution_context.py`: Opt-in goal/RAG/research context projections; shared-only default and explicit sensitive consent; canonical memory filtering, retrieval provenance, field/UTF-8 budgets and stale-reference validation. Does not write sources or initialize retrieval on resume.
+- `tests/test_execution_context.py`: Privacy sentinels, malicious/stale retrieval hits, expiry, source changes, Unicode limits, safe degradation, snapshot reuse, CLI run/resume and separation of context from success evidence.
 
 - `src/nexus/execution_runtime.py`: Optional LangGraph foreground decision/action loop, strict actions, bounded observations, cumulative budgets, durable checkpoint/control hooks, repeat detection, clarification/approval stops and explicit uncertain/unverified outcomes. Direct library use can still be in-memory.
 - `src/nexus/execution_store.py`: Local SQLite run snapshots; per-run nonblocking OS leases; run listing, inspection and cooperative controls; PersistentExecutor resume, single-use approvals bound to configuration, and manual uncertain-action reconciliation. Stores no provider configuration; tool data in snapshots is not encrypted.
