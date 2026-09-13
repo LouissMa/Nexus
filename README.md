@@ -10,6 +10,10 @@ Nexus remembers goals and life context, creates daily plans, runs scheduled brie
 
 ## Product Direction
 
+Next increment, not yet implemented: opt-in goal/RAG/research execution context
+(Phase 15.4a), followed by shared text/voice tasks (15.4b).
+See the [proposed context design](docs/superpowers/specs/2026-09-13-execution-context-design.md).
+
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
 The long-term direction is a Personal AI Operating System shared by CLI, web, voice, and future embodied interfaces. The current release is not AGI: it is a local, permission-bounded assistant with explicit limits.

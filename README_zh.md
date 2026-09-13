@@ -84,6 +84,9 @@ nexus executor call automation.chatgpt --approve
 
 ## 动态执行（Phase 15.2-15.3）
 
+下一项为 15.4a：显式选择目标、RAG 记忆和研究项目作为执行上下文；之后再接入文字/语音共享任务（15.4b）。
+目前仅完成[设计草案](docs/superpowers/specs/2026-09-13-execution-context-design.md)，尚未实现，草案中的新参数暂不可用。
+
 ```powershell
 pip install -e ".[executor]"
 nexus executor run "读取 README.md，总结项目当前的功能边界" --max-steps 12 --timeout-seconds 120

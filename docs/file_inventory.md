@@ -4,6 +4,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
+- `docs/superpowers/specs/2026-09-13-execution-context-design.md`: Proposed Phase 15.4a opt-in goal/RAG/research context design, disclosure rules, snapshot invalidation, limits and acceptance tests. Awaiting written-spec review; not implemented.
+
 - `docs/current_capabilities_and_next_phase.md`: Dated Chinese capability baseline, explicit current limitations, Phase 15 milestones and acceptance tasks, open-source evaluation criteria, and the longer-term route toward embodied interfaces. Separates planned work from delivered functionality.
 
 - `README.md`: English product overview, synchronized quick start, current capabilities, credentials, Dashboard/MCP Server/Research Companion usage, security boundaries, and limitations.

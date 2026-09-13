@@ -196,6 +196,10 @@ Status: 15.1 contracts, 15.2 foreground dynamic execution and 15.3 durable execu
 - [x] 15.2: LangGraph model-driven decide/act/observe loop over registered tools, bounded decisions/context, cooperative deadlines, explicit clarification, approval stop and unverified completion reporting.
 - [x] 15.3: SQLite run/action/result snapshots, single-use bound approvals, cooperative pause/cancel, restart recovery and explicit uncertain-action reconciliation. Independent artifact verification remains in 15.5.
 - [ ] 15.4: Connect eligible RAG, goals, research, text, and voice to shared task state and observable progress.
+
+15.4 is split into selected-source context (15.4a) and shared text/voice entry
+(15.4b). The [15.4a design](superpowers/specs/2026-09-13-execution-context-design.md)
+is drafted for review; neither increment is implemented yet.
 - [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
 
 Success means executing new goals by composing tools, not adding one intent per
