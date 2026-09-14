@@ -200,6 +200,9 @@ Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution and 15.4a
 15.4 is split into selected-source context (15.4a) and shared text/voice entry
 (15.4b). The [15.4a design](superpowers/specs/2026-09-13-execution-context-design.md)
 documents the delivered 15.4a context behavior; 15.4b remains pending.
+The [15.4b design](superpowers/specs/2026-09-14-shared-task-conversation-design.md)
+specifies shared text/voice task sessions with text-only approvals. It is a
+design for review, not a claim of background execution or voice interruption.
 - [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
 
 Success means executing new goals by composing tools, not adding one intent per

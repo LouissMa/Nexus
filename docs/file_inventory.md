@@ -4,6 +4,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
+- `docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md`: Phase 15.4b design for shared text/voice task sessions, deterministic lifecycle routing, lazy dependencies, text-only approval and foreground-voice limitations; not yet implemented.
+
 - `docs/superpowers/specs/2026-09-13-execution-context-design.md`: Phase 15.4a selected-source context contract, disclosure rules, snapshot invalidation, limits and acceptance tests.
 - `docs/superpowers/plans/2026-09-13-execution-context.md`: Implementation sequence and validation checklist for Phase 15.4a.
 

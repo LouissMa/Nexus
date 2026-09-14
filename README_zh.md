@@ -135,6 +135,9 @@ nexus executor resolve RUN_ID --outcome not-executed --note "已确认目标未�
 
 ## 执行上下文（Phase 15.4a）
 
+下一步的[文字/语音共享任务设计](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)
+已形成文档（15.4b），尚未实现，其中的任务模式参数暂不可用。目标是持续协作，不代表当前已支持语音打断或后台执行。
+
 必须显式启用，不带新参数的原有命令行为不变。把示例 ID 替换为自己的目标和研究项目 ID：
 
 ```powershell
