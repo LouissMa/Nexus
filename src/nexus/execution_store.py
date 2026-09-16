@@ -10,6 +10,10 @@ from pathlib import Path
 from uuid import uuid4
 
 
+class ExecutionBusyError(RuntimeError):
+    """The run lease is held by another executor."""
+
+
 class ExecutionStore:
     """Local snapshots; a separate OS lease serializes runners without blocking controls."""
 
@@ -18,6 +22,37 @@ class ExecutionStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, state TEXT NOT NULL, control TEXT)")
+            db.execute("CREATE TABLE IF NOT EXISTS task_sessions (name TEXT PRIMARY KEY, run_id TEXT, candidates TEXT NOT NULL, revision INTEGER NOT NULL)")
+
+    @staticmethod
+    def validate_session(name):
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+            raise ValueError("Invalid task session name.")
+
+    def task_session(self, name):
+        self.validate_session(name)
+        with self.connect() as db:
+            row = db.execute("SELECT run_id,candidates,revision FROM task_sessions WHERE name=?", (name,)).fetchone()
+        return {"run_id": row[0], "candidates": json.loads(row[1]), "revision": row[2]} if row else {
+            "run_id": None, "candidates": [], "revision": 0}
+
+    def update_task_session(self, name, revision, *, run_id, candidates):
+        self.validate_session(name)
+        if type(revision) is not int or revision < 0 or not isinstance(candidates, list) or len(candidates) > 5:
+            raise ValueError("Invalid task session update.")
+        for key in [*candidates, *([run_id] if run_id is not None else [])]:
+            self.get(key)
+        if len(set(candidates)) != len(candidates):
+            raise ValueError("Duplicate task candidates.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT revision FROM task_sessions WHERE name=?", (name,)).fetchone()
+            if (row[0] if row else 0) != revision:
+                raise ValueError("Task session changed; inspect the selection again.")
+            db.execute("INSERT INTO task_sessions(name,run_id,candidates,revision) VALUES (?,?,?,?) "
+                       "ON CONFLICT(name) DO UPDATE SET run_id=excluded.run_id,candidates=excluded.candidates,revision=excluded.revision",
+                       (name, run_id, json.dumps(candidates), revision + 1))
+        return {"run_id": run_id, "candidates": list(candidates), "revision": revision + 1}
 
     @contextmanager
     def connect(self):
@@ -72,6 +107,31 @@ class ExecutionStore:
             db.execute("UPDATE runs SET control=? WHERE id=? AND (control IS NULL OR control!='cancel')",
                        (request, run_id))
 
+    def request_task_control(self, run_id, request):
+        self.request(run_id, request)
+        if request != "cancel":
+            return
+        try:
+            with self.lease(run_id):
+                self._acknowledge_cancel_locked(run_id)
+        except ExecutionBusyError:
+            # The active runner observes the sticky control at its next checkpoint.
+            return
+
+    def _acknowledge_cancel_locked(self, run_id):
+        """Caller must hold the run lease; preserve unknown side-effect outcomes."""
+        state = self.get(run_id)
+        if state["control_requested"] != "cancel" or state["status"] in {"reported_complete", "failed", "cancelled"}:
+            return state
+        if state.get("phase") == "tool_running" or state["status"] == "needs_review":
+            state.update(status="needs_review", summary="Tool outcome is uncertain; cancellation does not undo it.")
+        else:
+            state.update(status="cancelled", summary="Task cancelled; completed actions were not undone.")
+        state.pop("approval_token", None)
+        state.pop("approval_token_binding", None)
+        self.save(state)
+        return state
+
     @contextmanager
     def lease(self, run_id):
         self.validate_id(run_id)
@@ -90,7 +150,7 @@ class ExecutionStore:
                     import fcntl
                     fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError as error:
-                raise RuntimeError("Execution is already running.") from error
+                raise ExecutionBusyError("Execution is already running.") from error
             try:
                 yield
             finally:
@@ -107,7 +167,7 @@ class PersistentExecutor:
         self.runtime = runtime
         self.context_builder = context_builder
 
-    def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None):
+    def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None, on_created=None):
         from nexus.execution_runtime import validate_execution_request
 
         validate_execution_request(goal, max_steps, timeout_seconds)
@@ -119,6 +179,8 @@ class PersistentExecutor:
         state = self.store.create({"goal": goal, "status": "created", "steps": 0, "observations": [],
                                    "pending_action": None, "summary": "", "verification": "not_verified",
                                    "max_steps": max_steps, "timeout_seconds": timeout_seconds, **context})
+        if on_created is not None:
+            on_created(state["run_id"])
         return self.resume(state["run_id"])
 
     def checkpoint(self, state):
@@ -197,9 +259,10 @@ class PersistentExecutor:
             elif answer is not None:
                 raise ValueError("There is no pending question.")
             self.store.request(run_id, None)
-            return self.runtime.run(state["goal"], max_steps=state["max_steps"],
+            self.runtime.run(state["goal"], max_steps=state["max_steps"],
                                     timeout_seconds=state["timeout_seconds"], initial_state=state,
                                     checkpoint=self.checkpoint,
                                     control=lambda: self.store.get(run_id)["control_requested"],
                                     context_validator=validate_context,
                                     approval_binding=approved)
+            return self.store._acknowledge_cancel_locked(run_id)

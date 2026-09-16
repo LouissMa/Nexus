@@ -116,6 +116,9 @@ def validate_audio_file(
 
 
 def render_conversation_speech(conversation: Mapping[str, Any]) -> str:
+    if conversation.get("task_mode") is True:
+        speech = conversation.get("speech_text")
+        return speech[:1500] if isinstance(speech, str) and speech else "Task status unavailable."
     explanation = conversation.get("explanation")
     explanation_text = explanation.strip() if isinstance(explanation, str) else ""
     if conversation.get("requires_approval") and conversation.get("result") is None:

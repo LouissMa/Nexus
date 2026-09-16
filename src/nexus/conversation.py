@@ -257,12 +257,13 @@ class IntentRegistry:
 
 
 class ConversationService:
-    def __init__(self, nexus: Any, *, timezone: str = "UTC", llm: Any = None, desktop: Any = None) -> None:
+    def __init__(self, nexus: Any, *, timezone: str = "UTC", llm: Any = None, desktop: Any = None, task_router=None) -> None:
         self.nexus = nexus
         self.timezone = timezone
         self.llm = llm
         self.registry = IntentRegistry()
         self.desktop = desktop
+        self.task_router = task_router
 
     def handle(
         self,
@@ -273,6 +274,8 @@ class ConversationService:
         show_intent: bool = False,
         now: datetime | None = None,
     ) -> dict[str, Any]:
+        if self.task_router is not None:
+            return self.task_router.handle(text, approved=approved)
         current = now or datetime.now(UTC)
         intent = self.registry.parse_local(text)
         degradations: list[str] = []

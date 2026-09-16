@@ -188,21 +188,21 @@ Current status: foundation implemented; richer computer interaction remains plan
 
 ## Phase 15: General Task Execution Core
 
-Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution and 15.4a selected-source context implemented; shared text/voice entry and independent verification remain pending.
+Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution and 15.4 selected-source context/shared text-voice entry implemented; independent verification remains pending.
 
 - [x] 15.1a: Unified input/output contracts, policy-aware catalog, bounded one-call dispatch, explicit side-effect/retry/adapter-timeout metadata, filesystem and named automation adapters, CLI and tests.
 - [x] 15.1b: Initial pinned-source comparison of LangGraph, smolagents and OpenClaw; framework-neutral contract decision recorded.
 - [~] 15.1c: LangGraph selected and tested for foreground execution, interrupt/resume and durable crash recovery; broader dependency review and candidate benchmarks remain pending.
 - [x] 15.2: LangGraph model-driven decide/act/observe loop over registered tools, bounded decisions/context, cooperative deadlines, explicit clarification, approval stop and unverified completion reporting.
 - [x] 15.3: SQLite run/action/result snapshots, single-use bound approvals, cooperative pause/cancel, restart recovery and explicit uncertain-action reconciliation. Independent artifact verification remains in 15.5.
-- [~] 15.4: Selected goal/RAG/research context implemented; shared text/voice task entry and observable progress remain pending.
+- [x] 15.4: Selected goal/RAG/research context, shared text/voice task entry and observable progress. Foreground turns only; approvals remain text-only.
 
 15.4 is split into selected-source context (15.4a) and shared text/voice entry
 (15.4b). The [15.4a design](superpowers/specs/2026-09-13-execution-context-design.md)
-documents the delivered 15.4a context behavior; 15.4b remains pending.
+documents the delivered 15.4a context behavior; 15.4b is also implemented.
 The [15.4b design](superpowers/specs/2026-09-14-shared-task-conversation-design.md)
 specifies shared text/voice task sessions with text-only approvals. It is a
-design for review, not a claim of background execution or voice interruption.
+delivered foreground baseline, not a claim of background execution or voice interruption.
 - [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
 
 Success means executing new goals by composing tools, not adding one intent per

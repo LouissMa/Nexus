@@ -201,6 +201,32 @@ rendering, arbitrary desktop clicking, or general autonomous task execution.
 
 ## Explicit Voice Flow
 
+### Shared Task Mode
+
+Explicit --task-mode delegates ConversationService to TaskConversation. Text and
+voice use the same ExecutionStore/PersistentExecutor, not separate execution loops.
+SQLite task_sessions stores the selected run, up to five candidate IDs and a revision.
+Number replies bind to the current router's displayed revision or an explicit
+`select task N @REVISION` receipt across CLI processes. Stale lists fail closed.
+Session labels are local workflow names, not authentication or isolation boundaries.
+The start callback binds selection before execution; a selection conflict may leave
+an unexecuted created run, but never silently executes or retries it.
+
+The executor factory is lazy: status/selection/pause/cancel do not initialize LLMs
+or embeddings. Idle cancellation takes the run lease and clears approval tokens;
+an active lease leaves cooperative cancellation for the runner. Uncertain actions
+remain needs_review. The runner reconciles cancellation before returning; later
+task queries also reconcile pending cancellation once the lease becomes free.
+New conversational tasks are context-free; selected existing
+contextful runs retain source validation and disclosure consent.
+
+Task-mode voice stays open at waiting_approval for safe controls, never approval.
+Speech uses bounded status projections without tokens/raw results. Model-generated
+questions after observations or attached context are text-only to avoid echoes of
+private data; initial context-free questions may be spoken. This is conservative
+projection, not general-purpose data-loss prevention. Foreground model/tool calls
+still block further listening; no background runner or voice interruption is implied.
+
 `nexus voice chat` uses `voice_session.py` to alternate WebRTC VAD capture,
 `VoiceService.ask`, and system playback. The 16 kHz mono input stream closes
 before transcription/playback. Each temporary WAV is removed at turn exit.

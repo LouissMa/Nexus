@@ -17,7 +17,7 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
 尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
-15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文；文字语音共享入口和独立成果验证仍待实现。
+15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文，15.4b 已接入文字/语音共享任务会话；独立成果验证仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
@@ -84,7 +84,7 @@ nexus executor call automation.chatgpt --approve
 
 ## 动态执行（Phase 15.2-15.3）
 
-15.4a 已接入显式选择的目标、RAG 记忆和研究项目上下文；文字/语音共享任务（15.4b）仍待实现。
+15.4a 已接入显式选择的目标、RAG 记忆和研究项目上下文；15.4b 已接入文字/语音共享任务。
 详见[上下文设计](docs/superpowers/specs/2026-09-13-execution-context-design.md)和下方用法。
 
 ```powershell
@@ -100,7 +100,7 @@ nexus executor run "读取 README.md，总结项目当前的功能边界" --max-
 `reported_complete` 表示模型提供了成功工具结果的引用，不代表任务已独立验收通过。
 其他状态区分审批/补充信息等待、预算耗尽、失败、重复和副作用不确定。CLI 任务保存在
 `NEXUS_HOME/executor.sqlite3`，默认 `.nexus/executor.sqlite3`。用 `resume` 继续同一任务；
-再次 `run` 会创建新任务。选定来源的 RAG 上下文已可用，MCP/语音共享执行入口仍属于后续阶段。
+再次 `run` 会创建新任务。选定来源的 RAG 上下文及文字/语音共享入口已可用，通用 MCP 执行适配器仍属于后续阶段。
 
 ```powershell
 nexus executor runs
@@ -135,8 +135,8 @@ nexus executor resolve RUN_ID --outcome not-executed --note "已确认目标未�
 
 ## 执行上下文（Phase 15.4a）
 
-下一步的[文字/语音共享任务设计](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)
-已形成文档（15.4b），尚未实现，其中的任务模式参数暂不可用。目标是持续协作，不代表当前已支持语音打断或后台执行。
+[文字/语音共享任务](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)（15.4b）已实现，
+目标是围绕同一个任务持续协作，但当前不支持语音打断或后台执行。
 
 必须显式启用，不带新参数的原有命令行为不变。把示例 ID 替换为自己的目标和研究项目 ID：
 
@@ -158,6 +158,52 @@ nexus executor run "安排一个专注学习步骤" --with-context --context-mem
 当前没有自动刷新或重启功能，已经可能产生副作用的任务不要直接从头重跑。
 校验无法撤回已发送给厂商的数据，也不会自动擦除历史明文任务快照。
 上下文引用只是背景信息，不能冒充工具执行成功证据。
+
+## 文字/语音共享任务（Phase 15.4b）
+
+显式开启任务模式后，文字和语音围绕同一个持久任务协作；普通对话行为不变。
+
+```powershell
+nexus ask "开始任务：读取项目 README 并总结当前限制" --task-mode
+nexus ask "查看进度" --task-mode
+nexus voice chat --task-mode
+nexus ask "回答：使用项目目录" --task-mode
+nexus ask "继续任务" --task-mode
+```
+
+两个入口默认使用本地 `default` 会话，重启后仍记得选中的任务。需要区分工作流时，
+在两个入口都加 `--task-session research`。会话名只是本地标签，不是用户认证或隐私隔离。
+也可以选中已有任务，包括带 15.4a 上下文的任务：
+
+```powershell
+nexus ask "查看进度" --task-mode --task-id RUN_ID
+nexus ask "任务列表" --task-mode
+nexus ask "选择任务 2 @REVISION" --task-mode
+nexus ask "暂停任务" --task-mode
+nexus ask "取消任务" --task-mode
+```
+
+未选中任务时最多展示五个候选，不会擅自挑最新一个。编号指向已展示列表的 ID 快照；
+把 REVISION 替换为列表返回的 selection_revision。新 CLI 进程需要这个列表版本号或完整任务 ID；
+连续语音会话可直接使用自己展示过的编号。另一入口刷新列表或改选后，旧版本选择会被拒绝。
+已经开始处理的一次请求不会因另一入口改选而换目标。
+若创建时发生选择冲突，可能留下一个未执行的 `created` 任务，可在列表中查看；不会自动执行或重试。
+
+生命周期命令使用确定性的中英文短语识别，不会把任意闲聊自动变成执行。
+只有选中任务正在等待补充信息时，非控制语句才会作为回答。新任务默认不附加个人上下文，
+已有上下文任务继续沿用原来的授权和来源校验。
+
+查询、选择、暂停和取消不初始化 LLM 或 Embedding；执行仍需要配置模型，并遵守原有预算和工具权限。
+空闲任务取消后会在任务锁保护下立即确认状态；执行中的调用仍是协作式取消，结果不确定的动作仍需人工核对。
+任务模式拒绝 `--approve`，“好的”或“yes”都不是工具审批。
+需要批准时先用 `executor show RUN_ID` 检查具体动作，再通过
+`executor resume RUN_ID --approval-token TOKEN` 提交对应令牌。
+任务模式语音可在待审批时继续接收安全的查询/控制；普通语音仍在审批时退出。
+播报不朗读审批令牌和原始工具结果，并区分等待、失败以及“模型报告完成”。
+如果追问发生在读取工具结果或附加上下文之后，问题保留在文字视图中，语音只提示查看并回答，避免复述潜在私人信息。
+
+当前是前台轮流会话：工具或模型阻塞时不会同时监听“停下”，也没有后台执行服务。
+可从另一个文字进程发起协作式取消。自动化测试使用模拟音频和脚本模型，不等于已完成真实麦克风和识别准确率验收。
 
 ## 电脑本地任务
 
@@ -207,7 +253,7 @@ nexus voice briefing --live-tools
 
 `nexus voice ask` 按请求的有限时长录音，在本地转写 WAV，将文字交给与 `nexus ask` 相同的对话与批准流程，并在操作系统语音可用时播报结果。`nexus voice briefing` 复用现有文本简报，也可使用显式请求的实时工具。可用 `nexus voice status`、`nexus voice record`、`nexus voice transcribe` 和 `nexus voice speak` 进行诊断或单项操作。
 
-`nexus voice chat` 启动 Voice Assistant 2.0 连续轮流会话：WebRTC VAD 等待说话，检测到约 900 毫秒停顿后结束本轮录音。Nexus 处理并播报后自动再次监听。说“结束对话”或 `end conversation`、按 Ctrl+C，或等待静默超时即可退出。遇到待审批操作时停止会话并输出预览，审批不会跨轮继承。`--no-play` 只输出文字。会话事件以实时刷新的 JSON 行输出。默认最多录音尝试 20 轮（上限 100），每轮等待说话 30 秒（上限 120）；空转写消耗一次尝试后继续监听。
+`nexus voice chat` 启动 Voice Assistant 2.0 连续轮流会话：WebRTC VAD 等待说话，检测到约 900 毫秒停顿后结束本轮录音。Nexus 处理并播报后自动再次监听。说“结束对话”或 `end conversation`、按 Ctrl+C，或等待静默超时即可退出。普通会话遇到待审批操作时退出并输出预览，任务模式则可继续查询/控制但不能语音批准；审批不会跨轮继承。`--no-play` 只输出文字。会话事件以实时刷新的 JSON 行输出。默认最多录音尝试 20 轮（上限 100），每轮等待说话 30 秒（上限 120）；空转写消耗一次尝试后继续监听。
 
 升级时重新运行 `pip install -e ".[voice]"` 安装 `webrtcvad-wheels`。音频始终保留在本地，临时录音会被删除；Whisper 首次运行可能下载模型。添加 `--llm` 可使用已配置的文本 LLM 解析意图，此时转写文字可能发送给该厂商。会话复用现有命令路由，没有新增聊天历史推理或代词消解。处理和播报时暂停监听；唤醒词、语音打断、后台监听和 Dashboard 麦克风仍待实现。
 

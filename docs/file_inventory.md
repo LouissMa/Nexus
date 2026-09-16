@@ -4,7 +4,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Root Files
 
-- `docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md`: Phase 15.4b design for shared text/voice task sessions, deterministic lifecycle routing, lazy dependencies, text-only approval and foreground-voice limitations; not yet implemented.
+- `docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md`: Implemented Phase 15.4b contract for shared sessions, selection receipts, lazy controls, speech privacy and text-only approval.
+- `docs/superpowers/plans/2026-09-14-shared-task-conversation.md`: Implementation and verification checklist for shared task conversations.
 
 - `docs/superpowers/specs/2026-09-13-execution-context-design.md`: Phase 15.4a selected-source context contract, disclosure rules, snapshot invalidation, limits and acceptance tests.
 - `docs/superpowers/plans/2026-09-13-execution-context.md`: Implementation sequence and validation checklist for Phase 15.4a.
@@ -18,11 +19,14 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `src/nexus/task_conversation.py`: Deterministic Chinese/English task lifecycle router; explicit start/select, revision-bound candidate receipts, shared run progress, clarification answers, lazy executor creation and bounded speech projections. Never grants tool approval.
+- `tests/test_task_conversation.py`: Shared text/fake-voice runs, restart persistence, stale selection and races, lazy dependencies, approval isolation, speech privacy, cancellation and context validation regressions.
+
 - `src/nexus/execution_context.py`: Opt-in goal/RAG/research context projections; shared-only default and explicit sensitive consent; canonical memory filtering, retrieval provenance, field/UTF-8 budgets and stale-reference validation. Does not write sources or initialize retrieval on resume.
 - `tests/test_execution_context.py`: Privacy sentinels, malicious/stale retrieval hits, expiry, source changes, Unicode limits, safe degradation, snapshot reuse, CLI run/resume and separation of context from success evidence.
 
 - `src/nexus/execution_runtime.py`: Optional LangGraph foreground decision/action loop, strict actions, bounded observations, cumulative budgets, durable checkpoint/control hooks, repeat detection, clarification/approval stops and explicit uncertain/unverified outcomes. Direct library use can still be in-memory.
-- `src/nexus/execution_store.py`: Local SQLite run snapshots; per-run nonblocking OS leases; run listing, inspection and cooperative controls; PersistentExecutor resume, single-use approvals bound to configuration, and manual uncertain-action reconciliation. Stores no provider configuration; tool data in snapshots is not encrypted.
+- `src/nexus/execution_store.py`: Local SQLite run snapshots and revisioned task sessions; per-run nonblocking OS leases; cooperative controls and lease-protected idle cancellation; PersistentExecutor resume, pre-execution session binding, single-use approvals and uncertain-action reconciliation. Stores no provider configuration; tool data in snapshots is not encrypted.
 - `tests/test_execution_store.py`: Store reopening, approval/configuration/token isolation, question continuation, cumulative budgets, concurrent runner exclusion, pause/cancel, checkpoint failure, reconciliation and actual subprocess crash/no-replay tests.
 - `docs/superpowers/specs/2026-09-12-durable-execution.md`: Phase 15.3 state/checkpoint design, CLI commands, recovery guarantees, privacy and deferred work.
 - `tests/test_execution_runtime.py`: Real LangGraph loop and in-memory interrupt/resume smoke tests, observation-driven scripted models, permissions, malformed actions, budgets, cancellation, evidence references and CLI/filesystem integration.
@@ -63,7 +67,7 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Voice Assistant
 
-- `src/nexus/voice_session.py`: Foreground session lifecycle, WebRTC VAD microphone capture with pre-roll and silence endpointing, idle/turn bounds, JSON events, temporary-audio cleanup, and stop-on-approval behavior. Reuses `VoiceService` with session stop-phrase handling and optional text-only output.
+- `src/nexus/voice_session.py`: Foreground VAD session lifecycle, bounds, events and audio cleanup. Ordinary voice stops for approvals; explicit task mode remains open for safe status/control/clarification turns without voice authorization.
 - `tests/test_voice_session.py`: Continuous turn lifecycle, stop phrases, no-speech handling, approval boundary, Ctrl+C cleanup, microphone release, and duration bounds using fake audio providers.
 - `docs/superpowers/specs/2026-09-08-continuous-voice-design.md`: Voice Assistant 2.0 behavior, limits, architecture, and verification scope.
 

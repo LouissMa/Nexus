@@ -98,7 +98,7 @@ def run_voice_session(
                 break
             completed += 1
             emit({"event": "turn", "turn": index + 1, **result})
-            if result["conversation"].get("requires_approval"):
+            if result["conversation"].get("requires_approval") and result["conversation"].get("task_mode") is not True:
                 reason = "approval_required"
                 break
     except KeyboardInterrupt:

@@ -126,6 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask_parser.add_argument("--model-tier", choices=["simple", "complex"])
     ask_parser.add_argument("--show-intent", action="store_true")
     ask_parser.add_argument("--now")
+    _add_task_arguments(ask_parser)
     memory_parser = subparsers.add_parser("memory", help="Manage long-term memories.")
     memory_subparsers = memory_parser.add_subparsers(
         dest="memory_command", required=True
@@ -584,6 +585,7 @@ def build_parser() -> argparse.ArgumentParser:
     voice_chat.add_argument("--llm", action="store_true")
     voice_chat.add_argument("--model-tier", choices=["simple", "complex"])
     voice_chat.add_argument("--play", action=argparse.BooleanOptionalAction, default=None)
+    _add_task_arguments(voice_chat)
     voice_record = voice_subparsers.add_parser(
         "record", help="Record a bounded WAV file."
     )
@@ -613,6 +615,7 @@ def build_parser() -> argparse.ArgumentParser:
     voice_ask.add_argument("--show-intent", action="store_true")
     voice_ask.add_argument("--now")
     voice_ask.add_argument("--output")
+    _add_task_arguments(voice_ask)
     voice_ask.add_argument(
         "--play", action=argparse.BooleanOptionalAction, default=None
     )
@@ -1289,6 +1292,31 @@ def _voice_config_values(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _add_task_arguments(parser):
+    parser.add_argument("--task-mode", action="store_true", help="Use explicit shared task lifecycle commands; execution uses the configured LLM.")
+    parser.add_argument("--task-session", help="Local shared task session name (default: default).")
+    parser.add_argument("--task-id", help="Select an existing durable task by full ID.")
+
+
+def _task_router(args):
+    from nexus.execution_store import ExecutionStore, PersistentExecutor
+    from nexus.task_conversation import TaskConversation
+
+    store = ExecutionStore(nexus_home() / "executor.sqlite3")
+    def executor_factory():
+        from nexus.execution_runtime import ExecutionRuntime
+        from nexus.execution_context import ExecutionContextBuilder
+        from nexus.execution_tools import build_tool_registry
+
+        config = LLMConfig.from_env(model_tier=args.model_tier)
+        if not config.is_configured:
+            raise ValueError("Configure an LLM before executing a task.")
+        return PersistentExecutor(store, ExecutionRuntime(build_tool_registry(), OpenAICompatibleLLM(config)),
+            context_builder=ExecutionContextBuilder(NexusService(JsonStore.from_env())))
+    return TaskConversation(store, executor_factory,
+                            session="default" if args.task_session is None else args.task_session, run_id=args.task_id)
+
+
 def _dispatch_executor(args: argparse.Namespace) -> bool:
     if args.command == "executor":
         from nexus.execution_tools import build_tool_registry
@@ -1465,10 +1493,13 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
 
         profile, _runtime = load_runtime_settings()
         store = JsonStore.from_env()
-        embedding_settings = load_embedding_settings()
-        retriever = build_memory_retriever(embedding_settings, nexus_home())
+        task_mode = getattr(args, "task_mode", False)
+        retriever = None
+        if not task_mode:
+            embedding_settings = load_embedding_settings()
+            retriever = build_memory_retriever(embedding_settings, nexus_home())
         llm = None
-        if args.voice_command in {"ask", "chat"} and args.llm:
+        if not task_mode and args.voice_command in {"ask", "chat"} and args.llm:
             llm_config = LLMConfig.from_env(model_tier=args.model_tier)
             llm = (
                 OpenAICompatibleLLM(llm_config)
@@ -1478,7 +1509,8 @@ def _dispatch_voice(args: argparse.Namespace) -> bool:
         service = NexusService(store, llm=llm, memory_retriever=retriever)
         if args.voice_command in {"ask", "chat"}:
             conversation = ConversationService(
-                service, timezone=profile.timezone, llm=service.llm
+                service, timezone=profile.timezone, llm=service.llm,
+                **({"task_router": _task_router(args)} if task_mode else {}),
             )
             voice = VoiceService(
                 settings=settings,
@@ -1726,6 +1758,29 @@ def _dispatch_phase10(args: argparse.Namespace) -> bool:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if hasattr(args, "task_mode"):
+        if not args.task_mode and (args.task_session is not None or args.task_id is not None):
+            parser.error("Task session/selection options require --task-mode.")
+        if args.task_mode:
+            if getattr(args, "approve", False):
+                parser.error("Task mode rejects --approve; use executor's exact text-token approval flow.")
+            from nexus.execution_store import ExecutionStore
+
+            try:
+                ExecutionStore.validate_session("default" if args.task_session is None else args.task_session)
+                if args.task_id is not None:
+                    ExecutionStore.validate_id(args.task_id)
+            except ValueError as error:
+                parser.error(str(error))
+    if args.command == "ask" and args.task_mode:
+        try:
+            result = ConversationService(None, task_router=_task_router(args)).handle(args.text)
+            print_json(result)
+            if result["intent"] == "task_error":
+                raise SystemExit(2)
+        except (ValueError, RuntimeError, OSError):
+            _error_exit("task_unavailable", "Could not access the task session.", 2)
+        return
     if _dispatch_executor(args):
         return
     if _dispatch_voice(args):

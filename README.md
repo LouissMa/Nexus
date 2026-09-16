@@ -10,13 +10,13 @@ Nexus remembers goals and life context, creates daily plans, runs scheduled brie
 
 ## Product Direction
 
-Phase 15.4a adds opt-in goal/RAG/research execution context. Shared text/voice
-tasks (15.4b) remain next. See the
+Phase 15.4a adds opt-in goal/RAG/research execution context. Phase 15.4b adds
+shared text/voice task sessions. See the
 [context design](docs/superpowers/specs/2026-09-13-execution-context-design.md).
 
 The [shared task conversation design](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)
-describes the next text/voice integration (15.4b). It is not implemented yet;
-its proposed flags are not currently available.
+describes the delivered text/voice integration (15.4b), including its foreground
+and text-approval limits. Independent outcome verification remains next.
 
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
@@ -27,7 +27,7 @@ open-source evaluation, a dynamic execution loop, durable tasks and approval
 resume, shared context, and verified outcomes. The full stack is not yet
 complete. Phase 15.1 provides tool contracts; Phase 15.2 now adds a LangGraph
 foreground decision/action loop. Phase 15.3 adds local durable execution and approval
-resume; 15.4a adds selected-source task context. Shared text/voice entry and independent outcome verification remain future work. See the [roadmap](docs/roadmap.md) and
+resume; 15.4 adds selected-source context and shared text/voice task entry. Independent outcome verification remains future work. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -114,7 +114,7 @@ independently verified task success. Other outcomes distinguish approval/input
 waits, budgets, failure, repetition and uncertain side effects. CLI runs are saved
 in `NEXUS_HOME/executor.sqlite3` (default `.nexus/executor.sqlite3`). Use `resume`,
 not another `run`, to continue the same task. Selected-source RAG context is
-available below; shared MCP/voice execution entry remains subsequent work.
+available below; shared text/voice entry is also available. General MCP execution adapters remain subsequent work.
 
 ```powershell
 nexus executor runs
@@ -181,6 +181,65 @@ blindly if it may already have produced side effects. These checks cannot recall
 data already sent to a provider or erase historical plaintext run snapshots.
 Context references never count as successful tool evidence.
 
+## Shared Task Conversation (Phase 15.4b)
+
+Task mode connects text and voice to the same durable run. Ordinary conversation
+is unchanged. Use an explicit start request to execute a new goal:
+
+```powershell
+nexus ask "start task: Read the project README and summarize its limitations" --task-mode
+nexus ask "show progress" --task-mode
+nexus voice chat --task-mode
+nexus ask "answer: use the project folder" --task-mode
+nexus ask "continue task" --task-mode
+```
+
+Both interfaces use local session `default`; set `--task-session research` on
+both to separate workflows. A session remembers its selected run after restart.
+These names are local labels, not authenticated users or privacy boundaries.
+Select a run created with the executor, including one with context:
+
+```powershell
+nexus ask "show progress" --task-mode --task-id RUN_ID
+nexus ask "list tasks" --task-mode
+nexus ask "select task 2 @REVISION" --task-mode
+nexus ask "pause task" --task-mode
+nexus ask "cancel task" --task-mode
+```
+
+Without a selection, Nexus shows at most five candidates and asks you to choose;
+it never guesses the newest run. Numbered selection refers to the saved candidate
+list. Replace REVISION with selection_revision returned by the list command.
+A new CLI process requires this receipt (or the full run ID); a continuous voice
+session can use a bare number from its own displayed list. Stale receipts are
+rejected if another interface refreshes or changes the selection. An in-flight
+request retains its resolved run ID even if another interface changes selection.
+A selection conflict during task creation can leave an unexecuted `created` run
+visible in the task list; it does not invoke tools or silently retry.
+
+Lifecycle controls use deterministic Chinese/English phrases; arbitrary chat
+does not start a task. A non-control reply answers a selected task only while it
+is waiting_input. New tasks are context-free; select an explicitly configured
+15.4a run to continue with its existing context and consent.
+
+Progress, selection and pause/cancel require no LLM or Embedding initialization.
+Idle cancellation is acknowledged under the run lease without model calls;
+active calls remain cooperative, and uncertain tool outcomes still require review.
+Questions after tool observations or attached context stay in the text view;
+speech asks the user to read and answer, rather than repeating potentially private data.
+Execution requires a configured model and retains existing budgets/permissions.
+`--approve` is rejected in task mode. Spoken or typed "yes" never approves a tool:
+inspect `executor show RUN_ID`, then approve with its exact token via
+`executor resume RUN_ID --approval-token TOKEN`. Task-mode voice can stay open
+for status/control while approval waits; ordinary voice still stops on approval.
+Speech omits approval tokens and raw tool results, and distinguishes waiting,
+failure and model-reported completion from independently verified success.
+
+This is foreground turn-taking, not background execution or speech interruption.
+While a tool/model call blocks, this microphone loop cannot listen for "stop";
+another text process can request cooperative cancellation. Automated tests use
+fake audio and scripted models, not real microphone/recognition acceptance tests.
+
 ## Desktop Tasks
 
 The Desktop Task Agent foundation connects text and voice to authorized filename
@@ -237,7 +296,7 @@ nexus voice briefing --live-tools
 
 `nexus voice ask` records for the requested bounded duration, transcribes the WAV locally, routes the transcript through the same conversation and approval path as `nexus ask`, and uses operating-system speech when available. `nexus voice briefing` reuses the existing text briefing, including explicitly requested live tools. Use `nexus voice status`, `nexus voice record`, `nexus voice transcribe`, and `nexus voice speak` for diagnostics or individual operations.
 
-`nexus voice chat` starts Voice Assistant 2.0 continuous turn-taking: WebRTC VAD waits for speech and ends each utterance after about 900 ms of silence. Nexus processes and speaks the reply, then listens again. Say `end conversation` or `结束对话`, press Ctrl+C, or wait for the idle timeout to exit. Pending approvals stop the session with a preview; approvals never carry across turns. `--no-play` returns text without speech. Output is flushed JSON-line session events. The default limit is 20 capture attempts (maximum 100); idle timeout defaults to 30 seconds (maximum 120). Empty transcriptions consume an attempt and resume listening.
+`nexus voice chat` starts Voice Assistant 2.0 continuous turn-taking: WebRTC VAD waits for speech and ends each utterance after about 900 ms of silence. Nexus processes and speaks the reply, then listens again. Say `end conversation` or `结束对话`, press Ctrl+C, or wait for the idle timeout to exit. Pending approvals stop ordinary sessions with a preview; explicit task-mode sessions can continue safe status/control turns without approving. Approvals never carry across turns. `--no-play` returns text without speech. Output is flushed JSON-line session events. The default limit is 20 capture attempts (maximum 100); idle timeout defaults to 30 seconds (maximum 120). Empty transcriptions consume an attempt and resume listening.
 
 Reinstall `pip install -e ".[voice]"` when upgrading to obtain `webrtcvad-wheels`. Audio remains local and temporary recordings are deleted. Whisper may download its model on first use. Add `--llm` to use the configured text LLM for existing intent parsing; transcribed text may then be sent to that provider. Sessions reuse the command router, without new conversational history or pronoun resolution. Listening pauses during processing/playback. Wake words, speech interruption, background listening, and Dashboard microphone access remain future work.
 

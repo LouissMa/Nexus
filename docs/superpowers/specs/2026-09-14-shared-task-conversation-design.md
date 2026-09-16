@@ -1,7 +1,15 @@
 # Shared Task Conversation: Phase 15.4b
 
-Status: agreed direction; written design awaiting review. Not implemented.
-Date: 2026-09-14.
+Status: implemented foreground baseline; independent outcome verification is deferred.
+Date: 2026-09-14. Implementation update: 2026-09-16.
+
+Implementation clarifications: list responses include selection_revision. New CLI
+processes must select by full ID or `select task N @REVISION`; active conversations
+can use their own displayed revision implicitly. Another interface changing the
+session invalidates old numbered replies. Cancellation of an idle run is acknowledged
+under its lease without a model; active calls remain cooperative and uncertain
+outcomes retain needs_review. After tool observations or attached context, generated
+questions are text-only and speech prompts the user to read them before answering.
 
 ## Product Direction
 

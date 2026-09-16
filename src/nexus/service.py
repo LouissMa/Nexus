@@ -371,10 +371,11 @@ class NexusService:
         use_llm: bool = False,
         show_intent: bool = False,
         now: datetime | None = None,
+        task_router: Any = None,
     ) -> dict[str, Any]:
         from .conversation import ConversationService
 
-        return ConversationService(self, timezone=timezone, llm=self.llm).handle(
+        return ConversationService(self, timezone=timezone, llm=self.llm, task_router=task_router).handle(
             text,
             approved=approved,
             use_llm=use_llm,
