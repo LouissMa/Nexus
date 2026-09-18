@@ -50,6 +50,19 @@ class TaskConversation:
     def _view(self, state):
         status = state["status"]
         message, next_action = _NEXT.get(status, ("Inspect this task before continuing.", "inspect_result"))
+        verification = state.get("verification_report")
+        projection = None
+        if status == "reported_complete" and verification:
+            verdict = verification.get("status")
+            descriptions = {"passed": "All declared file conditions passed at the recorded check time.",
+                            "partial": "Only some declared file conditions passed.",
+                            "failed": "Declared file conditions failed verification.",
+                            "unverifiable": "Declared file conditions could not be verified."}
+            message = descriptions.get(verdict, "Inspect the declared file checks.")
+            message += " This does not verify the entire goal; files may have changed since the check."
+            projection = {key: verification.get(key) for key in ("status", "counts", "checked_at")}
+        elif status == "reported_complete" and state.get("verification") == "pending_file_checks":
+            message = "Declared file checks are pending or interrupted. Use executor verify to check without rerunning the task."
         observations = state.get("observations", [])
         token = state.get("approval_token")
         def text(value, limit=160):
@@ -60,7 +73,7 @@ class TaskConversation:
         if question:
             message += " " + question
             speech += (" Review the question in the text view, then reply."
-                       if observations or "context" in state else " " + question)
+                       if observations or "context" in state or "acceptance" in state else " " + question)
         control = state.get("control_requested")
         if control and status not in {"cancelled", "reported_complete", "failed"}:
             notice = f" {control.title()} requested; a running call must return before acknowledgement."
@@ -74,6 +87,8 @@ class TaskConversation:
                 "successful_observations": successful, "failed_observations": failed,
                 "goal": text(state.get("goal")), "latest_action": text(observations[-1].get("action_summary")) if observations else "",
                 "next_action": next_action, "question": question, "control_requested": control}
+        if projection is not None:
+            view["verification"] = projection
         preview = None
         if status == "waiting_approval" and control != "cancel" and state.get("pending_action"):
             action = state["pending_action"]

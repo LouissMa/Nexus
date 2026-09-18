@@ -19,6 +19,12 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `src/nexus/execution_verification.py`: Validates/copies predeclared acceptance contracts; deterministic exists/nonempty/text/JSON-field checks through filesystem.read; bounded reports without file contents and explicit partial/unverifiable outcomes.
+- `tests/test_execution_verification.py`: Real temporary file checks, permissions, limits, mutation isolation, restart/recheck/history, CLI exits, no-model verification and safe text/voice projections.
+- `docs/superpowers/specs/2026-09-18-artifact-verification-design.md`: Phase 15.5a contract, lifecycle, privacy boundaries and deferred whole-goal verification.
+- `docs/superpowers/plans/2026-09-18-artifact-verification.md`: Implementation and verification checklist for the file acceptance stage.
+- Verification integration: `execution_store.py` fixes acceptance at creation and persists reports under the run lease; `execution_runtime.py` includes user conditions in model context without granting permission; `cli.py` adds --acceptance and executor verify; `task_conversation.py` projects verdict/counts/time without file contents.
+
 - `src/nexus/task_conversation.py`: Deterministic Chinese/English task lifecycle router; explicit start/select, revision-bound candidate receipts, shared run progress, clarification answers, lazy executor creation and bounded speech projections. Never grants tool approval.
 - `tests/test_task_conversation.py`: Shared text/fake-voice runs, restart persistence, stale selection and races, lazy dependencies, approval isolation, speech privacy, cancellation and context validation regressions.
 

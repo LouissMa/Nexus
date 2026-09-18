@@ -16,7 +16,8 @@ shared text/voice task sessions. See the
 
 The [shared task conversation design](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)
 describes the delivered text/voice integration (15.4b), including its foreground
-and text-approval limits. Independent outcome verification remains next.
+and text-approval limits. Phase 15.5a now checks predeclared file conditions;
+whole-goal semantic verification and broader reliability evaluation remain future work.
 
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
@@ -27,7 +28,7 @@ open-source evaluation, a dynamic execution loop, durable tasks and approval
 resume, shared context, and verified outcomes. The full stack is not yet
 complete. Phase 15.1 provides tool contracts; Phase 15.2 now adds a LangGraph
 foreground decision/action loop. Phase 15.3 adds local durable execution and approval
-resume; 15.4 adds selected-source context and shared text/voice task entry. Independent outcome verification remains future work. See the [roadmap](docs/roadmap.md) and
+resume; 15.4 adds selected-source context and shared text/voice task entry. 15.5a adds deterministic file acceptance checks, not whole-goal verification. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
 ## Current Features
@@ -180,6 +181,44 @@ model/tool step. There is no automatic refresh or restart; do not rerun a task
 blindly if it may already have produced side effects. These checks cannot recall
 data already sent to a provider or erase historical plaintext run snapshots.
 Context references never count as successful tool evidence.
+
+## File Acceptance Checks (Phase 15.5a)
+
+Declare checks before execution with `executor run --acceptance`. Conditions are
+fixed in the run and shown to the model, including paths and expected strings.
+They do not grant filesystem permissions. Replace the example with a file inside
+your configured read roots; this example checks an existing document, not creation:
+
+```powershell
+$acceptance = @{checks=@(@{path='D:/Projects/example/README.md';kind='nonempty'})} | ConvertTo-Json -Depth 5 -Compress
+nexus executor run "Read the project README and summarize its limitations" --acceptance $acceptance
+nexus executor verify RUN_ID
+nexus ask "show progress" --task-mode --task-id RUN_ID
+```
+
+Supported kinds: `exists` (successful regular-file read), `nonempty`, `contains`
+(add `value`), and `json_fields` (add `fields`, for example `{"title":"string","count":"integer"}`).
+JSON checks cover top-level field types, not arbitrary schemas. Checks run locally
+after the model reports completion; explicit `verify` rechecks without an LLM or
+replaying any execution steps. Contract fields cannot be changed through resume.
+Task-mode start does not yet accept checks; create with executor and select that run.
+
+The lifecycle stays `reported_complete`; `verification_report.status` separately
+reports `passed`, `partial`, `failed` or `unverifiable`, with time and per-check
+reasons. All-pass means only the declared conditions held at check time, not that
+Nexus created the file or achieved the entire goal. Later changes can invalidate
+the result. Runs without a contract preserve the previous unverified-completion behavior.
+Run/resume/verify exit nonzero when declared checks do not all pass.
+
+Bounds: 1-20 checks, 16 KiB contract, 16,000-byte reads and a cooperative five-second
+check budget (not a hard timeout for an in-flight read). Denied, missing/unreadable,
+truncated or decoding-uncertain inputs are not declared successful. Reports retain
+no raw contents; local criteria/paths remain plaintext. Speech projects only check
+status/counts/time. Up to ten prior reports survive rechecks. Interrupted checking
+is marked pending and can be repeated with `verify`; side effects are never replayed.
+
+Acceptance-bearing clarification questions are text-only as well, including the
+first question before any tool call, because the model may repeat private criteria.
 
 ## Shared Task Conversation (Phase 15.4b)
 

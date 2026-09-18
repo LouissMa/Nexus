@@ -95,7 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
     executor_resolve.add_argument("run_id")
     executor_resolve.add_argument("--outcome", required=True, choices=["completed", "not-executed"])
     executor_resolve.add_argument("--note", required=True)
-    for operation in ("show", "pause", "cancel", "resume"):
+    for operation in ("show", "pause", "cancel", "resume", "verify"):
         command = executor_commands.add_parser(operation)
         command.add_argument("run_id")
         if operation == "resume":
@@ -104,6 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
             command.add_argument("--model-tier", choices=["simple", "complex"])
     executor_run = executor_commands.add_parser("run", help="Pursue a goal with a bounded model-driven tool loop.")
     executor_run.add_argument("goal")
+    executor_run.add_argument("--acceptance", help="Predeclared file checks as a bounded JSON object; never grants read permission.")
     executor_run.add_argument("--with-context", action="store_true", help="Send selected context to the model; configured RAG may embed the query remotely.")
     executor_run.add_argument("--context-goal", action="append", default=[], help="Selected goal ID; projected fields may be sent to the model.")
     executor_run.add_argument("--context-research", help="Selected research ID; projected fields may be sent to the model.")
@@ -1324,8 +1325,16 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
 
         try:
             context_options = None
+            acceptance = None
             if args.executor_command == "run":
                 from nexus.execution_context import validate_context_options
+
+                if args.acceptance is not None:
+                    from nexus.execution_verification import validate_acceptance
+
+                    if len(args.acceptance.encode("utf-8")) > 16384:
+                        raise ValueError("Acceptance exceeds 16 KiB.")
+                    acceptance = validate_acceptance(parse_json_object(args.acceptance))
 
                 if not args.with_context and (args.context_goal or args.context_research is not None
                                              or args.context_memory_scope is not None or args.allow_sensitive_context):
@@ -1352,6 +1361,16 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
             registry = build_tool_registry()
             if args.executor_command == "tools":
                 print_json({"tools": registry.catalog()})
+            elif args.executor_command == "verify":
+                from nexus.execution_store import ExecutionStore, PersistentExecutor
+                from nexus.execution_verification import FileVerifier
+                from nexus.config import nexus_home
+
+                result = PersistentExecutor(ExecutionStore(nexus_home() / "executor.sqlite3"), None,
+                                            verifier=FileVerifier(registry)).verify(args.run_id)
+                print_json(result)
+                if result["verification_report"]["status"] != "passed":
+                    raise SystemExit(1)
             elif args.executor_command in {"run", "resume"}:
                 from nexus.execution_runtime import ExecutionRuntime
                 from nexus.execution_store import ExecutionStore, PersistentExecutor
@@ -1372,11 +1391,12 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
                         retriever_factory=lambda: build_memory_retriever(load_embedding_settings(), nexus_home()))
                 if args.executor_command == "run":
                     result = executor.start(args.goal, max_steps=args.max_steps, timeout_seconds=args.timeout_seconds,
-                                            context_options=context_options)
+                                            context_options=context_options, acceptance=acceptance)
                 else:
                     result = executor.resume(args.run_id, approval_token=args.approval_token, answer=args.answer)
                 print_json(result)
-                if result["status"] != "reported_complete":
+                if result["status"] != "reported_complete" or ("acceptance" in result
+                        and result.get("verification_report", {}).get("status") != "passed"):
                     raise SystemExit(1)
             else:
                 result = registry.call(args.tool, parse_json_object(args.arguments), approved=args.approve)

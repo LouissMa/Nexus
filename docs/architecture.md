@@ -169,8 +169,29 @@ sources, filters before retrieval, bounds the envelope at 16 KiB, and persists
 provenance in the existing run. Resume and execution boundaries validate references
 without re-retrieval; stale sources block before model/tool calls. Unknown actions
 retain the existing review path. Context does not grant permission or successful
-evidence. Shared text/voice/MCP entry and independent artifact verification remain
-future stages. See the durable execution and execution context designs.
+evidence. Shared text/voice entry is delivered in 15.4b; 15.5a adds the file checks
+below. General-executor MCP entry and whole-goal verification remain future work.
+See the durable execution and execution context designs.
+
+## File Verification Layer
+
+Phase 15.5a accepts a bounded user-defined acceptance object at task creation,
+deep-copies it into SQLite before model execution, and includes it in prompts.
+Model action schemas cannot replace the conditions. PersistentExecutor invokes
+FileVerifier after reported_complete, under the same run lease. The verifier calls
+only the existing permissioned filesystem.read tool, without automatic approval,
+retries, new filesystem access or arbitrary code. The normal adapter's authorization
+and OS race limits apply; it is not a hardened hostile-filesystem sandbox.
+
+Keep model lifecycle status distinct from verification_report: passed means the
+declared file conditions held at that time, not whole-goal success or provenance.
+Partial, failed and unverifiable are explicit. Pending checking is saved before
+reads; executor verify rechecks without LLM or replay, retaining up to ten prior
+reports. Read denial, truncation and unavailable files are unverifiable; complete
+contradictory content fails. Reports contain reasons/paths/time, not file contents.
+Speech uses status/counts/time only. Legacy runs keep tool_references_only.
+
+Acceptance-bearing questions are text-only even before the first observation.
 
 ## Execution Contract Layer
 

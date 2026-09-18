@@ -188,7 +188,7 @@ Current status: foundation implemented; richer computer interaction remains plan
 
 ## Phase 15: General Task Execution Core
 
-Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution and 15.4 selected-source context/shared text-voice entry implemented; independent verification remains pending.
+Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution, 15.4 context/shared entry and 15.5a deterministic file checks implemented. Broader verification/evaluation remains pending.
 
 - [x] 15.1a: Unified input/output contracts, policy-aware catalog, bounded one-call dispatch, explicit side-effect/retry/adapter-timeout metadata, filesystem and named automation adapters, CLI and tests.
 - [x] 15.1b: Initial pinned-source comparison of LangGraph, smolagents and OpenClaw; framework-neutral contract decision recorded.
@@ -203,7 +203,9 @@ documents the delivered 15.4a context behavior; 15.4b is also implemented.
 The [15.4b design](superpowers/specs/2026-09-14-shared-task-conversation-design.md)
 specifies shared text/voice task sessions with text-only approvals. It is a
 delivered foreground baseline, not a claim of background execution or voice interruption.
-- [ ] 15.5: Verify artifacts and evaluate project inspection, file organization, and research preparation with unseen task variations and failure injection.
+- [~] 15.5: File acceptance checks delivered; broader goal verification and unseen-task evaluations remain.
+- [x] 15.5a: Fixed predeclared conditions, permissioned read-only file checks, bounded timestamped reports, independent recheck without LLM/tool replay, shared status and privacy tests.
+- [ ] 15.5b: Evaluate project inspection, file organization and research preparation with unseen task variations, failure injection, reliability and available cost metrics.
 
 Success means executing new goals by composing tools, not adding one intent per
 example. Missing LLM configuration must be reported explicitly. Existing local

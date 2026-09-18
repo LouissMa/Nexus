@@ -243,7 +243,9 @@ This is the immediate priority before more one-off desktop actions.
 - [x] 15.4 Selected-source context and foreground shared text/voice task entry implemented.
 - [x] 15.4a Opt-in selected goals/research and shared-default RAG; bounded provenance snapshots, sensitive consent, stale-source checks and safe degradation.
 - [x] 15.4b Shared text/voice task sessions, version-bound candidate selection, lazy lifecycle controls, safe speech and text-only tool approval. Fake-audio tests; live microphone acceptance remains manual.
-- [ ] 15.5 Artifact verification, unseen cross-domain tasks, and reliability/cost evaluation.
+- [~] 15.5 Deterministic file checks delivered; whole-goal verification, unseen cross-domain tasks and reliability/cost evaluation remain.
+- [x] 15.5a Predeclared bounded file conditions, permissioned local checks, durable timestamped reports, no-model recheck and safe shared status.
+- [ ] 15.5b Broader outcome verification and unseen-task reliability/cost evaluation; do not infer success from file checks alone.
 
 Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
 

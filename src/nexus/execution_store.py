@@ -162,16 +162,21 @@ class ExecutionStore:
 
 
 class PersistentExecutor:
-    def __init__(self, store, runtime, *, context_builder=None):
+    def __init__(self, store, runtime, *, context_builder=None, verifier=None):
         self.store = store
         self.runtime = runtime
         self.context_builder = context_builder
+        self.verifier = verifier
 
-    def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None, on_created=None):
+    def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None, on_created=None, acceptance=None):
         from nexus.execution_runtime import validate_execution_request
 
         validate_execution_request(goal, max_steps, timeout_seconds)
         context = {}
+        if acceptance is not None:
+            from nexus.execution_verification import validate_acceptance
+
+            context["acceptance"] = validate_acceptance(acceptance)
         if context_options is not None:
             if self.context_builder is None:
                 raise ValueError("Execution context builder is required.")
@@ -265,4 +270,33 @@ class PersistentExecutor:
                                     control=lambda: self.store.get(run_id)["control_requested"],
                                     context_validator=validate_context,
                                     approval_binding=approved)
-            return self.store._acknowledge_cancel_locked(run_id)
+            result = self.store._acknowledge_cancel_locked(run_id)
+            if result["status"] == "reported_complete" and "acceptance" in result:
+                return self._verify_locked(result)
+            return result
+
+    def verify(self, run_id):
+        with self.store.lease(run_id):
+            state = self.store.get(run_id)
+            if state["status"] != "reported_complete" or "acceptance" not in state:
+                raise ValueError("Only completed runs with predeclared acceptance can be checked.")
+            return self._verify_locked(state)
+
+    def _verify_locked(self, state):
+        from nexus.execution_verification import FileVerifier, validate_acceptance
+
+        acceptance = validate_acceptance(state["acceptance"])
+        verifier = self.verifier
+        if verifier is None:
+            if self.runtime is None:
+                raise ValueError("A verifier is required.")
+            verifier = FileVerifier(self.runtime.registry)
+        previous = state.pop("verification_report", None)
+        if previous is not None:
+            state["verification_history"] = (state.get("verification_history", []) + [previous])[-10:]
+        state["verification"] = "pending_file_checks"
+        self.store.save(state)
+        state["verification_report"] = verifier.verify(acceptance)
+        state["verification"] = "file_conditions_" + state["verification_report"]["status"]
+        self.store.save(state)
+        return state

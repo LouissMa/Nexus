@@ -17,7 +17,7 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
 尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
-15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文，15.4b 已接入文字/语音共享任务会话；独立成果验证仍待实现。
+15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文，15.4b 已接入文字/语音共享任务会话；15.5a 已增加预先声明的文件验收检查，完整目标语义验证和跨任务评估仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
@@ -158,6 +158,38 @@ nexus executor run "安排一个专注学习步骤" --with-context --context-mem
 当前没有自动刷新或重启功能，已经可能产生副作用的任务不要直接从头重跑。
 校验无法撤回已发送给厂商的数据，也不会自动擦除历史明文任务快照。
 上下文引用只是背景信息，不能冒充工具执行成功证据。
+
+## 文件验收检查（Phase 15.5a）
+
+创建任务时通过 `executor run --acceptance` 提前声明验收条件。条件固定保存在任务中，
+模型不能在结束时自行降低标准，恢复任务也不能替换条件。条件中的路径和期望文本会进入模型提示，
+但不会因此获得新的文件权限。以下检查已有文档，请替换为已授权读取目录中的实际文件：
+
+```powershell
+$acceptance = @{checks=@(@{path='D:/Projects/example/README.md';kind='nonempty'})} | ConvertTo-Json -Depth 5 -Compress
+nexus executor run "读取项目 README，总结当前限制" --acceptance $acceptance
+nexus executor verify RUN_ID
+nexus ask "查看进度" --task-mode --task-id RUN_ID
+```
+
+支持四类条件：`exists`（能够读取普通文件）、`nonempty`（非空）、
+`contains`（另填 `value` 指定文本）、`json_fields`（另填 `fields`，如 `{"title":"string","count":"integer"}`）。
+JSON 验证限顶层字段类型，不是任意 Schema 或内容质量判断。
+任务模式的自然语言创建暂不接收验收条件，可先通过 executor 创建，再选中同一个任务继续协作。
+
+模型报告完成后自动执行本地只读检查。任务生命周期仍是 `reported_complete`，
+另用 `verification_report.status` 区分全部通过 `passed`、部分通过 `partial`、
+检查失败 `failed`、无法验证 `unverifiable`，并记录时间和每项原因。
+通过仅证明检查时指定条件成立，不证明文件由本任务创建，更不等于整个开放目标已完成。
+没有验收条件的旧任务保持原行为；声明了条件却未全部通过时，run/resume/verify 返回非零退出码。
+
+复查命令 `executor verify` 不调用 LLM，不重跑任务操作。限制为 1–20 项、16 KiB 条件、
+每次最多读取 16,000 字节、协作式 5 秒检查预算（不能强行中断已经阻塞的读取）。
+权限拒绝、缺失/不可读、截断或解码不确定时不会冒充验证成功。
+报告不保存文件正文，语音只概括验证状态；条件和路径仍是本地明文。
+保留最近报告与最多十份历史报告。检查中断后可再次 verify，文件后续变化也可能改变结论。
+
+带验收条件的任务追问同样只在文字中展示，包括尚未调用工具时的首次追问，避免模型复述私人条件。
 
 ## 文字/语音共享任务（Phase 15.4b）
 
