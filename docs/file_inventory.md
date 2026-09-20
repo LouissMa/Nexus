@@ -19,6 +19,8 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`: Proposed Phase 15.5b metrics definitions, offline/live evaluation separation, synthetic case isolation, usage/cost completeness, budgets and acceptance criteria. Written spec awaiting review; planned modules/commands are not delivered features.
+
 - `src/nexus/execution_verification.py`: Validates/copies predeclared acceptance contracts; deterministic exists/nonempty/text/JSON-field checks through filesystem.read; bounded reports without file contents and explicit partial/unverifiable outcomes.
 - `tests/test_execution_verification.py`: Real temporary file checks, permissions, limits, mutation isolation, restart/recheck/history, CLI exits, no-model verification and safe text/voice projections.
 - `docs/superpowers/specs/2026-09-18-artifact-verification-design.md`: Phase 15.5a contract, lifecycle, privacy boundaries and deferred whole-goal verification.

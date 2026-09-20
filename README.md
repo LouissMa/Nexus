@@ -19,6 +19,10 @@ describes the delivered text/voice integration (15.4b), including its foreground
 and text-approval limits. Phase 15.5a now checks predeclared file conditions;
 whole-goal semantic verification and broader reliability evaluation remain future work.
 
+The [Phase 15.5b evaluation design](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)
+is available for review: offline safety regression, opt-in live-model benchmarks,
+and transparent usage metrics. This is a design only; its commands are not implemented.
+
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 
 The long-term direction is a Personal AI Operating System shared by CLI, web, voice, and future embodied interfaces. The current release is not AGI: it is a local, permission-bounded assistant with explicit limits.

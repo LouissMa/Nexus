@@ -247,6 +247,9 @@ This is the immediate priority before more one-off desktop actions.
 - [x] 15.5a Predeclared bounded file conditions, permissioned local checks, durable timestamped reports, no-model recheck and safe shared status.
 - [ ] 15.5b Broader outcome verification and unseen-task reliability/cost evaluation; do not infer success from file checks alone.
 
+15.5b design drafted on 2026-09-20: `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`.
+Scope agreed; written spec awaiting review. No evaluation runner or new metrics implemented yet.
+
 Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
 
 ## Maintenance Rules

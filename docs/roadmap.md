@@ -207,6 +207,10 @@ delivered foreground baseline, not a claim of background execution or voice inte
 - [x] 15.5a: Fixed predeclared conditions, permissioned read-only file checks, bounded timestamped reports, independent recheck without LLM/tool replay, shared status and privacy tests.
 - [ ] 15.5b: Evaluate project inspection, file organization and research preparation with unseen task variations, failure injection, reliability and available cost metrics.
 
+The [15.5b design](superpowers/specs/2026-09-20-execution-evaluation-design.md)
+defines separate offline/live results, isolated synthetic cases and explicit call budgets.
+It is awaiting written-spec review; implementation and real-model evaluation have not started.
+
 Success means executing new goals by composing tools, not adding one intent per
 example. Missing LLM configuration must be reported explicitly. Existing local
 commands remain available. Cost reporting is conditional on reliable provider
