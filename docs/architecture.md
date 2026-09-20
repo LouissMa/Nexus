@@ -177,7 +177,8 @@ See the durable execution and execution context designs.
 
 The proposed next layer is documented in the
 [15.5b evaluation design](superpowers/specs/2026-09-20-execution-evaluation-design.md).
-It remains unimplemented pending review; the following describes delivered 15.5a behavior.
+Its design is approved and its [implementation plan](superpowers/plans/2026-09-20-execution-evaluation.md)
+awaits review; it remains unimplemented. The following describes delivered 15.5a behavior.
 
 Phase 15.5a accepts a bounded user-defined acceptance object at task creation,
 deep-copies it into SQLite before model execution, and includes it in prompts.

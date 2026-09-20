@@ -21,8 +21,9 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
-[15.5b 任务可靠性评估设计](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)已整理，待审阅。
-范围包括离线安全回归、显式启用的真实模型评估与透明用量指标；目前仅为设计，文中的新命令尚未实现。
+[15.5b 任务可靠性评估设计](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)已确认，
+[实施计划](docs/superpowers/plans/2026-09-20-execution-evaluation.md)待审阅并选择执行方式。
+范围包括离线安全回归、显式启用的真实模型评估与透明用量指标；文中的新命令尚未实现。
 
 ## 当前功能
 

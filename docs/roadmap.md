@@ -209,7 +209,8 @@ delivered foreground baseline, not a claim of background execution or voice inte
 
 The [15.5b design](superpowers/specs/2026-09-20-execution-evaluation-design.md)
 defines separate offline/live results, isolated synthetic cases and explicit call budgets.
-It is awaiting written-spec review; implementation and real-model evaluation have not started.
+The design is approved; its [implementation plan](superpowers/plans/2026-09-20-execution-evaluation.md)
+awaits review and execution-method selection. Implementation and real-model evaluation have not started.
 
 Success means executing new goals by composing tools, not adding one intent per
 example. Missing LLM configuration must be reported explicitly. Existing local

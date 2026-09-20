@@ -248,7 +248,7 @@ This is the immediate priority before more one-off desktop actions.
 - [ ] 15.5b Broader outcome verification and unseen-task reliability/cost evaluation; do not infer success from file checks alone.
 
 15.5b design drafted on 2026-09-20: `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`.
-Scope agreed; written spec awaiting review. No evaluation runner or new metrics implemented yet.
+Written spec approved; `docs/superpowers/plans/2026-09-20-execution-evaluation.md` awaits review and execution-method selection. No evaluation runner or new metrics implemented yet.
 
 Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
 
