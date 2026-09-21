@@ -217,3 +217,15 @@ Success means executing new goals by composing tools, not adding one intent per
 example. Missing LLM configuration must be reported explicitly. Existing local
 commands remain available. Cost reporting is conditional on reliable provider
 usage and pricing; step/call/time limits must work independently.
+
+## Phase 16: Permissioned Computer Work
+
+- [x] 16.1 Create-only report delivery: separately configured output roots, exact-action
+  approval, bounded Markdown/TXT/JSON, exclusive creation, metadata/audit and existing
+  file acceptance integration. No general filesystem write privilege.
+- [ ] Broader permissioned file operations with previews and recoverable changes.
+- [ ] Browser/desktop interaction with observations and verifiable outcomes.
+- [ ] Real-provider acceptance of artifact-producing tasks with authorized budgets.
+
+This advances artifact delivery without declaring Phase 15 semantic verification or
+real-model acceptance complete. Reports may still require manual quality assessment.

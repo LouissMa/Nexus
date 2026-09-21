@@ -255,6 +255,17 @@ Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
 
 ## Maintenance Rules
 
+### Phase 16: Permissioned Computer Work
+
+- [x] 16.1 Create-only Markdown/TXT/JSON reports with separate output roots, exact
+  approval, exclusive creation, bounded UTF-8 content, audit metadata and file checks.
+- [x] Reject existing targets, traversal, links/reparse points and Windows remote drives.
+- [x] Keep ordinary ToolManager/isolated offline evaluation read-only.
+- [ ] Broader recoverable file operations and observed browser/desktop interaction.
+- [ ] Explicitly authorized real-model artifact-quality acceptance.
+
+### Release Discipline
+
 - [ ] Update this checklist after every important feature.
 - [ ] Update `docs/file_inventory.md` after every important file change.
 - [ ] Keep `README.md` and `README_zh.md` synchronized for user-facing changes.

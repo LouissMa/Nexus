@@ -19,6 +19,10 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
+- `src/nexus/execution_artifacts.py`: Executor-only create_report implementation. Validates separate existing local output roots, rejects traversal/link/reparse/unsafe paths, restricts formats and UTF-8 size, exclusively creates files and returns path/size/SHA-256. Never removes partial output or retries an unknown effect.
+- `tests/test_execution_artifacts.py`: Explicit approval, no overwrite, revoked roots, forbidden paths/formats, JSON validity, end-to-end resume plus file acceptance, read-only API isolation, disk failure, audit privacy and CLI configuration regressions.
+- Report integration: `execution_tools.py` registers an always-ask local_write contract bound to settings and exact arguments; `config.py` validates report_roots; `cli.py` provides --report-root and --clear-report-roots. Existing read operations stay unchanged.
+
 - `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`: Phase 15.5b contract for metrics, offline/live separation, synthetic isolation, usage/cost completeness and budgets.
 - `docs/superpowers/plans/2026-09-20-execution-evaluation.md`: Implementation sequence, execution ledger, deviations and release checks.
 - `src/nexus/execution_metrics.py`: Per-response usage normalization, explicit model-specific Decimal pricing, bounded attempt ledger, crash reconciliation and resource projections. Missing usage/cost stays unknown.

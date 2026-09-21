@@ -52,7 +52,34 @@ nexus executor evaluate --mode live --max-calls 12 --model-tier simple
 `output_per_million` 的 JSON，单价必须是非负十进制字符串。价格由用户提供且必须匹配模型，
 只是估算，不是账单。调用配额先持久化再发请求，结果未知不退还配额；当前不支持恢复整套评估。
 
+## 创建报告文件
+
+先准备一个已存在的专用输出目录。`--root` 是读取权限，`--report-root` 单独开放报告创建，
+不会自动批准写入。重复使用各参数可指定多个目录；各自替换对应的已配置目录列表。
+
+```bash
+nexus config tool set filesystem --root "D:/NexusOutputs" --report-root "D:/NexusOutputs"
+nexus executor run "读取 D:/NexusOutputs/notes.md，生成带来源引用的 D:/NexusOutputs/summary.md"
+# 检查 pending_action 中的路径和完整内容，再批准这一次动作：
+nexus executor resume <run_id> --approval-token <approval_token>
+# 撤销报告创建权限：
+nexus config tool set filesystem --clear-report-roots
+```
+
+动态执行需要已配置的 LLM。创建任务时可传入 `--acceptance` 预先声明文件条件，
+之后使用已有的 `executor verify` 无模型复查。写入仅通过执行器的 `filesystem.create_report`，
+原来的只读工具接口不增加写权限。只创建 `.md`、`.txt` 或合法 `.json`，不覆盖、不移动、
+不删除、不创建目录、不运行内容。上限为 12,000 UTF-8 字节，同时受工具参数序列化
+16 KiB 限制（大量需转义的控制字符可能更早达到限制）。返回路径、字节数和 SHA-256，不返回正文。
+审计日志不记录正文，但本地未加密的任务快照会保留待审批内容。
+写入后的故障需人工核对，可能留下不完整文件，不自动清理或重试。拒绝链接、重解析点、
+网络路径、Windows 映射网络盘、越界路径和已存在目标；这不是对抗恶意本机并发修改的 OS 沙箱，文件检查通过也不证明内容质量。
+离线评估保持只读，不继承这些输出权限。
+
 ## 当前功能
+
+- 受控报告交付（16.1）：动态执行器可在单独授权的目录创建 Markdown、TXT、JSON 报告，
+  每次写入经具体动作审批；生成后可使用已有文件验收机制检查。
 
 - 长期记忆：搜索、语义 RAG、Qdrant 持久化、Re-index、生命周期、隐私、过期、压缩和可解释重排。
 - 目标与复盘：目标、打卡、静默目标检测、持久化每日任务、阻碍、未解决事项、晚间复盘和四种 Coach 模式。

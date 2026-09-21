@@ -105,12 +105,12 @@ class ToolRegistry:
             return result
         contract, handler, policy = entry
         try:
-            payload = json.dumps(arguments, allow_nan=False).encode("utf-8")
+            payload = json.dumps(arguments, allow_nan=False, ensure_ascii=False).encode("utf-8")
             if len(payload) > 16384:
                 raise ValueError("Input limit exceeded.")
             Draft202012Validator(contract.input_schema).validate(arguments)
             arguments = json.loads(payload)
-        except (TypeError, ValueError, ValidationError, RecursionError):
+        except (TypeError, ValueError, UnicodeError, ValidationError, RecursionError):
             return {**result, "status": "invalid_arguments"}
         decision = self._policy(policy)
         if decision == "deny":
@@ -178,6 +178,30 @@ def build_tool_registry(*, tools: Any = None, automations: Any = None) -> ToolRe
         registry.register(ToolContract(f"filesystem.{operation}", f"{operation.title()} within authorized filesystem roots.",
                                        schema, output, idempotent=True), run, policy,
                           binding=lambda: tools.settings.get("filesystem", {}))
+    def report_policy():
+        settings = tools.settings.get("filesystem", {})
+        return "ask" if settings.get("enabled") is True and settings.get("report_roots") else "deny"
+
+    def report_run(arguments, approved):
+        from nexus.execution_artifacts import create_report
+
+        status = "error"
+        try:
+            result = create_report(arguments, tools.settings.get("filesystem", {}), approved=approved)
+            status = "success"
+            return result
+        finally:
+            tools.audit_logger.record(tool="filesystem", operation="create_report",
+                arguments={"path": arguments["path"]}, status=status)
+
+    registry.register(ToolContract("filesystem.create_report",
+        "Create a NEW .md, .txt or .json report in separately authorized output directories. Never overwrite. Requires approval.",
+        _object({"path": path, "content": {"type": "string", "minLength": 1, "maxLength": 12000}}, ["path", "content"]),
+        _object({"path": path, "bytes": {"type": "integer", "minimum": 1, "maximum": 12000},
+                 "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "created": {"const": True}},
+                ["path", "bytes", "sha256", "created"]), side_effects="local_write"),
+        report_run, report_policy, binding=lambda: tools.settings.get("filesystem", {}))
+
     for alias, definition in automations.settings.items():
         def policy(key=alias):
             current = automations.settings.get(key, {})

@@ -70,7 +70,41 @@ foreground decision/action loop. Phase 15.3 adds local durable execution and app
 resume; 15.4 adds selected-source context and shared text/voice task entry. 15.5a adds deterministic file acceptance checks, not whole-goal verification. See the [roadmap](docs/roadmap.md) and
 [capability baseline and acceptance criteria (Chinese)](docs/current_capabilities_and_next_phase.md).
 
+## Create a Report Artifact
+
+Use an existing dedicated output folder. `--root` sets read access; `--report-root`
+separately enables create-only reports and never grants automatic approval. Repeated
+`--root`/`--report-root` flags replace their respective configured lists.
+
+```bash
+nexus config tool set filesystem --root "D:/NexusOutputs" --report-root "D:/NexusOutputs"
+nexus executor run "Read D:/NexusOutputs/notes.md and create D:/NexusOutputs/summary.md with source references."
+# Inspect pending_action (path AND content), then approve this exact occurrence:
+nexus executor resume <run_id> --approval-token <approval_token>
+# Revoke creation permission:
+nexus config tool set filesystem --clear-report-roots
+```
+
+Dynamic execution requires your configured LLM. Supply `--acceptance` on `executor run`
+to predeclare file checks; the existing `executor verify` can recheck without a model.
+Only `filesystem.create_report` has write access, only via the executor registry.
+It creates `.md`, `.txt` or valid `.json` in existing directories, never overwrites,
+moves, deletes, creates directories or runs the content. Reports are bounded to
+12,000 UTF-8 bytes and the tool's 16 KiB serialized input limit
+(heavily escaped control characters may hit that limit earlier). Returned metadata contains path,
+byte count and SHA-256, not the body. Audit logs omit the body; task snapshots
+necessarily retain the approved content locally and are not encrypted.
+Failures after attempted writes remain uncertain for manual review; partial files
+are not automatically deleted or replayed. Links/reparse points, network paths,
+traversal, Windows mapped remote drives and existing targets are rejected. This is not a hostile-OS filesystem
+sandbox, and a successful file check does not establish semantic report quality.
+Offline evaluation remains read-only and does not inherit these output permissions.
+
 ## Current Features
+
+- Permissioned report delivery (16.1): the dynamic executor can create new Markdown,
+  TXT and JSON reports in separately authorized directories after exact-action approval.
+  Existing file acceptance checks can validate the created artifact.
 
 - Long-term memory with search, semantic RAG, Qdrant persistence, re-indexing, lifecycle controls, privacy, expiry, compression, and explainable re-ranking.
 - Goals, check-ins, stale-goal detection, persistent daily tasks, blockers, unresolved items, evening reflection, and four Coach modes.

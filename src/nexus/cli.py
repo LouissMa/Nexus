@@ -841,6 +841,10 @@ def build_parser() -> argparse.ArgumentParser:
     tool_set.add_argument("--password")
     tool_set.add_argument("--mailbox")
     tool_set.add_argument("--root", action="append", dest="roots")
+    report_roots = tool_set.add_mutually_exclusive_group()
+    report_roots.add_argument("--report-root", action="append", dest="report_roots",
+                              help="Explicit existing directory for approval-gated new reports; independent of read roots.")
+    report_roots.add_argument("--clear-report-roots", action="store_true", help="Revoke report creation directories.")
     tool_set.add_argument("--timeout-seconds", type=int)
     tool_set.add_argument("--mailto")
     tool_disable = tool_config_subparsers.add_parser(
@@ -2668,7 +2672,8 @@ def main() -> None:
                     "mailbox": args.mailbox,
                     "timeout_seconds": args.timeout_seconds,
                 },
-                "filesystem": {"roots": args.roots},
+                "filesystem": {"roots": args.roots,
+                    "report_roots": [] if args.clear_report_roots else args.report_roots},
                 "literature": {"mailto": args.mailto},
             }
             try:

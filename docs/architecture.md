@@ -175,6 +175,22 @@ See the durable execution and execution context designs.
 
 ## File Verification Layer
 
+### Create-Only Artifact Delivery (16.1)
+
+The executor registry adds `filesystem.create_report` independently of the read-only
+ToolManager API. It is hidden without explicit filesystem.report_roots, always
+requires approval, and binds settings plus exact path/content through the existing
+single-use approval mechanism. The adapter in execution_artifacts.py validates an
+existing output directory and exclusively creates a bounded text/Markdown/JSON file.
+It returns metadata, never a body; audit arguments omit content while durable task
+snapshots retain the action for approval/recovery. Read roots remain independent:
+post-write acceptance cannot read the artifact unless that directory also has read
+permission. No model-authored shell or implicit overwrite/delete is introduced.
+OS exclusive creation prevents replacing an existing target, but component validation
+is not hardened against a hostile actor concurrently swapping parent directories.
+Any uncertain write follows existing needs_review reconciliation, not automatic replay.
+The offline evaluation registry supplies no report roots and remains read-only.
+
 The implemented evaluation layer follows the
 [15.5b design](superpowers/specs/2026-09-20-execution-evaluation-design.md).
 `evaluation_cases.py` supplies versioned synthetic inputs and system-behavior oracles.

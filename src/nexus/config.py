@@ -671,6 +671,12 @@ def update_tool_settings(
         )
         current["enabled"] = enabled
         current["allowed_operations"] = TOOL_ALLOWED_OPERATIONS[tool]
+        if tool == "filesystem" and "report_roots" in current:
+            from nexus.execution_artifacts import validate_report_roots
+
+            # Disabling remains possible even if a previously authorized folder vanished.
+            if enabled:
+                current["report_roots"] = [str(root) for root in validate_report_roots(current["report_roots"])]
         required_fields = {
             "weather": ["location"],
             "calendar": ["calendar_url"],
