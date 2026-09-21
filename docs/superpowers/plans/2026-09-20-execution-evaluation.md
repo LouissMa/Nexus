@@ -237,6 +237,34 @@ def test_offline_cli_ignores_provider_settings(tmp_path, monkeypatch, capsys):
 
 Recommended: Native, because the six tasks share ledger/report interfaces and sequential integration is cheaper than separate implementation contexts. One fresh independent reviewer checks the final changes.
 Alternative: Subagent-driven, with a fresh implementer and reviewer per task plus final review, at higher context cost.
-No implementation begins until this written plan is reviewed and the user selects the method.
+Execution authorized by the user's subsequent direct coding request; implemented inline.
 
-Self-review completed: all ten design sections map to Tasks 1-6; five Review Focus risks each have owning tests; protocol names and report states are consistent. Planned product symbols above do not exist yet.
+## Execution Ledger (2026-09-21)
+
+The original granular items above are the design-time checklist, not a claim that
+every suggested test/commit was executed verbatim. This ledger records actual delivery.
+
+- [x] Tasks 1-2: Per-response LLM usage, conservative pricing, durable attempt metrics,
+  pending-attempt recovery and cumulative verification duration implemented.
+- [x] Task 3: All 17 packaged synthetic cases run through the existing executor.
+- [x] Task 4: Isolated runner, pre-call quota, locked bounded JSON/Markdown reports,
+  path checks and independent manual reviews implemented.
+- [x] Task 5: Three CLI commands, early isolation dispatch and bilingual documentation.
+- [x] Task 6 regression: final full suite 672 passed, 6 skipped in 154.93 seconds.
+- [x] Isolated offline CLI smoke: nine normal/eight fault behavior checks passed;
+  report JSON/Markdown and persisted human review verified with network/provider access blocked.
+- [x] Release checks: `git diff --cached --check` passed; only 19 explicit code/test/doc
+  files staged; fetched origin/main with zero divergence. No credentials or local reports staged.
+- [ ] Independent final review: requested but unavailable due to reviewer usage limit.
+- [ ] Real-provider task-quality acceptance: not authorized/run in this implementation.
+
+Rulings: use one integrated implementation commit rather than six intermediate
+commits. Expected aggregate counts live in tests rather than a redundant JSON
+fixture. CLI tests are named `test_evaluation_cli.py`. Normal-case file checks only
+test fixture availability; source-reading/evidence oracles and human quality are
+separate. Public holdout labels are not a claim of previously unseen real tasks.
+
+Independent review was requested, but the reviewer stopped at an account usage
+limit before returning findings. This is not a completed independent review.
+No paid/live provider calls were made. Existing subprocess recovery tests remain
+part of full regression; OS-dependent link tests may skip explicitly.

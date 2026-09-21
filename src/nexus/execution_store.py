@@ -170,6 +170,7 @@ class PersistentExecutor:
 
     def start(self, goal, *, max_steps=12, timeout_seconds=120, context_options=None, on_created=None, acceptance=None):
         from nexus.execution_runtime import validate_execution_request
+        from nexus.execution_metrics import new_metrics
 
         validate_execution_request(goal, max_steps, timeout_seconds)
         context = {}
@@ -182,7 +183,7 @@ class PersistentExecutor:
                 raise ValueError("Execution context builder is required.")
             context["context"] = self.context_builder.build(goal, **context_options)
         state = self.store.create({"goal": goal, "status": "created", "steps": 0, "observations": [],
-                                   "pending_action": None, "summary": "", "verification": "not_verified",
+                                   "pending_action": None, "summary": "", "verification": "not_verified", "metrics": new_metrics(),
                                    "max_steps": max_steps, "timeout_seconds": timeout_seconds, **context})
         if on_created is not None:
             on_created(state["run_id"])
@@ -226,6 +227,11 @@ class PersistentExecutor:
     def resume(self, run_id, *, approval_token=None, answer=None):
         with self.store.lease(run_id):
             state = self.store.get(run_id)
+            if "metrics" in state and any(e["status"] == "pending" for e in state["metrics"]["attempts"]):
+                from nexus.execution_metrics import recover_pending
+
+                recover_pending(state["metrics"])
+                self.store.save(state)
             if state.get("phase") == "tool_running":
                 state.update(status="needs_review", summary="Tool outcome is uncertain; automatic replay is blocked.")
                 self.store.save(state)
@@ -291,12 +297,16 @@ class PersistentExecutor:
             if self.runtime is None:
                 raise ValueError("A verifier is required.")
             verifier = FileVerifier(self.runtime.registry)
+        if "verification_total_seconds" not in state:
+            state["verification_total_seconds"] = sum(r.get("duration_seconds", 0) for r in
+                [*state.get("verification_history", []), state.get("verification_report", {})])
         previous = state.pop("verification_report", None)
         if previous is not None:
             state["verification_history"] = (state.get("verification_history", []) + [previous])[-10:]
         state["verification"] = "pending_file_checks"
         self.store.save(state)
         state["verification_report"] = verifier.verify(acceptance)
+        state["verification_total_seconds"] += state["verification_report"].get("duration_seconds", 0)
         state["verification"] = "file_conditions_" + state["verification_report"]["status"]
         self.store.save(state)
         return state

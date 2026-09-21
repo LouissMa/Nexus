@@ -9,6 +9,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from nexus.execution_tools import ToolRegistry
+from nexus.execution_metrics import new_metrics, begin_attempt, finish_attempt, recover_pending, normalize_usage
 
 
 def _action(name: str, properties: dict[str, Any]) -> dict[str, Any]:
@@ -53,10 +54,13 @@ def validate_execution_request(goal, max_steps, timeout_seconds):
 class ExecutionRuntime:
     """Foreground LangGraph decision/action loop over Nexus's permissioned registry."""
 
-    def __init__(self, registry: ToolRegistry, model: Any, *, clock=monotonic):
+    def __init__(self, registry: ToolRegistry, model: Any, *, clock=monotonic, before_model=None, max_dispatches=None):
         self.registry = registry
         self.model = model
         self.clock = clock
+        if max_dispatches is not None and (type(max_dispatches) is not int or not 1 <= max_dispatches <= 100):
+            raise ValueError("Invalid dispatch limit.")
+        self.before_model, self.max_dispatches = before_model, max_dispatches
 
     def run(self, goal: str, *, max_steps: int = 12, timeout_seconds: float = 120,
             initial_state=None, checkpoint=None, control=None, approval_binding=None,
@@ -73,6 +77,9 @@ class ExecutionRuntime:
         state = initial_state or {"goal": goal.strip(), "status": "running", "steps": 0, "observations": [],
                  "summary": "", "pending_action": None, "verification": "not_verified"}
         elapsed = state.get("elapsed_seconds", 0)
+        if "metrics" not in state:
+            state["metrics"] = new_metrics(coverage="partial_since_resume" if initial_state else "complete")
+        recover_pending(state["metrics"])
         deadline = started + timeout_seconds - elapsed
         state.update(status="running", max_steps=max_steps, timeout_seconds=timeout_seconds)
         repeats = state.setdefault("repeats", {})
@@ -126,14 +133,26 @@ class ExecutionRuntime:
             if len(prompt.encode("utf-8")) > 131072:
                 current["status"] = "context_limit"
                 return current
+            if len(current["metrics"]["attempts"]) >= 200 or (self.before_model and not self.before_model()):
+                current["status"] = "budget_exhausted"
+                return current
             current["steps"] += 1
             current["phase"] = "deciding"
+            attempt = begin_attempt(current["metrics"], "model")
             save(current)
             try:
-                response = self.model.generate(_SYSTEM, prompt, timeout_seconds=max(0.001, deadline - self.clock()))
+                usage = normalize_usage(None)
+                if getattr(self.model, "supports_generation_result", False) is True:
+                    generated = self.model.generate_result(_SYSTEM, prompt, timeout_seconds=max(0.001, deadline - self.clock()))
+                    response, usage = generated.text, generated.usage
+                else:
+                    response = self.model.generate(_SYSTEM, prompt, timeout_seconds=max(0.001, deadline - self.clock()))
             except Exception:
+                finish_attempt(current["metrics"], attempt, "error")
                 current["status"] = "model_failed"
                 return current
+            finish_attempt(current["metrics"], attempt, "response", usage=usage)
+            save(current)
             if stopped(current):
                 return current
             if self.clock() >= deadline:
@@ -152,6 +171,7 @@ class ExecutionRuntime:
             current["pending_action"] = action
             current["phase"] = "tool_pending" if action["action"] == "tool" else "idle"
             if action["action"] == "ask_user":
+                current["metrics"]["clarification_stops"] += 1
                 current.update(status="waiting_input", summary=action["question"])
             elif action["action"] == "fail":
                 current.update(status="failed", summary=action["summary"])
@@ -172,6 +192,10 @@ class ExecutionRuntime:
                 current["status"] = "budget_exhausted"
                 return current
             action = current["pending_action"]
+            dispatches = sum(e["kind"] == "tool" for e in current["metrics"]["attempts"])
+            if len(current["metrics"]["attempts"]) >= 200 or (self.max_dispatches is not None and dispatches >= self.max_dispatches):
+                current["status"] = "budget_exhausted"
+                return current
             if context_validator:
                 context_validator()
             Draft202012Validator(ACTION_SCHEMA).validate(action)
@@ -184,20 +208,24 @@ class ExecutionRuntime:
                 return current
             current["phase"] = "tool_running"
             repeats[fingerprint] = repeats.get(fingerprint, 0) + 1
+            attempt = begin_attempt(current["metrics"], "tool")
             save(current)
             try:
                 result = self.registry.call(action["tool"], action["arguments"],
                                             approved=approval[0] == binding)
                 approval[0] = None
             except KeyboardInterrupt:
+                finish_attempt(current["metrics"], attempt, "unknown")
                 current["observations"].append({"number": len(current["observations"]) + 1,
                                                 "tool": action["tool"], "status": "interrupted",
                                                 "effect_outcome": "unknown", "data": None})
                 current["status"] = "cancelled"
                 return current
+            finish_attempt(current["metrics"], attempt, result["status"])
             current["observations"].append({"number": len(current["observations"]) + 1,
                                             "action_summary": action["summary"], **result})
             if result["status"] == "approval_required":
+                current["metrics"]["approval_stops"] += 1
                 current["status"] = "waiting_approval"
                 current["approval_binding"] = binding
                 current["phase"] = "tool_pending"

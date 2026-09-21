@@ -188,7 +188,7 @@ Current status: foundation implemented; richer computer interaction remains plan
 
 ## Phase 15: General Task Execution Core
 
-Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution, 15.4 context/shared entry and 15.5a deterministic file checks implemented. Broader verification/evaluation remains pending.
+Status: 15.1 contracts, 15.2 dynamic execution, 15.3 durable execution, 15.4 context/shared entry, 15.5a file checks and 15.5b bounded evaluation implemented. Whole-goal semantic verification and real-provider acceptance remain pending.
 
 - [x] 15.1a: Unified input/output contracts, policy-aware catalog, bounded one-call dispatch, explicit side-effect/retry/adapter-timeout metadata, filesystem and named automation adapters, CLI and tests.
 - [x] 15.1b: Initial pinned-source comparison of LangGraph, smolagents and OpenClaw; framework-neutral contract decision recorded.
@@ -205,12 +205,13 @@ specifies shared text/voice task sessions with text-only approvals. It is a
 delivered foreground baseline, not a claim of background execution or voice interruption.
 - [~] 15.5: File acceptance checks delivered; broader goal verification and unseen-task evaluations remain.
 - [x] 15.5a: Fixed predeclared conditions, permissioned read-only file checks, bounded timestamped reports, independent recheck without LLM/tool replay, shared status and privacy tests.
-- [ ] 15.5b: Evaluate project inspection, file organization and research preparation with unseen task variations, failure injection, reliability and available cost metrics.
+- [x] 15.5b: Isolated synthetic project inspection, note indexing and research-preparation evaluations, fault injection, durable usage metrics and human reviews.
+- [ ] Real-provider acceptance and genuinely unseen cross-domain task quality; broader semantic outcome verification.
 
 The [15.5b design](superpowers/specs/2026-09-20-execution-evaluation-design.md)
 defines separate offline/live results, isolated synthetic cases and explicit call budgets.
-The design is approved; its [implementation plan](superpowers/plans/2026-09-20-execution-evaluation.md)
-awaits review and execution-method selection. Implementation and real-model evaluation have not started.
+The [implementation](superpowers/plans/2026-09-20-execution-evaluation.md) is delivered.
+Offline scripted regression is not a real-model benchmark; no paid provider evaluation was run during development.
 
 Success means executing new goals by composing tools, not adding one intent per
 example. Missing LLM configuration must be reported explicitly. Existing local

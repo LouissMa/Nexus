@@ -175,10 +175,20 @@ See the durable execution and execution context designs.
 
 ## File Verification Layer
 
-The proposed next layer is documented in the
-[15.5b evaluation design](superpowers/specs/2026-09-20-execution-evaluation-design.md).
-Its design is approved and its [implementation plan](superpowers/plans/2026-09-20-execution-evaluation.md)
-awaits review; it remains unimplemented. The following describes delivered 15.5a behavior.
+The implemented evaluation layer follows the
+[15.5b design](superpowers/specs/2026-09-20-execution-evaluation-design.md).
+`evaluation_cases.py` supplies versioned synthetic inputs and system-behavior oracles.
+`execution_evaluation.py` runs the existing PersistentExecutor serially with explicit
+fixture-only tools, durable call reservations, an OS report lock and bounded atomic
+JSON exports. Markdown and manual quality reviews are separate projections.
+`execution_metrics.py` derives usage/counts from checkpointed attempts; pending crash
+attempts become unknown. `llm.py` exposes per-response usage without mutable last-call
+state; its original string API remains compatible. Verification duration accumulates
+separately from active execution time, even after retained report history rolls over.
+There is no personal tool/config lookup offline and no evaluation-suite resume or
+hard OS sandbox. A forcibly terminated suite can retain a running snapshot, which is
+not completion. Whole-goal quality still requires human/real-provider acceptance.
+The following describes delivered 15.5a behavior.
 
 Phase 15.5a accepts a bounded user-defined acceptance object at task creation,
 deep-copies it into SQLite before model execution, and includes it in prompts.

@@ -17,12 +17,46 @@ shared text/voice task sessions. See the
 The [shared task conversation design](docs/superpowers/specs/2026-09-14-shared-task-conversation-design.md)
 describes the delivered text/voice integration (15.4b), including its foreground
 and text-approval limits. Phase 15.5a now checks predeclared file conditions;
-whole-goal semantic verification and broader reliability evaluation remain future work.
+whole-goal semantic verification remains future work.
 
 The [Phase 15.5b evaluation design](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)
-has been approved: offline safety regression, opt-in live-model benchmarks,
-and transparent usage metrics. The [implementation plan](docs/superpowers/plans/2026-09-20-execution-evaluation.md)
-awaits review and execution-method selection. Its commands are not implemented yet.
+is implemented: isolated offline safety regression, opt-in live-model evaluation,
+durable usage metrics, JSON/Markdown reports and separate human reviews.
+Offline scripted checks are not evidence of real-model task quality.
+
+### Task Reliability Evaluation
+
+```bash
+nexus executor evaluate
+nexus executor evaluate --case project-1
+nexus executor evaluation-show <evaluation_id>
+nexus executor evaluation-review <evaluation_id> --case project-1 --verdict partial --note "Needs a clearer limitations summary"
+# Explicitly sends synthetic fixtures to your configured provider; may incur charges:
+nexus executor evaluate --mode live --max-calls 12 --model-tier simple
+```
+
+Install the optional `executor` dependency first. Offline mode runs 17 packaged
+synthetic cases without provider configuration or network access: nine source-reading
+cases and eight safety/failure scenarios. Live mode defaults to three development
+cases; variant `-3` cases are labeled holdout, not a private benchmark.
+No personal RAG, automations, shell, browser or arbitrary write tools are enabled.
+Each case has 8 model steps, 16 dispatches and 30 active seconds; the suite has a
+cooperative 300-second deadline. In-flight calls cannot be forcibly interrupted.
+
+Reports live under `NEXUS_HOME/evaluations/<evaluation_id>/report.json` and
+`report.md`, alongside local unencrypted case databases. JSON is authoritative;
+Markdown is a readable projection. Manual review notes are local user-authored text.
+Model completion, source/evidence behavior, fixture file checks and human quality
+judgments are separate. Zero eligible cases have a null rate, not a success rate.
+Exit 0 means the evaluation finished, not that every task passed; 1 means an
+incomplete/interrupted suite; 2 means invalid configuration.
+
+Live usage comes only from individual provider responses. Missing/partial usage,
+unsupported billing fields or absent pricing leave cost null. Optional `--pricing`
+accepts JSON with `model`, `currency`, `effective_date`, `input_per_million` and
+`output_per_million` (nonnegative decimal strings). Prices are user-supplied,
+model-specific estimates, never a provider invoice. Call quota is persisted before
+dispatch and unknown attempts are not refunded. This version does not resume suites.
 
 Nexus is being built as a dependable personal AI core that understands goals, selects tools, acts on real tasks, checks results, and maintains context over time. Current execution still uses registered intents and bounded specialist workflows.
 

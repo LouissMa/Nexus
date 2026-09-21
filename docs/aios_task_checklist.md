@@ -245,10 +245,11 @@ This is the immediate priority before more one-off desktop actions.
 - [x] 15.4b Shared text/voice task sessions, version-bound candidate selection, lazy lifecycle controls, safe speech and text-only tool approval. Fake-audio tests; live microphone acceptance remains manual.
 - [~] 15.5 Deterministic file checks delivered; whole-goal verification, unseen cross-domain tasks and reliability/cost evaluation remain.
 - [x] 15.5a Predeclared bounded file conditions, permissioned local checks, durable timestamped reports, no-model recheck and safe shared status.
-- [ ] 15.5b Broader outcome verification and unseen-task reliability/cost evaluation; do not infer success from file checks alone.
+- [x] 15.5b Isolated offline/live evaluation runner, 17 synthetic cases, bounded reports, durable usage/cost metrics and independent human review.
+- [ ] Broader semantic outcome verification and real-provider unseen-task acceptance; do not infer success from scripted or file checks.
 
 15.5b design drafted on 2026-09-20: `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`.
-Written spec approved; `docs/superpowers/plans/2026-09-20-execution-evaluation.md` awaits review and execution-method selection. No evaluation runner or new metrics implemented yet.
+Implementation now follows `docs/superpowers/plans/2026-09-20-execution-evaluation.md`. Live-provider acceptance remains separate and requires explicit spending authorization.
 
 Scope and acceptance criteria: `docs/current_capabilities_and_next_phase.md`.
 

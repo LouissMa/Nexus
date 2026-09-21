@@ -48,7 +48,15 @@ class LLMConfig:
         return bool(self.api_key)
 
 
+@dataclass(frozen=True)
+class GenerationResult:
+    text: str
+    usage: dict
+
+
 class OpenAICompatibleLLM:
+    supports_generation_result = True
+
     def __init__(self, config: LLMConfig):
         self.config = config
 
@@ -59,6 +67,11 @@ class OpenAICompatibleLLM:
         *,
         timeout_seconds: float | None = None,
     ) -> str:
+        return self.generate_result(system_prompt, user_prompt, timeout_seconds=timeout_seconds).text
+
+    def generate_result(self, system_prompt: str, user_prompt: str, *, timeout_seconds: float | None = None) -> GenerationResult:
+        from .execution_metrics import normalize_usage
+
         if not self.config.api_key:
             raise LLMError(
                 "LLM is not configured. Run `nexus config llm set ...` or set NEXUS_LLM_API_KEY/OPENAI_API_KEY."
@@ -106,4 +119,4 @@ class OpenAICompatibleLLM:
         except (KeyError, IndexError, TypeError) as error:
             raise LLMError(f"LLM response had an unexpected shape: {data}") from error
 
-        return str(content).strip()
+        return GenerationResult(str(content).strip(), normalize_usage(data.get("usage")))

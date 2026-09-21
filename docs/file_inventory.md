@@ -19,8 +19,14 @@ This file explains the role of important Nexus files. Update it whenever a signi
 
 ## Application Core
 
-- `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`: Approved Phase 15.5b design: metrics, offline/live separation, synthetic case isolation, usage/cost completeness, budgets and acceptance criteria. Planned modules/commands are not delivered features.
-- `docs/superpowers/plans/2026-09-20-execution-evaluation.md`: Six-task implementation sequence with exact proposed interfaces, regression examples, privacy/crash/budget review focus and release checks; awaits user plan review and execution-method selection.
+- `docs/superpowers/specs/2026-09-20-execution-evaluation-design.md`: Phase 15.5b contract for metrics, offline/live separation, synthetic isolation, usage/cost completeness and budgets.
+- `docs/superpowers/plans/2026-09-20-execution-evaluation.md`: Implementation sequence, execution ledger, deviations and release checks.
+- `src/nexus/execution_metrics.py`: Per-response usage normalization, explicit model-specific Decimal pricing, bounded attempt ledger, crash reconciliation and resource projections. Missing usage/cost stays unknown.
+- `src/nexus/evaluation_cases.py`: Packaged, versioned nine normal/eight fault cases, development/holdout labels, exclusive synthetic fixture creation and evidence-based behavior checks using the real executor.
+- `src/nexus/execution_evaluation.py`: Isolated serial runner, pre-call quota persistence, case summaries, report locks, bounded JSON/Markdown export and append-only human-review history. Does not load provider settings itself.
+- `tests/test_execution_metrics.py` and `tests/test_llm_usage.py`: Usage, pricing, recovery, unchanged evidence numbering, provider-response isolation and quota tests.
+- `tests/test_execution_evaluation.py` and `tests/test_evaluation_cli.py`: Synthetic case execution, offline/network isolation, report safety, explicit live budget, command exits and no personal-config access.
+- Evaluation integration: `llm.py` retains `generate()` and adds `generate_result()`; `execution_runtime.py` checkpoints model/tool attempts; `execution_store.py` recovers pending metrics and accumulates verification time; `cli.py` exposes evaluate, evaluation-show and evaluation-review before normal personal-tool initialization.
 
 - `src/nexus/execution_verification.py`: Validates/copies predeclared acceptance contracts; deterministic exists/nonempty/text/JSON-field checks through filesystem.read; bounded reports without file contents and explicit partial/unverifiable outcomes.
 - `tests/test_execution_verification.py`: Real temporary file checks, permissions, limits, mutation isolation, restart/recheck/history, CLI exits, no-model verification and safe text/voice projections.

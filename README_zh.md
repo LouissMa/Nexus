@@ -17,13 +17,40 @@ Nexus 的目标是成为一个可靠的个人 AI 核心，理解目标、选择�
 下一优先阶段是 **Phase 15：通用任务执行核心**，依次建立工具契约与开源选型、
 动态执行循环、任务持久化与审批恢复、共享上下文和成果验证。整个执行体系
 尚未完整完成。15.1 已有工具契约，15.2 已增加 LangGraph 前台动态决策/执行循环；
-15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文，15.4b 已接入文字/语音共享任务会话；15.5a 已增加预先声明的文件验收检查，完整目标语义验证和跨任务评估仍待实现。
+15.3 已增加本地持久任务与审批恢复，15.4a 已接入显式选择的目标/RAG/研究上下文，15.4b 已接入文字/语音共享任务会话；15.5a 已增加预先声明的文件验收检查，15.5b 已增加隔离的任务可靠性评估。完整目标语义验证仍待实现。
 详见[开发路线图](docs/roadmap.md)及
 [当前能力、阶段里程碑与验收标准](docs/current_capabilities_and_next_phase.md)。
 
-[15.5b 任务可靠性评估设计](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)已确认，
-[实施计划](docs/superpowers/plans/2026-09-20-execution-evaluation.md)待审阅并选择执行方式。
-范围包括离线安全回归、显式启用的真实模型评估与透明用量指标；文中的新命令尚未实现。
+[15.5b 任务可靠性评估](docs/superpowers/specs/2026-09-20-execution-evaluation-design.md)已实现：
+离线安全回归、显式开启的真实模型评估、持久用量指标、JSON/Markdown 报告和独立人工评价。
+脚本模型通过离线检查，不代表真实模型具有相同任务质量。
+
+### 任务可靠性评估
+
+```bash
+nexus executor evaluate
+nexus executor evaluate --case project-1
+nexus executor evaluation-show <evaluation_id>
+nexus executor evaluation-review <evaluation_id> --case project-1 --verdict partial --note "需要更清晰地总结限制"
+# 显式向已配置的模型发送合成材料，可能产生费用：
+nexus executor evaluate --mode live --max-calls 12 --model-tier simple
+```
+
+需要先安装可选的 `executor` 依赖。默认离线运行 17 个合成案例：9 个材料读取案例、
+8 个安全/故障场景，不读取 Provider 配置、不访问网络。Live 默认选择 3 个开发案例；
+`-3` 变体标记为 holdout，但不是保密基准。不接入个人 RAG、自动化、Shell、浏览器或任意写入工具。
+每案例最多 8 个模型步骤、16 次工具调度、30 秒活动时间；整套评估有 300 秒协作式期限，
+不能强行中断已经发出的调用。
+
+结果保存在 `NEXUS_HOME/evaluations/<evaluation_id>/report.json` 和 `report.md`，
+同目录保留本地未加密的案例数据库。JSON 是权威记录，Markdown 是可读投影，人工备注为本地用户文本。
+模型完成声明、读取与引用行为、合成文件条件、人工质量评价分别记录，零分母返回 null。
+退出码 0 只代表评估结束，不代表所有任务成功；1 表示未完整运行或中断；2 表示配置错误。
+
+用量只来自对应调用的 Provider 响应。缺失/部分用量、不支持的计费字段或未提供价格时，费用为 null。
+可选 `--pricing` 接受包含 `model`、`currency`、`effective_date`、`input_per_million`、
+`output_per_million` 的 JSON，单价必须是非负十进制字符串。价格由用户提供且必须匹配模型，
+只是估算，不是账单。调用配额先持久化再发请求，结果未知不退还配额；当前不支持恢复整套评估。
 
 ## 当前功能
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import threading
 from datetime import date, datetime, time
 from pathlib import Path
@@ -91,6 +92,19 @@ def build_parser() -> argparse.ArgumentParser:
     executor_commands = executor_parser.add_subparsers(dest="executor_command", required=True)
     executor_commands.add_parser("tools")
     executor_commands.add_parser("runs")
+    evaluate = executor_commands.add_parser("evaluate", help="Evaluate isolated synthetic tasks; offline by default.")
+    evaluate.add_argument("--mode", choices=["offline", "live"], default="offline")
+    evaluate.add_argument("--case", action="append", dest="case_ids")
+    evaluate.add_argument("--max-calls", type=int)
+    evaluate.add_argument("--model-tier", choices=["simple", "complex"])
+    evaluate.add_argument("--pricing", help="Explicit model/currency/effective_date and per-million decimal prices as JSON.")
+    evaluation_show = executor_commands.add_parser("evaluation-show")
+    evaluation_show.add_argument("evaluation_id")
+    evaluation_review = executor_commands.add_parser("evaluation-review")
+    evaluation_review.add_argument("evaluation_id")
+    evaluation_review.add_argument("--case", dest="case_id", required=True)
+    evaluation_review.add_argument("--verdict", choices=["passed", "partial", "failed"], required=True)
+    evaluation_review.add_argument("--note", required=True)
     executor_resolve = executor_commands.add_parser("resolve")
     executor_resolve.add_argument("run_id")
     executor_resolve.add_argument("--outcome", required=True, choices=["completed", "not-executed"])
@@ -1324,6 +1338,43 @@ def _dispatch_executor(args: argparse.Namespace) -> bool:
         from nexus.execution_context import ExecutionContextError
 
         try:
+            if args.executor_command in {"evaluate", "evaluation-show", "evaluation-review"}:
+                from nexus.config import nexus_home
+                from nexus.execution_evaluation import EvaluationRunner, EvaluationStore
+                from nexus.evaluation_cases import select_cases
+                from nexus.execution_metrics import validate_pricing
+
+                if args.executor_command == "evaluation-show":
+                    print_json(EvaluationStore(nexus_home()).read(args.evaluation_id))
+                elif args.executor_command == "evaluation-review":
+                    print_json(EvaluationStore(nexus_home()).review(args.evaluation_id, case_id=args.case_id,
+                        verdict=args.verdict, note=args.note))
+                else:
+                    select_cases(args.mode, args.case_ids)
+                    if args.pricing is not None and len(args.pricing.encode("utf-8")) > 4096:
+                        raise ValueError("Pricing exceeds 4 KiB.")
+                    pricing = validate_pricing(parse_json_object(args.pricing)) if args.pricing is not None else None
+                    options = {}
+                    if args.mode == "offline":
+                        if any(value is not None for value in (args.max_calls, args.model_tier, args.pricing)):
+                            raise ValueError("Offline evaluations reject live provider options.")
+                    else:
+                        if args.max_calls is None or not 1 <= args.max_calls <= 100:
+                            raise ValueError("Live evaluations require --max-calls between 1 and 100.")
+                        config = LLMConfig.from_env(model_tier=args.model_tier)
+                        if not config.is_configured:
+                            raise ValueError("Configure an LLM before live evaluation.")
+                        if pricing is not None and pricing["model"] != config.model:
+                            raise ValueError("Pricing must match the selected model.")
+                        options = {"model_factory": lambda: OpenAICompatibleLLM(config),
+                            "model_identity": {"provider": config.provider, "model": config.model, "tier": config.model_tier}}
+                        print("Live evaluation sends synthetic fixtures to the configured provider and may incur charges.", file=sys.stderr)
+                    result = EvaluationRunner(nexus_home(), **options).run(mode=args.mode, case_ids=args.case_ids,
+                        max_calls=args.max_calls, pricing=pricing)
+                    print_json(result)
+                    if result["status"] != "complete":
+                        raise SystemExit(1)
+                return True
             context_options = None
             acceptance = None
             if args.executor_command == "run":
